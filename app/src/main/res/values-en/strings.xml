@@ -2,13 +2,14 @@
     <string name="app_name">Local Signage</string>
     <string name="service_running">Local signage service is running</string>
     <string name="service_channel">Signage service</string>
-    <string name="playing_status">%1$s · Playing · Volume %2$d%%</string>
-    <string name="paused_status">%1$s · Paused · Volume %2$d%%</string>
+    <string name="playing_status">Playing</string>
+    <string name="paused_status">Paused</string>
     <string name="mute">Mute</string>
     <string name="unmute">Unmute</string>
     <string name="previous">Previous</string>
     <string name="play">Play</string>
     <string name="pause">Pause</string>
+    <string name="resume">Resume</string>
     <string name="next">Next</string>
     <string name="control_address">Control address</string>
     <string name="control_hint">Open http://device-ip:8080 in a browser to control playback</string>

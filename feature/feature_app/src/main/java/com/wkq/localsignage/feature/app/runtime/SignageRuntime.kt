@@ -6,33 +6,25 @@ import java.io.InputStream
 import com.wkq.localsignage.feature.app.model.PlaybackListener
 import com.wkq.localsignage.feature.app.model.SignageResource
 import com.wkq.localsignage.feature.app.model.SignageState
-import com.wkq.localsignage.feature.app.server.LocalSignageServer
 import com.wkq.localsignage.feature.app.storage.SignageStore
 
 object SignageRuntime {
     const val SERVER_PORT = 8080
 
     private var store: SignageStore? = null
-    private var server: LocalSignageServer? = null
     private var listener: PlaybackListener? = null
 
     @Synchronized
     fun initialize(context: Context) {
         if (store == null) store = SignageStore(context.applicationContext)
-        if (server == null) {
-            server = LocalSignageServer(SERVER_PORT, this)
-        }
     }
 
     fun startServer(context: Context) {
         initialize(context)
-        server?.start()
         notifyState()
     }
 
-    fun stopServer() {
-        server?.stop()
-    }
+    fun stopServer() = Unit
 
     fun register(listener: PlaybackListener) {
         this.listener = listener
@@ -63,6 +55,16 @@ object SignageRuntime {
         val deleted = requireStore().deleteResource(id)
         notifyState()
         return deleted
+    }
+
+    fun selectResource(id: String) {
+        requireStore().setCurrentResource(id)
+        notifyState()
+    }
+
+    fun setPlaying(value: Boolean) {
+        requireStore().setPlaying(value)
+        notifyState()
     }
 
     fun command(action: String, resourceId: String? = null, value: Int? = null): SignageState {

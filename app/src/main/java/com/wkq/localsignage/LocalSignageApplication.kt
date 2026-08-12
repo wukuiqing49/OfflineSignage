@@ -3,6 +3,7 @@ package com.wkq.localsignage
 import android.app.Application
 import com.wkq.util.CoreUtils
 import com.wkq.util.CoreUtilsConfig
+import com.wkq.localsignage.feature.app.runtime.SignageRuntime
 
 class LocalSignageApplication : Application() {
 
@@ -16,5 +17,6 @@ class LocalSignageApplication : Application() {
                 logCaptureCrash = false
             )
         )
+        SignageRuntime.initialize(this)
     }
 }

@@ -3,6 +3,7 @@ package com.wkq.localsignage.feature.app.runtime
 import android.content.Context
 import android.net.Uri
 import com.wkq.localsignage.feature.app.model.PlaybackListener
+import com.wkq.localsignage.feature.app.model.ControlSession
 import com.wkq.localsignage.feature.app.model.SignagePlaylist
 import com.wkq.localsignage.feature.app.model.SignageResource
 import com.wkq.localsignage.feature.app.model.SignageScene
@@ -37,6 +38,12 @@ object SignageRuntime {
     fun playlists(): List<SignagePlaylist> = requireStore().playlists()
     fun playlist(id: String?): SignagePlaylist? = requireStore().playlist(id)
     fun controlToken(): String = requireStore().controlToken()
+    fun controlSession(): ControlSession? = requireStore().controlSession()
+    fun acquireControlSession(clientName: String, takeover: Boolean = false): ControlSession? = requireStore().acquireControlSession(clientName, takeover)
+    fun heartbeatControlSession(sessionId: String): ControlSession? = requireStore().heartbeatControlSession(sessionId)
+    fun releaseControlSession(sessionId: String): Boolean = requireStore().releaseControlSession(sessionId)
+    fun hasControlSession(sessionId: String): Boolean = requireStore().hasControlSession(sessionId)
+    fun acceptCommandRevision(revision: Long?): Boolean = requireStore().acceptCommandRevision(revision)
 
     fun importResource(context: Context, uri: Uri, name: String, mimeType: String): SignageResource =
         requireStore().importUri(uri, name, mimeType).also { notifyState() }

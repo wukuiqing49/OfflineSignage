@@ -94,10 +94,11 @@ object SignagePlaybackController {
 
     fun togglePause() = applyCommand("TOGGLE")
 
-    fun applyCommand(action: String, resourceId: String? = null, sceneId: String? = null, playlistId: String? = null, value: Int? = null): Boolean {
+    fun applyCommand(action: String, resourceId: String? = null, sceneId: String? = null, playlistId: String? = null, value: Int? = null, revision: Long? = null): Boolean {
         val normalized = action.uppercase()
         if (normalized !in SUPPORTED_ACTIONS) return false
-        runOnMainAndWait {
+        if (!SignageRuntime.acceptCommandRevision(revision)) return false
+        return runOnMainAndWait {
             when (normalized) {
                 "PLAY", "RESUME" -> {
                     resourceId?.let(SignageRuntime::selectResource)
@@ -140,7 +141,6 @@ object SignagePlaybackController {
             SignageRuntime.setError(null)
             publish()
         }
-        return true
     }
 
     private fun loadPlaylist(restorePosition: Boolean, forceReload: Boolean = false) {
@@ -253,12 +253,22 @@ object SignagePlaybackController {
         ))
     }
 
-    private fun runOnMainAndWait(block: () -> Unit) {
-        if (Looper.myLooper() == Looper.getMainLooper()) block() else {
-            val latch = CountDownLatch(1)
-            mainHandler.post { try { block() } finally { latch.countDown() } }
-            latch.await(COMMAND_TIMEOUT_MS, TimeUnit.MILLISECONDS)
+    private fun runOnMainAndWait(block: () -> Unit): Boolean {
+        if (Looper.myLooper() == Looper.getMainLooper()) return runCatching { block() }.isSuccess
+        var succeeded = false
+        val latch = CountDownLatch(1)
+        mainHandler.post {
+            try {
+                block()
+                succeeded = true
+            } catch (error: Throwable) {
+                SignageRuntime.setError("COMMAND_FAILED")
+            } finally {
+                latch.countDown()
+            }
         }
+        if (!latch.await(COMMAND_TIMEOUT_MS, TimeUnit.MILLISECONDS)) return false
+        return succeeded
     }
 
     private fun requirePlayer(): ExoPlayer = checkNotNull(player) { "SignagePlaybackController is not initialized" }

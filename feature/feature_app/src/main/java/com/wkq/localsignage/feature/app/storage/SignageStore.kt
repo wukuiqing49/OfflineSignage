@@ -1,306 +1,452 @@
 package com.wkq.localsignage.feature.app.storage
 
+import android.content.ContentValues
 import android.content.Context
+import android.database.sqlite.SQLiteDatabase
+import android.database.sqlite.SQLiteOpenHelper
 import android.net.Uri
-import com.wkq.localsignage.feature.app.model.SignageResource
-import com.wkq.localsignage.feature.app.model.SignageScene
 import com.wkq.localsignage.feature.app.model.SignagePlaylist
 import com.wkq.localsignage.feature.app.model.SignagePlaylistItem
+import com.wkq.localsignage.feature.app.model.SignageResource
+import com.wkq.localsignage.feature.app.model.SignageScene
 import com.wkq.localsignage.feature.app.model.SignageState
+import com.wkq.localsignage.feature.app.model.ControlSession
 import org.json.JSONArray
-import org.json.JSONObject
 import java.io.File
 import java.io.InputStream
+import java.nio.file.Files
+import java.nio.file.StandardCopyOption
 import java.security.MessageDigest
 import java.util.UUID
 
+/** Transactional local store for durable signage state and content metadata. */
 class SignageStore(context: Context) {
     private val appContext = context.applicationContext
-    private val preferences = appContext.getSharedPreferences("local_signage", Context.MODE_PRIVATE)
+    private val database = SignageDatabase(appContext)
+    private val lock = Any()
     private val resourceDirectory = File(appContext.filesDir, "shared/resources").apply { mkdirs() }
+    private val resourceRoot = resourceDirectory.canonicalFile
 
-    fun ensureDefaultContent() {
-        val allResources = resources()
-        val existingScenes = scenes().toMutableList()
-        val existingSceneResourceIds = existingScenes.mapTo(mutableSetOf()) { it.resourceId }
-        allResources.filterNot { it.id in existingSceneResourceIds }.forEach { resource ->
-            existingScenes += SignageScene(
-                id = UUID.randomUUID().toString(),
-                name = resource.name,
-                resourceId = resource.id
-            )
-        }
-        writeScenes(existingScenes)
-        val currentPlaylist = playlists().firstOrNull()
-        val validSceneIds = existingScenes.mapTo(mutableSetOf()) { it.id }
-        val items = existingScenes
-            .filter { it.id in validSceneIds }
-            .map { SignagePlaylistItem(it.id) }
-        if (currentPlaylist == null) {
-            val playlist = SignagePlaylist(UUID.randomUUID().toString(), "Default", items)
-            writePlaylists(listOf(playlist))
-            setCurrentPlaylistId(playlist.id)
-        } else {
-            val validItems = currentPlaylist.items.filter { it.sceneId in validSceneIds }
-            if (validItems != currentPlaylist.items) {
-                writePlaylists(playlists().map { if (it.id == currentPlaylist.id) it.copy(items = validItems) else it })
+    init {
+        migrateLegacyPreferences()
+    }
+
+    fun ensureDefaultContent() = synchronized(lock) {
+        database.writableDatabase.inTransaction {
+            val scenes = readScenes(this).toMutableList()
+            val sceneResources = scenes.mapTo(mutableSetOf()) { it.resourceId }
+            readResources(this).filterNot { it.id in sceneResources }.forEach { resource ->
+                insertScene(this, SignageScene(UUID.randomUUID().toString(), resource.name, resource.id))
             }
-            if (currentPlaylist.id != currentPlaylistId()) setCurrentPlaylistId(currentPlaylist.id)
+            val refreshedScenes = readScenes(this)
+            val playlists = readPlaylists(this)
+            val currentPlaylist = playlists.firstOrNull { it.id == getMeta(this, KEY_CURRENT_PLAYLIST) }
+                ?: playlists.firstOrNull()
+            if (currentPlaylist == null) {
+                val playlist = SignagePlaylist(
+                    UUID.randomUUID().toString(),
+                    "Default",
+                    refreshedScenes.map { SignagePlaylistItem(it.id) }
+                )
+                insertPlaylist(this, playlist)
+                setMeta(this, KEY_CURRENT_PLAYLIST, playlist.id)
+            } else {
+                val validIds = refreshedScenes.mapTo(mutableSetOf()) { it.id }
+                val validItems = currentPlaylist.items.filter { it.sceneId in validIds }
+                if (validItems != currentPlaylist.items) {
+                    replacePlaylist(this, currentPlaylist.copy(items = validItems))
+                }
+                if (getMeta(this, KEY_CURRENT_PLAYLIST) != currentPlaylist.id) {
+                    setMeta(this, KEY_CURRENT_PLAYLIST, currentPlaylist.id)
+                }
+            }
+            if (getMeta(this, KEY_CURRENT_SCENE) == null) {
+                refreshedScenes.firstOrNull()?.id?.let { setMeta(this, KEY_CURRENT_SCENE, it) }
+            }
         }
-        if (currentSceneId() == null) setCurrentSceneId(existingScenes.firstOrNull()?.id)
     }
 
-    fun deviceId(): String {
-        val existing = preferences.getString(KEY_DEVICE_ID, null)
-        if (existing != null) return existing
-        val value = UUID.randomUUID().toString()
-        preferences.edit().putString(KEY_DEVICE_ID, value).apply()
-        return value
+    fun deviceId(): String = synchronized(lock) {
+        getMeta(database.readableDatabase, KEY_DEVICE_ID) ?: UUID.randomUUID().toString().also {
+            setMeta(database.writableDatabase, KEY_DEVICE_ID, it)
+        }
     }
 
-    fun deviceName(): String = preferences.getString(KEY_DEVICE_NAME, null)
-        ?: "Local Signage"
+    fun deviceName(): String = synchronized(lock) { getMeta(database.readableDatabase, KEY_DEVICE_NAME) ?: "Local Signage" }
 
-    fun controlToken(): String {
-        val existing = preferences.getString(KEY_CONTROL_TOKEN, null)
-        if (existing != null) return existing
-        val value = UUID.randomUUID().toString().replace("-", "")
-        preferences.edit().putString(KEY_CONTROL_TOKEN, value).apply()
-        return value
+    fun controlToken(): String = synchronized(lock) {
+        getMeta(database.readableDatabase, KEY_CONTROL_TOKEN) ?: UUID.randomUUID().toString().replace("-", "").also {
+            setMeta(database.writableDatabase, KEY_CONTROL_TOKEN, it)
+        }
     }
 
-    fun resources(): List<SignageResource> = readResources()
-
-    fun resource(id: String?): SignageResource? = readResources().firstOrNull { it.id == id }
-
-    fun fileFor(resource: SignageResource): File = File(resource.path)
-
-    fun scenes(): List<SignageScene> = readScenes()
-    fun scene(id: String?): SignageScene? = scenes().firstOrNull { it.id == id }
-    fun playlists(): List<SignagePlaylist> = readPlaylists()
-    fun playlist(id: String?): SignagePlaylist? = playlists().firstOrNull { it.id == id }
-    fun currentSceneId(): String? = preferences.getString(KEY_CURRENT_SCENE, null)
-    fun currentPlaylistId(): String? = preferences.getString(KEY_CURRENT_PLAYLIST, null)
-    fun setCurrentSceneId(id: String?) = preferences.edit().putString(KEY_CURRENT_SCENE, id).apply()
-    fun setCurrentPlaylistId(id: String?) = preferences.edit().putString(KEY_CURRENT_PLAYLIST, id).apply()
-
-    fun saveScene(scene: SignageScene): SignageScene {
-        require(resource(scene.resourceId) != null) { "Resource does not exist" }
-        writeScenes(scenes().filterNot { it.id == scene.id } + scene)
-        return scene
+    fun controlSession(): ControlSession? = synchronized(lock) {
+        val db = database.readableDatabase
+        val sessionId = getMeta(db, KEY_SESSION_ID) ?: return@synchronized null
+        val expiresAt = getMeta(db, KEY_SESSION_EXPIRES)?.toLongOrNull() ?: return@synchronized null
+        if (expiresAt <= System.currentTimeMillis()) {
+            clearSession(db)
+            return@synchronized null
+        }
+        ControlSession(sessionId, getMeta(db, KEY_SESSION_CLIENT) ?: "Unknown", expiresAt)
     }
 
-    fun deleteScene(id: String): Boolean {
-        if (scene(id) == null) return false
-        writeScenes(scenes().filterNot { it.id == id })
-        writePlaylists(playlists().map { playlist -> playlist.copy(items = playlist.items.filterNot { it.sceneId == id }) })
-        if (currentSceneId() == id) setCurrentSceneId(scenes().firstOrNull()?.id)
-        return true
+    fun acquireControlSession(clientName: String, takeover: Boolean): ControlSession? = synchronized(lock) {
+        database.writableDatabase.inTransaction {
+            val existing = controlSessionLocked(this)
+            if (existing != null && !takeover) return@inTransaction null
+            val session = ControlSession(
+                UUID.randomUUID().toString(),
+                clientName.trim().take(MAX_CLIENT_NAME_LENGTH).ifBlank { "Browser" },
+                System.currentTimeMillis() + CONTROL_SESSION_TTL_MS
+            )
+            setMeta(this, KEY_SESSION_ID, session.sessionId)
+            setMeta(this, KEY_SESSION_CLIENT, session.clientName)
+            setMeta(this, KEY_SESSION_EXPIRES, session.expiresAt.toString())
+            session
+        }
     }
 
-    fun savePlaylist(playlist: SignagePlaylist): SignagePlaylist {
-        require(playlist.items.all { scene(it.sceneId) != null }) { "Playlist contains an unknown scene" }
-        writePlaylists(playlists().filterNot { it.id == playlist.id } + playlist)
-        if (currentPlaylistId() == null) setCurrentPlaylistId(playlist.id)
-        return playlist
+    fun heartbeatControlSession(sessionId: String): ControlSession? = synchronized(lock) {
+        database.writableDatabase.inTransaction {
+            val current = controlSessionLocked(this) ?: return@inTransaction null
+            if (current.sessionId != sessionId) return@inTransaction null
+            val refreshed = current.copy(expiresAt = System.currentTimeMillis() + CONTROL_SESSION_TTL_MS)
+            setMeta(this, KEY_SESSION_EXPIRES, refreshed.expiresAt.toString())
+            refreshed
+        }
     }
 
-    fun deletePlaylist(id: String): Boolean {
-        if (playlist(id) == null) return false
-        val remaining = playlists().filterNot { it.id == id }
-        writePlaylists(remaining)
-        if (currentPlaylistId() == id) setCurrentPlaylistId(remaining.firstOrNull()?.id)
-        return true
+    fun releaseControlSession(sessionId: String): Boolean = synchronized(lock) {
+        database.writableDatabase.inTransaction {
+            val current = controlSessionLocked(this) ?: return@inTransaction false
+            if (current.sessionId != sessionId) return@inTransaction false
+            clearSession(this)
+            true
+        }
     }
 
-    fun importUri(uri: Uri, name: String, mimeType: String): SignageResource {
-        return appContext.contentResolver.openInputStream(uri).use { input ->
+    fun hasControlSession(sessionId: String): Boolean = synchronized(lock) {
+        database.writableDatabase.inTransaction {
+            val current = controlSessionLocked(this) ?: return@inTransaction false
+            current.sessionId == sessionId
+        }
+    }
+
+    fun acceptCommandRevision(revision: Long?): Boolean = synchronized(lock) {
+        if (revision == null) return@synchronized true
+        database.writableDatabase.inTransaction {
+            val current = getMeta(this, KEY_COMMAND_REVISION)?.toLongOrNull() ?: 0L
+            if (revision <= current) return@inTransaction false
+            setMeta(this, KEY_COMMAND_REVISION, revision.toString())
+            true
+        }
+    }
+
+    fun resources(): List<SignageResource> = synchronized(lock) { readResources(database.readableDatabase) }
+    fun resource(id: String?): SignageResource? = synchronized(lock) { readResources(database.readableDatabase).firstOrNull { it.id == id } }
+
+    fun fileFor(resource: SignageResource): File {
+        val file = File(resource.path).canonicalFile
+        require(file.path == resourceRoot.path || file.path.startsWith(resourceRoot.path + File.separator)) {
+            "Resource path is outside the managed directory"
+        }
+        return file
+    }
+
+    fun scenes(): List<SignageScene> = synchronized(lock) { readScenes(database.readableDatabase) }
+    fun scene(id: String?): SignageScene? = synchronized(lock) { readScenes(database.readableDatabase).firstOrNull { it.id == id } }
+    fun playlists(): List<SignagePlaylist> = synchronized(lock) { readPlaylists(database.readableDatabase) }
+    fun playlist(id: String?): SignagePlaylist? = synchronized(lock) { readPlaylists(database.readableDatabase).firstOrNull { it.id == id } }
+
+    fun currentSceneId(): String? = synchronized(lock) { getMeta(database.readableDatabase, KEY_CURRENT_SCENE) }
+    fun currentPlaylistId(): String? = synchronized(lock) { getMeta(database.readableDatabase, KEY_CURRENT_PLAYLIST) }
+    fun setCurrentSceneId(id: String?) = synchronized(lock) { setMeta(database.writableDatabase, KEY_CURRENT_SCENE, id) }
+    fun setCurrentPlaylistId(id: String?) = synchronized(lock) { setMeta(database.writableDatabase, KEY_CURRENT_PLAYLIST, id) }
+
+    fun saveScene(scene: SignageScene): SignageScene = synchronized(lock) {
+        database.writableDatabase.inTransaction {
+            require(resourceExists(this, scene.resourceId)) { "Resource does not exist" }
+            insertScene(this, scene)
+        }
+        scene
+    }
+
+    fun deleteScene(id: String): Boolean = synchronized(lock) {
+        database.writableDatabase.inTransaction {
+            if (!sceneExists(this, id)) return@inTransaction false
+            delete(this, "playlist_items", "scene_id = ?", arrayOf(id))
+            delete(this, "scenes", "id = ?", arrayOf(id))
+            if (getMeta(this, KEY_CURRENT_SCENE) == id) {
+                readScenes(this).firstOrNull()?.id?.let { setMeta(this, KEY_CURRENT_SCENE, it) }
+                    ?: setMeta(this, KEY_CURRENT_SCENE, null)
+            }
+            true
+        }
+    }
+
+    fun savePlaylist(playlist: SignagePlaylist): SignagePlaylist = synchronized(lock) {
+        database.writableDatabase.inTransaction {
+            require(playlist.items.all { sceneExists(this, it.sceneId) }) { "Playlist contains an unknown scene" }
+            replacePlaylist(this, playlist)
+            if (getMeta(this, KEY_CURRENT_PLAYLIST) == null) setMeta(this, KEY_CURRENT_PLAYLIST, playlist.id)
+        }
+        playlist
+    }
+
+    fun deletePlaylist(id: String): Boolean = synchronized(lock) {
+        database.writableDatabase.inTransaction {
+            if (!playlistExists(this, id)) return@inTransaction false
+            delete(this, "playlists", "id = ?", arrayOf(id))
+            if (getMeta(this, KEY_CURRENT_PLAYLIST) == id) {
+                readPlaylists(this).firstOrNull()?.id?.let { setMeta(this, KEY_CURRENT_PLAYLIST, it) }
+                    ?: setMeta(this, KEY_CURRENT_PLAYLIST, null)
+            }
+            true
+        }
+    }
+
+    fun importUri(uri: Uri, name: String, mimeType: String): SignageResource =
+        appContext.contentResolver.openInputStream(uri).use { input ->
             requireNotNull(input) { "Unable to open selected file" }
             saveUpload(name, mimeType, input)
         }
-    }
 
-    fun saveUpload(name: String, mimeType: String, input: InputStream): SignageResource {
-        require(mimeType == "image/*" || mimeType == "video/*" || mimeType.startsWith("image/") || mimeType.startsWith("video/")) {
+    fun saveUpload(name: String, mimeType: String, input: InputStream): SignageResource = synchronized(lock) {
+        require(mimeType.startsWith("image/") || mimeType.startsWith("video/")) {
             "Only image and video resources are supported"
         }
         val id = UUID.randomUUID().toString()
         val safeName = name.replace(Regex("[^A-Za-z0-9._-]"), "_").ifBlank { "resource" }
-        val target = File(resourceDirectory, "${id}_$safeName")
-        val digest = MessageDigest.getInstance("SHA-256")
-        var size = 0L
-        target.outputStream().buffered().use { output ->
-            val buffer = ByteArray(DEFAULT_BUFFER_SIZE)
-            while (true) {
-                val count = input.read(buffer)
-                if (count <= 0) break
-                size += count
-                require(size <= MAX_RESOURCE_BYTES) { "Resource is too large" }
-                digest.update(buffer, 0, count)
-                output.write(buffer, 0, count)
+        val temporary = File(resourceDirectory, ".upload-$id.tmp")
+        var committedFile: File? = null
+        try {
+            val digest = MessageDigest.getInstance("SHA-256")
+            var size = 0L
+            temporary.outputStream().buffered().use { output ->
+                val buffer = ByteArray(DEFAULT_BUFFER_SIZE)
+                while (true) {
+                    val count = input.read(buffer)
+                    if (count < 0) break
+                    if (count == 0) continue
+                    size += count
+                    require(size <= MAX_RESOURCE_BYTES) { "Resource is too large" }
+                    digest.update(buffer, 0, count)
+                    output.write(buffer, 0, count)
+                }
             }
+            val hash = digest.digest().joinToString("") { "%02x".format(it) }
+            database.writableDatabase.inTransaction {
+                require(totalResourceBytes(this) - 0L + size <= MAX_TOTAL_RESOURCE_BYTES) {
+                    "Resource storage quota exceeded"
+                }
+                val duplicate = readResources(this).firstOrNull { it.hash == hash }
+                if (duplicate != null) return@inTransaction duplicate
+                val resource = SignageResource(id, safeName, normalizeMimeType(mimeType), File(resourceDirectory, "${id}_$safeName").absolutePath, hash, size, System.currentTimeMillis())
+                try {
+                    Files.move(temporary.toPath(), File(resource.path).toPath(), StandardCopyOption.ATOMIC_MOVE)
+                } catch (_: java.nio.file.AtomicMoveNotSupportedException) {
+                    Files.move(temporary.toPath(), File(resource.path).toPath(), StandardCopyOption.REPLACE_EXISTING)
+                }
+                committedFile = File(resource.path)
+                insertResource(this, resource)
+                val scene = SignageScene(UUID.randomUUID().toString(), resource.name, resource.id)
+                insertScene(this, scene)
+                readPlaylists(this).firstOrNull()?.let { playlist ->
+                    replacePlaylist(this, playlist.copy(items = playlist.items + SignagePlaylistItem(scene.id)))
+                }
+                if (getMeta(this, KEY_CURRENT_RESOURCE) == null) setMeta(this, KEY_CURRENT_RESOURCE, resource.id)
+                if (getMeta(this, KEY_CURRENT_SCENE) == null) setMeta(this, KEY_CURRENT_SCENE, scene.id)
+                resource
+            }
+        } catch (error: Exception) {
+            temporary.delete()
+            committedFile?.delete()
+            throw error
+        } finally {
+            temporary.delete()
         }
-        val resource = SignageResource(
-            id = id,
-            name = safeName,
-            mimeType = normalizeMimeType(mimeType),
-            path = target.absolutePath,
-            hash = digest.digest().joinToString("") { "%02x".format(it) },
-            sizeBytes = size,
-            createdAt = System.currentTimeMillis()
+    }
+
+    fun deleteResource(id: String): Boolean = synchronized(lock) {
+        val resource = resource(id) ?: return@synchronized false
+        val deleted = database.writableDatabase.inTransaction {
+            readScenes(this).filter { it.resourceId == id }.forEach { scene ->
+                delete(this, "playlist_items", "scene_id = ?", arrayOf(scene.id))
+                if (getMeta(this, KEY_CURRENT_SCENE) == scene.id) setMeta(this, KEY_CURRENT_SCENE, null)
+                delete(this, "scenes", "id = ?", arrayOf(scene.id))
+            }
+            delete(this, "resources", "id = ?", arrayOf(id))
+            if (getMeta(this, KEY_CURRENT_RESOURCE) == id) {
+                readResources(this).firstOrNull()?.id?.let { setMeta(this, KEY_CURRENT_RESOURCE, it) }
+                    ?: setMeta(this, KEY_CURRENT_RESOURCE, null)
+            }
+            if (getMeta(this, KEY_CURRENT_SCENE) == null) {
+                readScenes(this).firstOrNull()?.id?.let { setMeta(this, KEY_CURRENT_SCENE, it) }
+            }
+            true
+        }
+        if (deleted) fileFor(resource).delete()
+        deleted
+    }
+
+    fun currentResourceId(): String? = synchronized(lock) { getMeta(database.readableDatabase, KEY_CURRENT_RESOURCE) }
+    fun setCurrentResource(id: String?) = synchronized(lock) { setMeta(database.writableDatabase, KEY_CURRENT_RESOURCE, id) }
+
+    fun state(port: Int): SignageState = synchronized(lock) {
+        SignageState(
+            deviceId(), deviceName(), getMeta(database.readableDatabase, KEY_CURRENT_RESOURCE),
+            getMeta(database.readableDatabase, KEY_CURRENT_SCENE), getMeta(database.readableDatabase, KEY_CURRENT_PLAYLIST),
+            getMeta(database.readableDatabase, KEY_PLAYING)?.toBoolean() ?: false,
+            getMeta(database.readableDatabase, KEY_VOLUME)?.toIntOrNull() ?: 80,
+            getMeta(database.readableDatabase, KEY_MUTED)?.toBoolean() ?: false,
+            getMeta(database.readableDatabase, KEY_POSITION)?.toLongOrNull() ?: 0L,
+            getMeta(database.readableDatabase, KEY_ERROR), port,
+            getMeta(database.readableDatabase, KEY_COMMAND_REVISION)?.toLongOrNull() ?: 0L
         )
-        val duplicate = readResources().firstOrNull { it.hash == resource.hash }
-        if (duplicate != null) {
-            target.delete()
-            return duplicate
-        }
-        val updated = readResources() + resource
-        writeResources(updated)
-        saveScene(SignageScene(UUID.randomUUID().toString(), resource.name, resource.id))
-        val playlist = playlists().firstOrNull()
-        if (playlist != null) {
-            savePlaylist(playlist.copy(items = playlist.items + SignagePlaylistItem(scenes().last().id)))
-        }
-        if (currentResourceId() == null) setCurrentResource(resource.id)
-        if (currentSceneId() == null) setCurrentSceneId(scenes().last().id)
-        return resource
     }
 
-    fun deleteResource(id: String): Boolean {
-        val resource = resource(id) ?: return false
-        fileFor(resource).delete()
-        val remaining = readResources().filterNot { it.id == id }
-        writeResources(remaining)
-        scenes().filter { it.resourceId == id }.forEach { deleteScene(it.id) }
-        if (currentResourceId() == id) setCurrentResource(remaining.firstOrNull()?.id)
-        return true
+    fun setPlaying(value: Boolean) = synchronized(lock) { setMeta(database.writableDatabase, KEY_PLAYING, value.toString()) }
+    fun setVolume(value: Int) = synchronized(lock) { setMeta(database.writableDatabase, KEY_VOLUME, value.coerceIn(0, 100).toString()) }
+    fun setMuted(value: Boolean) = synchronized(lock) { setMeta(database.writableDatabase, KEY_MUTED, value.toString()) }
+    fun setPosition(value: Long) = synchronized(lock) { setMeta(database.writableDatabase, KEY_POSITION, value.coerceAtLeast(0L).toString()) }
+    fun setError(value: String?) = synchronized(lock) { setMeta(database.writableDatabase, KEY_ERROR, value) }
+
+    private fun controlSessionLocked(db: SQLiteDatabase): ControlSession? {
+        val sessionId = getMeta(db, KEY_SESSION_ID) ?: return null
+        val expiresAt = getMeta(db, KEY_SESSION_EXPIRES)?.toLongOrNull() ?: return null
+        if (expiresAt <= System.currentTimeMillis()) {
+            clearSession(db)
+            return null
+        }
+        return ControlSession(sessionId, getMeta(db, KEY_SESSION_CLIENT) ?: "Unknown", expiresAt)
     }
 
-    fun currentResourceId(): String? = preferences.getString(KEY_CURRENT_RESOURCE, null)
+    private fun clearSession(db: SQLiteDatabase) {
+        setMeta(db, KEY_SESSION_ID, null)
+        setMeta(db, KEY_SESSION_CLIENT, null)
+        setMeta(db, KEY_SESSION_EXPIRES, null)
+    }
 
-    fun setCurrentResource(id: String?) = preferences.edit().putString(KEY_CURRENT_RESOURCE, id).apply()
-
-    fun state(port: Int): SignageState = SignageState(
-        deviceId = deviceId(),
-        deviceName = deviceName(),
-        currentResourceId = currentResourceId(),
-        currentSceneId = currentSceneId(),
-        currentPlaylistId = currentPlaylistId(),
-        playing = preferences.getBoolean(KEY_PLAYING, false),
-        volume = preferences.getInt(KEY_VOLUME, 80),
-        muted = preferences.getBoolean(KEY_MUTED, false),
-        positionMs = preferences.getLong(KEY_POSITION, 0L),
-        error = preferences.getString(KEY_ERROR, null),
-        serverPort = port
-    )
-
-    fun setPlaying(value: Boolean) = preferences.edit().putBoolean(KEY_PLAYING, value).apply()
-    fun setVolume(value: Int) = preferences.edit().putInt(KEY_VOLUME, value.coerceIn(0, 100)).apply()
-    fun setMuted(value: Boolean) = preferences.edit().putBoolean(KEY_MUTED, value).apply()
-    fun setPosition(value: Long) = preferences.edit().putLong(KEY_POSITION, value.coerceAtLeast(0L)).apply()
-    fun setError(value: String?) = preferences.edit().putString(KEY_ERROR, value).apply()
-
-    private fun readResources(): List<SignageResource> {
-        val raw = preferences.getString(KEY_RESOURCES, null) ?: return emptyList()
-        val array = JSONArray(raw)
-        return buildList {
-            for (index in 0 until array.length()) {
-                val item = array.getJSONObject(index)
-                add(
-                    SignageResource(
-                        id = item.getString("id"),
-                        name = item.getString("name"),
-                        mimeType = item.getString("mimeType"),
-                        path = item.getString("path"),
-                        hash = item.getString("hash"),
-                        sizeBytes = item.getLong("sizeBytes"),
-                        createdAt = item.getLong("createdAt")
-                    )
-                )
+    private fun migrateLegacyPreferences() {
+        synchronized(lock) {
+        val db = database.writableDatabase
+        if (getMeta(db, KEY_SCHEMA_MIGRATED) == "1") return
+        val preferences = appContext.getSharedPreferences(LEGACY_PREFERENCES, Context.MODE_PRIVATE)
+        db.inTransaction {
+            val legacyResources = parseResources(preferences.getString(KEY_RESOURCES, null))
+            legacyResources.forEach { resource -> if (!resourceExists(this, resource.id)) insertResource(this, resource) }
+            val legacySceneIds = parseScenes(preferences.getString(KEY_SCENES, null))
+                .filter { resourceExists(this, it.resourceId) }
+                .onEach { scene -> if (!sceneExists(this, scene.id)) insertScene(this, scene) }
+                .mapTo(mutableSetOf()) { it.id }
+            parsePlaylists(preferences.getString(KEY_PLAYLISTS, null)).forEach { playlist ->
+                val validPlaylist = playlist.copy(items = playlist.items.filter { it.sceneId in legacySceneIds || sceneExists(this, it.sceneId) })
+                if (!playlistExists(this, validPlaylist.id)) insertPlaylist(this, validPlaylist)
             }
+            val legacyKeys = listOf(KEY_DEVICE_ID, KEY_DEVICE_NAME, KEY_CONTROL_TOKEN, KEY_CURRENT_RESOURCE, KEY_CURRENT_SCENE, KEY_CURRENT_PLAYLIST, KEY_PLAYING, KEY_VOLUME, KEY_MUTED, KEY_POSITION, KEY_ERROR)
+            legacyKeys.forEach { key -> preferences.all[key]?.toString()?.let { setMeta(this, key, it) } }
+            setMeta(this, KEY_SCHEMA_MIGRATED, "1")
+        }
         }
     }
 
-    private fun writeResources(resources: List<SignageResource>) {
-        val array = JSONArray()
-        resources.forEach { resource ->
-            array.put(JSONObject().apply {
-                put("id", resource.id)
-                put("name", resource.name)
-                put("mimeType", resource.mimeType)
-                put("path", resource.path)
-                put("hash", resource.hash)
-                put("sizeBytes", resource.sizeBytes)
-                put("createdAt", resource.createdAt)
-            })
-        }
-        preferences.edit().putString(KEY_RESOURCES, array.toString()).apply()
-    }
-
-    private fun readScenes(): List<SignageScene> {
-        val raw = preferences.getString(KEY_SCENES, null) ?: return emptyList()
-        val array = JSONArray(raw)
-        return buildList {
-            for (index in 0 until array.length()) {
-                val item = array.getJSONObject(index)
-                add(SignageScene(
-                    id = item.getString("id"), name = item.getString("name"), resourceId = item.getString("resourceId"),
-                    fitMode = item.optString("fitMode", "FIT"), cropGravity = item.optString("cropGravity", "CENTER"),
-                    backgroundType = item.optString("backgroundType", "BLACK"), backgroundColor = item.optString("backgroundColor").ifBlank { null },
-                    volume = if (item.has("volume") && !item.isNull("volume")) item.getInt("volume") else null,
-                    muted = item.optBoolean("muted", false), createdAt = item.optLong("createdAt", System.currentTimeMillis())
-                ))
-            }
+    private fun readResources(db: SQLiteDatabase): List<SignageResource> = buildList {
+        db.query("resources", RESOURCE_COLUMNS, null, null, null, null, "created_at ASC").use { cursor ->
+            while (cursor.moveToNext()) add(SignageResource(cursor.getString(0), cursor.getString(1), cursor.getString(2), cursor.getString(3), cursor.getString(4), cursor.getLong(5), cursor.getLong(6)))
         }
     }
 
-    private fun writeScenes(scenes: List<SignageScene>) {
-        val array = JSONArray()
-        scenes.forEach { scene -> array.put(JSONObject().apply {
-            put("id", scene.id); put("name", scene.name); put("resourceId", scene.resourceId); put("fitMode", scene.fitMode)
-            put("cropGravity", scene.cropGravity); put("backgroundType", scene.backgroundType); put("backgroundColor", scene.backgroundColor)
-            put("volume", scene.volume); put("muted", scene.muted); put("createdAt", scene.createdAt)
-        }) }
-        preferences.edit().putString(KEY_SCENES, array.toString()).apply()
+    private fun readScenes(db: SQLiteDatabase): List<SignageScene> = buildList {
+        db.query("scenes", SCENE_COLUMNS, null, null, null, null, "created_at ASC").use { cursor ->
+            while (cursor.moveToNext()) add(SignageScene(cursor.getString(0), cursor.getString(1), cursor.getString(2), cursor.getString(3), cursor.getString(4), cursor.getString(5), cursor.getStringOrNull(6), cursor.getIntOrNull(7), cursor.getInt(8) != 0, cursor.getLong(9)))
+        }
     }
 
-    private fun readPlaylists(): List<SignagePlaylist> {
-        val raw = preferences.getString(KEY_PLAYLISTS, null) ?: return emptyList()
-        val array = JSONArray(raw)
-        return buildList {
-            for (index in 0 until array.length()) {
-                val item = array.getJSONObject(index)
-                val items = item.optJSONArray("items") ?: JSONArray()
-                add(SignagePlaylist(
-                    id = item.getString("id"), name = item.getString("name"), loop = item.optBoolean("loop", true),
-                    updatedAt = item.optLong("updatedAt", System.currentTimeMillis()),
-                    items = buildList {
-                        for (itemIndex in 0 until items.length()) {
-                            val playlistItem = items.getJSONObject(itemIndex)
-                            add(SignagePlaylistItem(playlistItem.getString("sceneId"), if (playlistItem.has("durationMs") && !playlistItem.isNull("durationMs")) playlistItem.getLong("durationMs") else null, playlistItem.optBoolean("enabled", true)))
-                        }
+    private fun readPlaylists(db: SQLiteDatabase): List<SignagePlaylist> = buildList {
+        db.query("playlists", arrayOf("id", "name", "loop", "updated_at"), null, null, null, null, "updated_at ASC").use { cursor ->
+            while (cursor.moveToNext()) {
+                val id = cursor.getString(0)
+                val items = buildList {
+                    db.query("playlist_items", arrayOf("scene_id", "duration_ms", "enabled"), "playlist_id = ?", arrayOf(id), null, null, "position ASC").use { itemCursor ->
+                        while (itemCursor.moveToNext()) add(SignagePlaylistItem(itemCursor.getString(0), itemCursor.getLongOrNull(1), itemCursor.getInt(2) != 0))
                     }
-                ))
+                }
+                add(SignagePlaylist(id, cursor.getString(1), items, cursor.getInt(2) != 0, cursor.getLong(3)))
             }
         }
     }
 
-    private fun writePlaylists(playlists: List<SignagePlaylist>) {
-        val array = JSONArray()
-        playlists.forEach { playlist -> array.put(JSONObject().apply {
-            put("id", playlist.id); put("name", playlist.name); put("loop", playlist.loop); put("updatedAt", playlist.updatedAt)
-            put("items", JSONArray().apply { playlist.items.forEach { item -> put(JSONObject().apply { put("sceneId", item.sceneId); put("durationMs", item.durationMs); put("enabled", item.enabled) }) } })
-        }) }
-        preferences.edit().putString(KEY_PLAYLISTS, array.toString()).apply()
+    private fun insertResource(db: SQLiteDatabase, resource: SignageResource) {
+        db.insertOrThrow("resources", null, ContentValues().apply { put("id", resource.id); put("name", resource.name); put("mime_type", resource.mimeType); put("path", resource.path); put("hash", resource.hash); put("size_bytes", resource.sizeBytes); put("created_at", resource.createdAt) })
     }
 
-    private fun normalizeMimeType(value: String): String = when {
-        value.startsWith("image/") -> value
-        value.startsWith("video/") -> value
-        else -> "application/octet-stream"
+    private fun insertScene(db: SQLiteDatabase, scene: SignageScene) {
+        db.insertWithOnConflict("scenes", null, ContentValues().apply { put("id", scene.id); put("name", scene.name); put("resource_id", scene.resourceId); put("fit_mode", scene.fitMode); put("crop_gravity", scene.cropGravity); put("background_type", scene.backgroundType); put("background_color", scene.backgroundColor); put("volume", scene.volume); put("muted", if (scene.muted) 1 else 0); put("created_at", scene.createdAt) }, SQLiteDatabase.CONFLICT_REPLACE)
     }
+
+    private fun insertPlaylist(db: SQLiteDatabase, playlist: SignagePlaylist) {
+        db.insertOrThrow("playlists", null, ContentValues().apply { put("id", playlist.id); put("name", playlist.name); put("loop", if (playlist.loop) 1 else 0); put("updated_at", playlist.updatedAt) })
+        insertPlaylistItems(db, playlist)
+    }
+
+    private fun replacePlaylist(db: SQLiteDatabase, playlist: SignagePlaylist) {
+        delete(db, "playlist_items", "playlist_id = ?", arrayOf(playlist.id))
+        db.insertWithOnConflict("playlists", null, ContentValues().apply { put("id", playlist.id); put("name", playlist.name); put("loop", if (playlist.loop) 1 else 0); put("updated_at", playlist.updatedAt) }, SQLiteDatabase.CONFLICT_REPLACE)
+        insertPlaylistItems(db, playlist)
+    }
+
+    private fun insertPlaylistItems(db: SQLiteDatabase, playlist: SignagePlaylist) {
+        playlist.items.forEachIndexed { index, item ->
+            db.insertOrThrow("playlist_items", null, ContentValues().apply { put("playlist_id", playlist.id); put("position", index); put("scene_id", item.sceneId); put("duration_ms", item.durationMs); put("enabled", if (item.enabled) 1 else 0) })
+        }
+    }
+
+    private fun resourceExists(db: SQLiteDatabase, id: String) = exists(db, "resources", "id = ?", arrayOf(id))
+    private fun sceneExists(db: SQLiteDatabase, id: String) = exists(db, "scenes", "id = ?", arrayOf(id))
+    private fun playlistExists(db: SQLiteDatabase, id: String) = exists(db, "playlists", "id = ?", arrayOf(id))
+    private fun exists(db: SQLiteDatabase, table: String, selection: String, args: Array<String>): Boolean = db.query(table, arrayOf("1"), selection, args, null, null, null, "1").use { it.moveToFirst() }
+    private fun totalResourceBytes(db: SQLiteDatabase): Long = db.rawQuery("SELECT COALESCE(SUM(size_bytes), 0) FROM resources", null).use { if (it.moveToFirst()) it.getLong(0) else 0L }
+    private fun getMeta(db: SQLiteDatabase, key: String): String? = db.query("meta", arrayOf("value"), "key = ?", arrayOf(key), null, null, null).use { if (it.moveToFirst()) it.getString(0) else null }
+    private fun setMeta(db: SQLiteDatabase, key: String, value: String?) { if (value == null) delete(db, "meta", "key = ?", arrayOf(key)) else db.insertWithOnConflict("meta", null, ContentValues().apply { put("key", key); put("value", value) }, SQLiteDatabase.CONFLICT_REPLACE) }
+    private fun delete(db: SQLiteDatabase, table: String, where: String, args: Array<String>) { db.delete(table, where, args) }
+    private fun normalizeMimeType(value: String) = value.lowercase().substringBefore(';')
+
+    private class SignageDatabase(context: Context) : SQLiteOpenHelper(context, DATABASE_NAME, null, DATABASE_VERSION) {
+        override fun onConfigure(db: SQLiteDatabase) { db.setForeignKeyConstraintsEnabled(true) }
+        override fun onCreate(db: SQLiteDatabase) {
+            db.execSQL("CREATE TABLE resources (id TEXT PRIMARY KEY NOT NULL, name TEXT NOT NULL, mime_type TEXT NOT NULL, path TEXT NOT NULL, hash TEXT NOT NULL UNIQUE, size_bytes INTEGER NOT NULL, created_at INTEGER NOT NULL)")
+            db.execSQL("CREATE TABLE scenes (id TEXT PRIMARY KEY NOT NULL, name TEXT NOT NULL, resource_id TEXT NOT NULL, fit_mode TEXT NOT NULL, crop_gravity TEXT NOT NULL, background_type TEXT NOT NULL, background_color TEXT, volume INTEGER, muted INTEGER NOT NULL, created_at INTEGER NOT NULL, FOREIGN KEY(resource_id) REFERENCES resources(id))")
+            db.execSQL("CREATE TABLE playlists (id TEXT PRIMARY KEY NOT NULL, name TEXT NOT NULL, loop INTEGER NOT NULL, updated_at INTEGER NOT NULL)")
+            db.execSQL("CREATE TABLE playlist_items (playlist_id TEXT NOT NULL, position INTEGER NOT NULL, scene_id TEXT NOT NULL, duration_ms INTEGER, enabled INTEGER NOT NULL, PRIMARY KEY(playlist_id, position), FOREIGN KEY(playlist_id) REFERENCES playlists(id) ON DELETE CASCADE, FOREIGN KEY(scene_id) REFERENCES scenes(id))")
+            db.execSQL("CREATE TABLE meta (key TEXT PRIMARY KEY NOT NULL, value TEXT NOT NULL)")
+            db.execSQL("CREATE INDEX scenes_resource_idx ON scenes(resource_id)")
+            db.execSQL("CREATE INDEX playlist_items_scene_idx ON playlist_items(scene_id)")
+        }
+        override fun onUpgrade(db: SQLiteDatabase, oldVersion: Int, newVersion: Int) { if (oldVersion < 2) db.execSQL("CREATE INDEX IF NOT EXISTS resources_hash_idx ON resources(hash)") }
+    }
+
+    private fun parseResources(raw: String?): List<SignageResource> = runCatching { JSONArray(raw ?: "[]").let { array -> buildList { for (i in 0 until array.length()) { val item = array.getJSONObject(i); add(SignageResource(item.getString("id"), item.getString("name"), item.getString("mimeType"), item.getString("path"), item.getString("hash"), item.getLong("sizeBytes"), item.getLong("createdAt"))) } } } }.getOrDefault(emptyList())
+    private fun parseScenes(raw: String?): List<SignageScene> = runCatching { JSONArray(raw ?: "[]").let { array -> buildList { for (i in 0 until array.length()) { val item = array.getJSONObject(i); add(SignageScene(item.getString("id"), item.getString("name"), item.getString("resourceId"), item.optString("fitMode", "FIT"), item.optString("cropGravity", "CENTER"), item.optString("backgroundType", "BLACK"), item.optString("backgroundColor").ifBlank { null }, if (item.has("volume") && !item.isNull("volume")) item.getInt("volume") else null, item.optBoolean("muted", false), item.optLong("createdAt", System.currentTimeMillis()))) } } } }.getOrDefault(emptyList())
+    private fun parsePlaylists(raw: String?): List<SignagePlaylist> = runCatching { JSONArray(raw ?: "[]").let { array -> buildList { for (i in 0 until array.length()) { val item = array.getJSONObject(i); val jsonItems = item.optJSONArray("items") ?: JSONArray(); add(SignagePlaylist(item.getString("id"), item.getString("name"), buildList { for (j in 0 until jsonItems.length()) { val child = jsonItems.getJSONObject(j); add(SignagePlaylistItem(child.getString("sceneId"), if (child.has("durationMs") && !child.isNull("durationMs")) child.getLong("durationMs") else null, child.optBoolean("enabled", true))) } }, item.optBoolean("loop", true), item.optLong("updatedAt", System.currentTimeMillis()))) } } } }.getOrDefault(emptyList())
+
+    private fun <T> SQLiteDatabase.inTransaction(block: SQLiteDatabase.() -> T): T {
+        beginTransaction()
+        return try {
+            block().also { setTransactionSuccessful() }
+        } finally {
+            endTransaction()
+        }
+    }
+    private fun android.database.Cursor.getStringOrNull(index: Int): String? = if (isNull(index)) null else getString(index)
+    private fun android.database.Cursor.getIntOrNull(index: Int): Int? = if (isNull(index)) null else getInt(index)
+    private fun android.database.Cursor.getLongOrNull(index: Int): Long? = if (isNull(index)) null else getLong(index)
 
     private companion object {
+        const val DATABASE_NAME = "signage.db"
+        const val DATABASE_VERSION = 2
+        const val LEGACY_PREFERENCES = "local_signage"
+        const val KEY_SCHEMA_MIGRATED = "schema_migrated"
         const val KEY_DEVICE_ID = "device_id"
         const val KEY_DEVICE_NAME = "device_name"
         const val KEY_CONTROL_TOKEN = "control_token"
@@ -315,6 +461,15 @@ class SignageStore(context: Context) {
         const val KEY_MUTED = "muted"
         const val KEY_POSITION = "position"
         const val KEY_ERROR = "error"
+        const val KEY_COMMAND_REVISION = "command_revision"
+        const val KEY_SESSION_ID = "session_id"
+        const val KEY_SESSION_CLIENT = "session_client"
+        const val KEY_SESSION_EXPIRES = "session_expires"
+        const val CONTROL_SESSION_TTL_MS = 60_000L
+        const val MAX_CLIENT_NAME_LENGTH = 80
         const val MAX_RESOURCE_BYTES = 200L * 1024L * 1024L
+        const val MAX_TOTAL_RESOURCE_BYTES = 2L * 1024L * 1024L * 1024L
+        val RESOURCE_COLUMNS = arrayOf("id", "name", "mime_type", "path", "hash", "size_bytes", "created_at")
+        val SCENE_COLUMNS = arrayOf("id", "name", "resource_id", "fit_mode", "crop_gravity", "background_type", "background_color", "volume", "muted", "created_at")
     }
 }

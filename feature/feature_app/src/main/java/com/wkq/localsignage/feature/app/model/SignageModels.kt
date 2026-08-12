@@ -50,7 +50,14 @@ data class SignageState(
     val muted: Boolean,
     val positionMs: Long,
     val error: String? = null,
-    val serverPort: Int
+    val serverPort: Int,
+    val commandRevision: Long = 0L
+)
+
+data class ControlSession(
+    val sessionId: String,
+    val clientName: String,
+    val expiresAt: Long
 )
 
 interface PlaybackListener {

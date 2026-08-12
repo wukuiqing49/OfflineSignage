@@ -22,6 +22,8 @@ import io.ktor.server.routing.get
 import io.ktor.server.routing.post
 import io.ktor.server.routing.routing
 import io.ktor.utils.io.jvm.javaio.toInputStream
+import org.json.JSONArray
+import org.json.JSONObject
 
 class KtorSignageServer(private val port: Int) {
     private var engine: ApplicationEngine? = null
@@ -30,12 +32,37 @@ class KtorSignageServer(private val port: Int) {
         if (engine != null) return
         val server = embeddedServer(CIO, port = port, host = "0.0.0.0") {
             routing {
-                get("/") { call.respondText(WEB_APP, ContentType.Text.Html) }
+                get("/") { call.respondText(WEB_APP_V2.replace("__CONTROL_TOKEN__", quote(SignageRuntime.controlToken())), ContentType.Text.Html) }
                 get("/api/device") { call.respondJson(deviceJson()) }
                 get("/api/status") { call.respondJson(statusJson()) }
                 get("/api/resources") { call.respondJson(resourcesJson()) }
                 get("/api/scenes") { call.respondJson(scenesJson()) }
                 get("/api/playlists") { call.respondJson(playlistsJson()) }
+                get("/api/control/session") {
+                    if (!call.authorized(requireSession = false)) return@get
+                    call.respondJson(sessionJson(SignageRuntime.controlSession()))
+                }
+                post("/api/control/session/acquire") {
+                    if (!call.authorized(requireSession = false)) return@post
+                    val body = call.receiveText()
+                    val session = SignageRuntime.acquireControlSession(
+                        jsonString(body, "clientName") ?: "Browser",
+                        jsonBoolean(body, "takeover") == true
+                    )
+                    if (session == null) call.respondJson(errorJson("CONTROL_SESSION_BUSY"), HttpStatusCode.Conflict)
+                    else call.respondJson(sessionJson(session), HttpStatusCode.Created)
+                }
+                post("/api/control/session/heartbeat") {
+                    if (!call.authorized(requireSession = false)) return@post
+                    val session = SignageRuntime.heartbeatControlSession(call.sessionId().orEmpty())
+                    if (session == null) call.respondJson(errorJson("CONTROL_SESSION_INVALID"), HttpStatusCode.Conflict)
+                    else call.respondJson(sessionJson(session))
+                }
+                post("/api/control/session/release") {
+                    if (!call.authorized(requireSession = false)) return@post
+                    val released = SignageRuntime.releaseControlSession(call.sessionId().orEmpty())
+                    call.respondJson("{\"released\":$released}", if (released) HttpStatusCode.OK else HttpStatusCode.Conflict)
+                }
                 get("/media/{id}") {
                     val resource = SignageRuntime.resource(call.parameters["id"])
                     val file = resource?.let(SignageRuntime::fileFor)
@@ -71,17 +98,22 @@ class KtorSignageServer(private val port: Int) {
                 }
                 post("/api/control") {
                     if (!call.authorized()) return@post
-                    val body = call.receiveText()
-                    val action = jsonString(body, "action") ?: "TOGGLE"
-                    val accepted = SignagePlaybackController.applyCommand(
-                        action = action,
-                        resourceId = jsonString(body, "resourceId"),
-                        sceneId = jsonString(body, "sceneId"),
-                        playlistId = jsonString(body, "playlistId"),
-                        value = jsonInt(body, "value")
-                    )
-                    if (accepted) call.respondJson(statusJson())
-                    else call.respondJson(errorJson("UNSUPPORTED_ACTION"), HttpStatusCode.BadRequest)
+                    try {
+                        val body = call.receiveText()
+                        val action = jsonString(body, "action") ?: "TOGGLE"
+                        val accepted = SignagePlaybackController.applyCommand(
+                            action = action,
+                            resourceId = jsonString(body, "resourceId"),
+                            sceneId = jsonString(body, "sceneId"),
+                            playlistId = jsonString(body, "playlistId"),
+                            value = jsonInt(body, "value"),
+                            revision = jsonLong(body, "revision")
+                        )
+                        if (accepted) call.respondJson(statusJson())
+                        else call.respondJson(errorJson("COMMAND_REJECTED"), HttpStatusCode.Conflict)
+                    } catch (_: Exception) {
+                        call.respondJson(errorJson("INVALID_JSON"), HttpStatusCode.BadRequest)
+                    }
                 }
                 post("/api/scenes") {
                     if (!call.authorized()) return@post
@@ -112,9 +144,19 @@ class KtorSignageServer(private val port: Int) {
                     if (!call.authorized()) return@post
                     try {
                         val body = call.receiveText()
-                        val itemJson = Regex("\\{[^{}]*\\}").findAll(body).mapNotNull { match ->
-                            jsonString(match.value, "sceneId")?.let { SignagePlaylistItem(it, jsonLong(match.value, "durationMs"), jsonBoolean(match.value, "enabled") ?: true) }
-                        }.toList()
+                        val bodyJson = JSONObject(body)
+                        val itemsJson = bodyJson.optJSONArray("items") ?: JSONArray()
+                        val itemJson = buildList {
+                            for (index in 0 until itemsJson.length()) {
+                                val item = itemsJson.optJSONObject(index) ?: continue
+                                val sceneId = item.optString("sceneId").takeIf { it.isNotBlank() } ?: continue
+                                add(SignagePlaylistItem(
+                                    sceneId,
+                                    if (item.has("durationMs") && !item.isNull("durationMs")) item.optLong("durationMs") else null,
+                                    item.optBoolean("enabled", true)
+                                ))
+                            }
+                        }
                         val playlist = SignagePlaylist(
                             id = jsonString(body, "id") ?: java.util.UUID.randomUUID().toString(),
                             name = jsonString(body, "name") ?: "Playlist",
@@ -144,12 +186,14 @@ class KtorSignageServer(private val port: Int) {
 
     fun stop() { engine?.stop(1000, 2000); engine = null }
 
-    private suspend fun ApplicationCall.authorized(): Boolean {
+    private suspend fun ApplicationCall.authorized(requireSession: Boolean = true): Boolean {
         val token = request.headers["X-Local-Signage-Token"]
-        if (token == SignageRuntime.controlToken()) return true
+        if (token == SignageRuntime.controlToken() && (!requireSession || SignageRuntime.hasControlSession(sessionId().orEmpty()))) return true
         respondJson(errorJson("UNAUTHORIZED"), HttpStatusCode.Unauthorized)
         return false
     }
+
+    private fun ApplicationCall.sessionId(): String? = request.headers["X-Local-Signage-Session"]
 
     private suspend fun ApplicationCall.respondJson(body: String, status: HttpStatusCode = HttpStatusCode.OK) =
         respondText(body, ContentType.Application.Json, status)
@@ -157,8 +201,7 @@ class KtorSignageServer(private val port: Int) {
     private fun deviceJson(): String = "{" +
         "\"deviceId\":${quote(SignageRuntime.state().deviceId)}," +
         "\"deviceName\":${quote(SignageRuntime.state().deviceName)}," +
-        "\"port\":${SignageRuntime.state().serverPort}," +
-        "\"controlToken\":${quote(SignageRuntime.controlToken())}" + "}"
+        "\"port\":${SignageRuntime.state().serverPort}" + "}"
 
     private fun statusJson(): String {
         val state = SignageRuntime.state()
@@ -168,7 +211,7 @@ class KtorSignageServer(private val port: Int) {
             "\"currentSceneId\":${state.currentSceneId?.let(::quote) ?: "null"}," +
             "\"currentPlaylistId\":${state.currentPlaylistId?.let(::quote) ?: "null"}," +
             "\"playing\":${state.playing},\"volume\":${state.volume},\"muted\":${state.muted}," +
-            "\"positionMs\":${state.positionMs},\"error\":${state.error?.let(::quote) ?: "null"},\"serverPort\":${state.serverPort}" + "}"
+            "\"positionMs\":${state.positionMs},\"error\":${state.error?.let(::quote) ?: "null"},\"serverPort\":${state.serverPort},\"commandRevision\":${state.commandRevision}" + "}"
     }
 
     private fun resourcesJson(): String = SignageRuntime.resources().joinToString("[", "]") { resource ->
@@ -179,14 +222,21 @@ class KtorSignageServer(private val port: Int) {
     private fun sceneJson(scene: SignageScene): String = "{\"id\":${quote(scene.id)},\"name\":${quote(scene.name)},\"resourceId\":${quote(scene.resourceId)},\"fitMode\":${quote(scene.fitMode)},\"cropGravity\":${quote(scene.cropGravity)},\"backgroundType\":${quote(scene.backgroundType)},\"backgroundColor\":${scene.backgroundColor?.let(::quote) ?: "null"},\"volume\":${scene.volume ?: "null"},\"muted\":${scene.muted}}"
     private fun playlistsJson(): String = SignageRuntime.playlists().joinToString("[", "]", transform = ::playlistJson)
     private fun playlistJson(playlist: SignagePlaylist): String = "{\"id\":${quote(playlist.id)},\"name\":${quote(playlist.name)},\"loop\":${playlist.loop},\"items\":[${playlist.items.joinToString { "{\"sceneId\":${quote(it.sceneId)},\"durationMs\":${it.durationMs ?: "null"},\"enabled\":${it.enabled}}" }}]}"
+    private fun sessionJson(session: com.wkq.localsignage.feature.app.model.ControlSession?): String = session?.let { "{\"sessionId\":${quote(it.sessionId)},\"clientName\":${quote(it.clientName)},\"expiresAt\":${it.expiresAt}}" } ?: "null"
     private fun errorJson(code: String): String = "{\"error\":{\"code\":${quote(code)}}}"
     private fun quote(value: String): String = "\"${value.replace("\\", "\\\\").replace("\"", "\\\"")}\""
-    private fun jsonString(body: String, key: String): String? = Regex("\"$key\"\\s*:\\s*\"([^\"]*)\"").find(body)?.groupValues?.get(1)
-    private fun jsonInt(body: String, key: String): Int? = Regex("\"$key\"\\s*:\\s*(-?\\d+)").find(body)?.groupValues?.get(1)?.toIntOrNull()
-    private fun jsonLong(body: String, key: String): Long? = Regex("\"$key\"\\s*:\\s*(-?\\d+)").find(body)?.groupValues?.get(1)?.toLongOrNull()
-    private fun jsonBoolean(body: String, key: String): Boolean? = Regex("\"$key\"\\s*:\\s*(true|false)").find(body)?.groupValues?.get(1)?.toBoolean()
+    private fun jsonString(body: String, key: String): String? = runCatching { JSONObject(body).optString(key).takeIf { it.isNotBlank() } }.getOrNull()
+    private fun jsonInt(body: String, key: String): Int? = runCatching { JSONObject(body).takeIf { it.has(key) && !it.isNull(key) }?.optInt(key) }.getOrNull()
+    private fun jsonLong(body: String, key: String): Long? = runCatching { JSONObject(body).takeIf { it.has(key) && !it.isNull(key) }?.optLong(key) }.getOrNull()
+    private fun jsonBoolean(body: String, key: String): Boolean? = runCatching { JSONObject(body).takeIf { it.has(key) && !it.isNull(key) }?.optBoolean(key) }.getOrNull()
 
     private companion object {
+        val WEB_APP_V2 = """
+            <!doctype html><meta name="viewport" content="width=device-width,initial-scale=1"><title>Local Signage</title>
+            <style>body{font:16px system-ui;max-width:800px;margin:auto;padding:24px;background:#101418;color:#fff}button,input{font:inherit;padding:10px;margin:4px}section{padding:16px;background:#1c242d;border-radius:8px;margin:12px 0}.row{display:flex;gap:8px;align-items:center;justify-content:space-between;border-bottom:1px solid #39434d;padding:8px 0}</style>
+            <h1>Local Signage</h1><section><p id="state">Connecting...</p><button onclick="control('TOGGLE')">Pause / Resume</button><button onclick="control('STOP')">Stop</button><button onclick="control('NEXT')">Next</button><button onclick="control('PREVIOUS')">Previous</button><label>Volume <input id="volume" type="range" min="0" max="100" value="80" onchange="control('VOLUME',Number(this.value))"></label><button onclick="control('MUTE')">Mute</button><button onclick="control('UNMUTE')">Unmute</button></section><section><input id="file" type="file" accept="image/*,video/*"><button onclick="upload()">Upload and play</button></section><section><h2>Resources</h2><div id="resources"></div></section>
+            <script>let token=__CONTROL_TOKEN__,session='',revision=0;const el=id=>document.getElementById(id);const jsonHeaders=()=>({'Content-Type':'application/json','X-Local-Signage-Token':token,'X-Local-Signage-Session':session});async function init(){const result=await fetch('/api/control/session/acquire',{method:'POST',headers:{'Content-Type':'application/json','X-Local-Signage-Token':token},body:JSON.stringify({clientName:'Browser'})});if(result.ok)session=(await result.json()).sessionId;refresh()}async function refresh(){const state=await (await fetch('/api/status')).json();revision=Math.max(revision,state.commandRevision||0);el('state').textContent=(state.playing?'Playing':'Paused')+' - '+(state.error||'Ready');el('volume').value=state.volume;const resources=await (await fetch('/api/resources')).json();el('resources').innerHTML=resources.map(resource=>'<div class="row"><span>'+resource.name+'</span><button onclick="play(\''+resource.id+'\')">Play</button><button onclick="removeResource(\''+resource.id+'\')">Delete</button></div>').join('')||'No resources'}async function control(action,value=null){await fetch('/api/control',{method:'POST',headers:jsonHeaders(),body:JSON.stringify({action:action,value:value,revision:++revision})});refresh()}async function play(resourceId){await fetch('/api/control',{method:'POST',headers:jsonHeaders(),body:JSON.stringify({action:'PLAY',resourceId:resourceId,revision:++revision})});refresh()}async function upload(){const file=el('file').files[0];if(!file)return;const data=new FormData();data.append('file',file);await fetch('/api/resources/upload',{method:'POST',headers:{'X-Local-Signage-Token':token,'X-Local-Signage-Session':session},body:data});el('file').value='';refresh()}async function removeResource(id){await fetch('/api/resources/'+id,{method:'DELETE',headers:{'X-Local-Signage-Token':token,'X-Local-Signage-Session':session}});refresh()}setInterval(()=>fetch('/api/control/session/heartbeat',{method:'POST',headers:jsonHeaders()}),30000);init();setInterval(refresh,2000)</script>
+        """.trimIndent()
         val WEB_APP = """
             <!doctype html><meta name="viewport" content="width=device-width,initial-scale=1"><title>Local Signage</title>
             <style>body{font:16px system-ui;max-width:800px;margin:auto;padding:24px;background:#101418;color:#fff}button,input{font:inherit;padding:10px;margin:4px}section{padding:16px;background:#1c242d;border-radius:8px;margin:12px 0}.row{display:flex;gap:8px;align-items:center;justify-content:space-between;border-bottom:1px solid #39434d;padding:8px 0}</style>

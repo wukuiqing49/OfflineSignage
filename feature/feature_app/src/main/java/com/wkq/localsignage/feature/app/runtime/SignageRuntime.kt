@@ -8,14 +8,20 @@ import com.wkq.localsignage.feature.app.model.SignagePlaylist
 import com.wkq.localsignage.feature.app.model.SignageResource
 import com.wkq.localsignage.feature.app.model.SignageScene
 import com.wkq.localsignage.feature.app.model.SignageState
+import com.wkq.localsignage.feature.app.model.PlaybackErrorRecord
+import com.wkq.localsignage.feature.app.model.SignageSettings
+import com.wkq.localsignage.feature.app.model.PairedDevice
 import com.wkq.localsignage.feature.app.storage.SignageStore
 import java.io.InputStream
+import java.util.concurrent.CopyOnWriteArraySet
 
 object SignageRuntime {
     const val SERVER_PORT = 8080
 
     private var store: SignageStore? = null
     private var listener: PlaybackListener? = null
+    private var contentListener: (() -> Unit)? = null
+    private val stateListeners = CopyOnWriteArraySet<() -> Unit>()
 
     @Synchronized
     fun initialize(context: Context) {
@@ -28,35 +34,56 @@ object SignageRuntime {
 
     fun register(listener: PlaybackListener) { this.listener = listener }
     fun unregister(listener: PlaybackListener) { if (this.listener === listener) this.listener = null }
+    fun registerContentListener(listener: () -> Unit) { contentListener = listener }
+    fun unregisterContentListener() { contentListener = null }
+    fun registerStateListener(listener: () -> Unit) { stateListeners += listener }
+    fun unregisterStateListener(listener: () -> Unit) { stateListeners -= listener }
 
     fun state(): SignageState = requireStore().state(SERVER_PORT)
     fun resources(): List<SignageResource> = requireStore().resources()
     fun resource(id: String?): SignageResource? = requireStore().resource(id)
+    fun resourceByHash(hash: String?): SignageResource? = requireStore().resourceByHash(hash)
     fun fileFor(resource: SignageResource) = requireStore().fileFor(resource)
     fun scenes(): List<SignageScene> = requireStore().scenes()
     fun scene(id: String?): SignageScene? = requireStore().scene(id)
     fun playlists(): List<SignagePlaylist> = requireStore().playlists()
     fun playlist(id: String?): SignagePlaylist? = requireStore().playlist(id)
     fun controlToken(): String = requireStore().controlToken()
+    fun pairedDevices(): List<PairedDevice> = requireStore().pairedDevices()
+    fun pairedDevice(deviceId: String): PairedDevice? = requireStore().pairedDevice(deviceId)
+    fun savePairedDevice(device: PairedDevice): PairedDevice = requireStore().savePairedDevice(device)
+    fun deletePairedDevice(deviceId: String): Boolean = requireStore().deletePairedDevice(deviceId)
     fun controlSession(): ControlSession? = requireStore().controlSession()
     fun acquireControlSession(clientName: String, takeover: Boolean = false): ControlSession? = requireStore().acquireControlSession(clientName, takeover)
     fun heartbeatControlSession(sessionId: String): ControlSession? = requireStore().heartbeatControlSession(sessionId)
     fun releaseControlSession(sessionId: String): Boolean = requireStore().releaseControlSession(sessionId)
     fun hasControlSession(sessionId: String): Boolean = requireStore().hasControlSession(sessionId)
     fun acceptCommandRevision(revision: Long?): Boolean = requireStore().acceptCommandRevision(revision)
+    fun canAcceptCommandRevision(revision: Long?): Boolean = requireStore().canAcceptCommandRevision(revision)
+    fun commitCommandRevision(revision: Long?): Boolean = requireStore().commitCommandRevision(revision)
+    fun settings(): SignageSettings = requireStore().settings()
+    fun setSettings(value: SignageSettings) = requireStore().setSettings(value).also { notifyContentChanged() }
+    fun playbackErrors(limit: Int = 100): List<PlaybackErrorRecord> = requireStore().playbackErrors(limit)
+    fun clearPlaybackErrors() = requireStore().clearPlaybackErrors()
+    fun recordPlaybackError(mediaId: String?, sceneId: String?, errorCode: String, action: String, attempt: Int) {
+        requireStore().recordPlaybackError(mediaId, sceneId, errorCode, action, attempt)
+    }
 
     fun importResource(context: Context, uri: Uri, name: String, mimeType: String): SignageResource =
-        requireStore().importUri(uri, name, mimeType).also { notifyState() }
+        requireStore().importUri(uri, name, mimeType).also { notifyContentChanged() }
 
     fun saveUpload(name: String, mimeType: String, input: InputStream): SignageResource =
-        requireStore().saveUpload(name, mimeType, input).also { notifyState() }
+        requireStore().saveUpload(name, mimeType, input).also { notifyContentChanged() }
 
-    fun deleteResource(id: String): Boolean = requireStore().deleteResource(id).also { notifyState() }
-    fun deleteScene(id: String): Boolean = requireStore().deleteScene(id).also { notifyState() }
-    fun deletePlaylist(id: String): Boolean = requireStore().deletePlaylist(id).also { notifyState() }
+    fun saveRemote(url: String, name: String? = null): SignageResource =
+        requireStore().saveRemote(url, name).also { notifyContentChanged() }
 
-    fun saveScene(scene: SignageScene): SignageScene = requireStore().saveScene(scene).also { notifyState() }
-    fun savePlaylist(playlist: SignagePlaylist): SignagePlaylist = requireStore().savePlaylist(playlist).also { notifyState() }
+    fun deleteResource(id: String): Boolean = requireStore().deleteResource(id).also { notifyContentChanged() }
+    fun deleteScene(id: String): Boolean = requireStore().deleteScene(id).also { notifyContentChanged() }
+    fun deletePlaylist(id: String): Boolean = requireStore().deletePlaylist(id).also { notifyContentChanged() }
+
+    fun saveScene(scene: SignageScene): SignageScene = requireStore().saveScene(scene).also { notifyContentChanged() }
+    fun savePlaylist(playlist: SignagePlaylist): SignagePlaylist = requireStore().savePlaylist(playlist).also { notifyContentChanged() }
 
     fun selectResource(id: String) {
         requireStore().setCurrentResource(id)
@@ -77,10 +104,19 @@ object SignageRuntime {
     }
 
     fun setPlaying(value: Boolean) { requireStore().setPlaying(value); notifyState() }
-    fun setPosition(value: Long) { requireStore().setPosition(value) }
+    fun setPosition(value: Long) { requireStore().setPosition(value); notifyState() }
     fun setError(value: String?) { requireStore().setError(value); notifyState() }
 
-    fun notifyState() { listener?.onStateChanged(state()) }
+    fun notifyState() {
+        val currentState = state()
+        listener?.onStateChanged(currentState)
+        stateListeners.forEach { callback -> runCatching { callback() } }
+    }
+
+    private fun notifyContentChanged() {
+        notifyState()
+        contentListener?.invoke()
+    }
 
     fun command(action: String, resourceId: String? = null, value: Int? = null): SignageState {
         val currentStore = requireStore()

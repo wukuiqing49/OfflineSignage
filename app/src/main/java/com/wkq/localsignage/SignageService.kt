@@ -9,6 +9,7 @@ import android.os.Build
 import android.os.IBinder
 import androidx.core.app.NotificationCompat
 import com.wkq.localsignage.feature.app.runtime.SignageRuntime
+import com.wkq.localsignage.feature.app.discovery.LocalDeviceDiscovery
 import com.wkq.localsignage.feature.app.player.SignagePlaybackController
 import com.wkq.localsignage.feature.app.server.KtorSignageServer
 
@@ -18,6 +19,8 @@ class SignageService : Service() {
         createNotificationChannel()
         startForeground(NOTIFICATION_ID, notification())
         SignageRuntime.initialize(this)
+        val state = SignageRuntime.state()
+        LocalDeviceDiscovery.start(this, state.deviceId, state.deviceName, SignageRuntime.SERVER_PORT)
         SignagePlaybackController.initialize(this)
         KtorSignageServerHolder.start(this)
     }
@@ -26,6 +29,7 @@ class SignageService : Service() {
 
     override fun onDestroy() {
         KtorSignageServerHolder.stop()
+        LocalDeviceDiscovery.stop()
         SignagePlaybackController.release()
         super.onDestroy()
     }

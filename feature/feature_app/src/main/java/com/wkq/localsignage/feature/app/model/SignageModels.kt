@@ -54,10 +54,36 @@ data class SignageState(
     val commandRevision: Long = 0L
 )
 
+data class SignageSettings(
+    val fallbackSceneId: String? = null,
+    val keepScreenAwake: Boolean = true,
+    val autoResume: Boolean = true,
+    val fullscreen: Boolean = true
+)
+
+data class PlaybackErrorRecord(
+    val id: Long,
+    val mediaId: String?,
+    val sceneId: String?,
+    val errorCode: String,
+    val action: String,
+    val attempt: Int,
+    val createdAt: Long
+)
+
 data class ControlSession(
     val sessionId: String,
     val clientName: String,
     val expiresAt: Long
+)
+
+data class PairedDevice(
+    val deviceId: String,
+    val deviceName: String,
+    val host: String,
+    val port: Int,
+    val token: String,
+    val pairedAt: Long
 )
 
 interface PlaybackListener {

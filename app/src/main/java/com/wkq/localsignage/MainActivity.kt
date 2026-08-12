@@ -17,11 +17,15 @@ class MainActivity : BaseActivity<ActivityMainBinding>(), PlaybackListener {
     override fun initView() {
         ContextCompat.startForegroundService(this, Intent(this, SignageService::class.java))
         SignagePlaybackController.initialize(this)
-        window.addFlags(android.view.WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
+        if (com.wkq.localsignage.feature.app.runtime.SignageRuntime.settings().keepScreenAwake) {
+            window.addFlags(android.view.WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
+        }
         WindowCompat.setDecorFitsSystemWindows(window, false)
-        WindowInsetsControllerCompat(window, window.decorView).apply {
-            systemBarsBehavior = WindowInsetsControllerCompat.BEHAVIOR_SHOW_TRANSIENT_BARS_BY_SWIPE
-            hide(WindowInsetsCompat.Type.systemBars())
+        if (com.wkq.localsignage.feature.app.runtime.SignageRuntime.settings().fullscreen) {
+            WindowInsetsControllerCompat(window, window.decorView).apply {
+                systemBarsBehavior = WindowInsetsControllerCompat.BEHAVIOR_SHOW_TRANSIENT_BARS_BY_SWIPE
+                hide(WindowInsetsCompat.Type.systemBars())
+            }
         }
         SignagePlaybackController.attach(binding.playerView, this)
         binding.pauseResumeButton.setOnClickListener { SignagePlaybackController.togglePause() }
@@ -38,6 +42,7 @@ class MainActivity : BaseActivity<ActivityMainBinding>(), PlaybackListener {
 
     override fun onDestroy() {
         SignagePlaybackController.detach(binding.playerView)
+        window.clearFlags(android.view.WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
         super.onDestroy()
     }
 }

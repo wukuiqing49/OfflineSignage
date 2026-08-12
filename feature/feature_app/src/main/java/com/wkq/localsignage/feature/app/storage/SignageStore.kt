@@ -11,9 +11,17 @@ import com.wkq.localsignage.feature.app.model.SignageResource
 import com.wkq.localsignage.feature.app.model.SignageScene
 import com.wkq.localsignage.feature.app.model.SignageState
 import com.wkq.localsignage.feature.app.model.ControlSession
+import com.wkq.localsignage.feature.app.model.PlaybackErrorRecord
+import com.wkq.localsignage.feature.app.model.SignageSettings
+import com.wkq.localsignage.feature.app.model.PairedDevice
 import org.json.JSONArray
 import java.io.File
+import java.io.FileInputStream
 import java.io.InputStream
+import java.net.HttpURLConnection
+import java.net.InetAddress
+import java.net.URI
+import java.net.URL
 import java.nio.file.Files
 import java.nio.file.StandardCopyOption
 import java.security.MessageDigest
@@ -80,6 +88,33 @@ class SignageStore(context: Context) {
         }
     }
 
+    fun pairedDevices(): List<PairedDevice> = synchronized(lock) {
+        readPairedDevices(database.readableDatabase)
+    }
+
+    fun pairedDevice(deviceId: String): PairedDevice? = synchronized(lock) {
+        readPairedDevices(database.readableDatabase).firstOrNull { it.deviceId == deviceId }
+    }
+
+    fun savePairedDevice(device: PairedDevice): PairedDevice = synchronized(lock) {
+        require(device.deviceId.isNotBlank()) { "DEVICE_ID_REQUIRED" }
+        require(device.token.isNotBlank()) { "DEVICE_TOKEN_REQUIRED" }
+        require(device.host.isNotBlank() && device.port in 1..65535) { "DEVICE_ADDRESS_INVALID" }
+        val normalized = device.copy(
+            deviceName = device.deviceName.trim().take(MAX_DEVICE_NAME_LENGTH).ifBlank { device.deviceId },
+            host = device.host.trim(),
+            token = device.token.trim()
+        )
+        database.writableDatabase.inTransaction {
+            insertPairedDevice(this, normalized)
+        }
+        normalized
+    }
+
+    fun deletePairedDevice(deviceId: String): Boolean = synchronized(lock) {
+        database.writableDatabase.delete("paired_devices", "device_id = ?", arrayOf(deviceId)) > 0
+    }
+
     fun controlSession(): ControlSession? = synchronized(lock) {
         val db = database.readableDatabase
         val sessionId = getMeta(db, KEY_SESSION_ID) ?: return@synchronized null
@@ -143,8 +178,18 @@ class SignageStore(context: Context) {
         }
     }
 
+    fun canAcceptCommandRevision(revision: Long?): Boolean = synchronized(lock) {
+        revision == null || revision > (getMeta(database.readableDatabase, KEY_COMMAND_REVISION)?.toLongOrNull() ?: 0L)
+    }
+
+    fun commitCommandRevision(revision: Long?): Boolean = acceptCommandRevision(revision)
+
     fun resources(): List<SignageResource> = synchronized(lock) { readResources(database.readableDatabase) }
     fun resource(id: String?): SignageResource? = synchronized(lock) { readResources(database.readableDatabase).firstOrNull { it.id == id } }
+    fun resourceByHash(hash: String?): SignageResource? = synchronized(lock) {
+        val normalized = hash?.trim()?.lowercase()?.takeIf { it.matches(SHA256_PATTERN) } ?: return@synchronized null
+        readResources(database.readableDatabase).firstOrNull { it.hash == normalized }
+    }
 
     fun fileFor(resource: SignageResource): File {
         val file = File(resource.path).canonicalFile
@@ -268,6 +313,69 @@ class SignageStore(context: Context) {
         }
     }
 
+    /** Downloads an HTTPS media resource and stores it as a normal local resource. */
+    fun saveRemote(rawUrl: String, requestedName: String? = null): SignageResource {
+        var current = validateRemoteUrl(rawUrl)
+        var redirects = 0
+        val temporary = File(resourceDirectory, ".remote-${UUID.randomUUID()}.tmp")
+        var mimeType: String? = null
+        var name: String? = requestedName?.trim()?.takeIf { it.isNotBlank() }
+        try {
+            while (true) {
+                val connection = (current.toURL().openConnection() as HttpURLConnection).apply {
+                    connectTimeout = REMOTE_CONNECT_TIMEOUT_MS
+                    readTimeout = REMOTE_READ_TIMEOUT_MS
+                    instanceFollowRedirects = false
+                    requestMethod = "GET"
+                    setRequestProperty("Accept", "image/*,video/*")
+                }
+                try {
+                    val status = connection.responseCode
+                    if (status in REDIRECT_STATUSES) {
+                        if (++redirects > MAX_REMOTE_REDIRECTS) throw IllegalArgumentException("REMOTE_TOO_MANY_REDIRECTS")
+                        val location = connection.getHeaderField("Location")
+                            ?: throw IllegalArgumentException("REMOTE_REDIRECT_INVALID")
+                        current = validateRemoteUrl(current.resolve(location).toString())
+                        continue
+                    }
+                    if (status !in 200..299) throw IllegalArgumentException("REMOTE_HTTP_$status")
+                    val contentLength = connection.contentLengthLong
+                    require(contentLength <= MAX_RESOURCE_BYTES) { "REMOTE_RESOURCE_TOO_LARGE" }
+                    name = name ?: remoteFileName(current)
+                    mimeType = remoteMimeType(connection.contentType, name, current)
+                    temporary.outputStream().buffered().use { output ->
+                        connection.inputStream.use { input ->
+                            val buffer = ByteArray(DEFAULT_BUFFER_SIZE)
+                            var size = 0L
+                            while (true) {
+                                val count = input.read(buffer)
+                                if (count < 0) break
+                                if (count == 0) continue
+                                size += count
+                                require(size <= MAX_RESOURCE_BYTES) { "REMOTE_RESOURCE_TOO_LARGE" }
+                                output.write(buffer, 0, count)
+                            }
+                        }
+                    }
+                    break
+                } finally {
+                    connection.disconnect()
+                }
+            }
+            val downloadedName = name
+            val downloadedMimeType = mimeType
+            FileInputStream(temporary).use { input ->
+                return saveUpload(downloadedName, downloadedMimeType, input)
+            }
+        } catch (error: IllegalArgumentException) {
+            throw error
+        } catch (_: Exception) {
+            throw IllegalArgumentException("REMOTE_DOWNLOAD_FAILED")
+        } finally {
+            temporary.delete()
+        }
+    }
+
     fun deleteResource(id: String): Boolean = synchronized(lock) {
         val resource = resource(id) ?: return@synchronized false
         val deleted = database.writableDatabase.inTransaction {
@@ -311,6 +419,74 @@ class SignageStore(context: Context) {
     fun setMuted(value: Boolean) = synchronized(lock) { setMeta(database.writableDatabase, KEY_MUTED, value.toString()) }
     fun setPosition(value: Long) = synchronized(lock) { setMeta(database.writableDatabase, KEY_POSITION, value.coerceAtLeast(0L).toString()) }
     fun setError(value: String?) = synchronized(lock) { setMeta(database.writableDatabase, KEY_ERROR, value) }
+
+    fun settings(): SignageSettings = synchronized(lock) {
+        SignageSettings(
+            fallbackSceneId = getMeta(database.readableDatabase, KEY_FALLBACK_SCENE),
+            keepScreenAwake = getMeta(database.readableDatabase, KEY_KEEP_SCREEN_AWAKE)?.toBoolean() ?: true,
+            autoResume = getMeta(database.readableDatabase, KEY_AUTO_RESUME)?.toBoolean() ?: true,
+            fullscreen = getMeta(database.readableDatabase, KEY_FULLSCREEN)?.toBoolean() ?: true
+        )
+    }
+
+    fun setSettings(value: SignageSettings) = synchronized(lock) {
+        database.writableDatabase.inTransaction {
+            if (value.fallbackSceneId == null || sceneExists(this, value.fallbackSceneId)) {
+                setMeta(this, KEY_FALLBACK_SCENE, value.fallbackSceneId)
+            } else {
+                throw IllegalArgumentException("Fallback scene does not exist")
+            }
+            setMeta(this, KEY_KEEP_SCREEN_AWAKE, value.keepScreenAwake.toString())
+            setMeta(this, KEY_AUTO_RESUME, value.autoResume.toString())
+            setMeta(this, KEY_FULLSCREEN, value.fullscreen.toString())
+        }
+    }
+
+    fun recordPlaybackError(mediaId: String?, sceneId: String?, errorCode: String, action: String, attempt: Int) = synchronized(lock) {
+        database.writableDatabase.insert("playback_errors", null, ContentValues().apply {
+            put("media_id", mediaId)
+            put("scene_id", sceneId)
+            put("error_code", errorCode.take(MAX_ERROR_CODE_LENGTH))
+            put("action", action.take(MAX_ERROR_ACTION_LENGTH))
+            put("attempt", attempt)
+            put("created_at", System.currentTimeMillis())
+        })
+        database.writableDatabase.execSQL(
+            "DELETE FROM playback_errors WHERE id NOT IN (SELECT id FROM playback_errors ORDER BY id DESC LIMIT ?)",
+            arrayOf(MAX_ERROR_HISTORY.toString())
+        )
+    }
+
+    fun playbackErrors(limit: Int = MAX_ERROR_HISTORY): List<PlaybackErrorRecord> = synchronized(lock) {
+        buildList {
+            database.readableDatabase.query(
+                "playback_errors",
+                ERROR_COLUMNS,
+                null,
+                null,
+                null,
+                null,
+                "id DESC",
+                limit.coerceIn(1, MAX_ERROR_HISTORY).toString()
+            ).use { cursor ->
+                while (cursor.moveToNext()) {
+                    add(PlaybackErrorRecord(
+                        id = cursor.getLong(0),
+                        mediaId = cursor.getStringOrNull(1),
+                        sceneId = cursor.getStringOrNull(2),
+                        errorCode = cursor.getString(3),
+                        action = cursor.getString(4),
+                        attempt = cursor.getInt(5),
+                        createdAt = cursor.getLong(6)
+                    ))
+                }
+            }
+        }
+    }
+
+    fun clearPlaybackErrors() = synchronized(lock) {
+        database.writableDatabase.delete("playback_errors", null, null)
+    }
 
     private fun controlSessionLocked(db: SQLiteDatabase): ControlSession? {
         val sessionId = getMeta(db, KEY_SESSION_ID) ?: return null
@@ -357,6 +533,19 @@ class SignageStore(context: Context) {
         }
     }
 
+    private fun readPairedDevices(db: SQLiteDatabase): List<PairedDevice> = buildList {
+        db.query("paired_devices", PAIRED_DEVICE_COLUMNS, null, null, null, null, "device_name COLLATE NOCASE ASC").use { cursor ->
+            while (cursor.moveToNext()) add(PairedDevice(
+                deviceId = cursor.getString(0),
+                deviceName = cursor.getString(1),
+                host = cursor.getString(2),
+                port = cursor.getInt(3),
+                token = cursor.getString(4),
+                pairedAt = cursor.getLong(5)
+            ))
+        }
+    }
+
     private fun readScenes(db: SQLiteDatabase): List<SignageScene> = buildList {
         db.query("scenes", SCENE_COLUMNS, null, null, null, null, "created_at ASC").use { cursor ->
             while (cursor.moveToNext()) add(SignageScene(cursor.getString(0), cursor.getString(1), cursor.getString(2), cursor.getString(3), cursor.getString(4), cursor.getString(5), cursor.getStringOrNull(6), cursor.getIntOrNull(7), cursor.getInt(8) != 0, cursor.getLong(9)))
@@ -381,8 +570,33 @@ class SignageStore(context: Context) {
         db.insertOrThrow("resources", null, ContentValues().apply { put("id", resource.id); put("name", resource.name); put("mime_type", resource.mimeType); put("path", resource.path); put("hash", resource.hash); put("size_bytes", resource.sizeBytes); put("created_at", resource.createdAt) })
     }
 
+    private fun insertPairedDevice(db: SQLiteDatabase, device: PairedDevice) {
+        db.insertWithOnConflict("paired_devices", null, ContentValues().apply {
+            put("device_id", device.deviceId)
+            put("device_name", device.deviceName)
+            put("host", device.host)
+            put("port", device.port)
+            put("token", device.token)
+            put("paired_at", device.pairedAt)
+        }, SQLiteDatabase.CONFLICT_REPLACE)
+    }
+
     private fun insertScene(db: SQLiteDatabase, scene: SignageScene) {
-        db.insertWithOnConflict("scenes", null, ContentValues().apply { put("id", scene.id); put("name", scene.name); put("resource_id", scene.resourceId); put("fit_mode", scene.fitMode); put("crop_gravity", scene.cropGravity); put("background_type", scene.backgroundType); put("background_color", scene.backgroundColor); put("volume", scene.volume); put("muted", if (scene.muted) 1 else 0); put("created_at", scene.createdAt) }, SQLiteDatabase.CONFLICT_REPLACE)
+        val values = ContentValues().apply {
+            put("id", scene.id)
+            put("name", scene.name)
+            put("resource_id", scene.resourceId)
+            put("fit_mode", scene.fitMode)
+            put("crop_gravity", scene.cropGravity)
+            put("background_type", scene.backgroundType)
+            put("background_color", scene.backgroundColor)
+            put("volume", scene.volume)
+            put("muted", if (scene.muted) 1 else 0)
+            put("created_at", scene.createdAt)
+        }
+        if (db.update("scenes", values, "id = ?", arrayOf(scene.id)) == 0) {
+            db.insertOrThrow("scenes", null, values)
+        }
     }
 
     private fun insertPlaylist(db: SQLiteDatabase, playlist: SignagePlaylist) {
@@ -412,6 +626,51 @@ class SignageStore(context: Context) {
     private fun delete(db: SQLiteDatabase, table: String, where: String, args: Array<String>) { db.delete(table, where, args) }
     private fun normalizeMimeType(value: String) = value.lowercase().substringBefore(';')
 
+    private fun validateRemoteUrl(rawUrl: String): URI {
+        val uri = runCatching { URI(rawUrl.trim()) }.getOrNull()
+            ?: throw IllegalArgumentException("REMOTE_URL_INVALID")
+        require(uri.scheme.equals("https", ignoreCase = true)) { "REMOTE_URL_PROTOCOL_NOT_ALLOWED" }
+        require(uri.userInfo == null && !uri.host.isNullOrBlank()) { "REMOTE_URL_INVALID" }
+        require(uri.port == -1 || uri.port == 443) { "REMOTE_URL_PORT_NOT_ALLOWED" }
+        val addresses = runCatching { InetAddress.getAllByName(uri.host) }.getOrElse {
+            throw IllegalArgumentException("REMOTE_HOST_UNRESOLVED")
+        }
+        require(addresses.isNotEmpty() && addresses.none { address ->
+            address.isAnyLocalAddress || address.isLoopbackAddress || address.isLinkLocalAddress ||
+                address.isSiteLocalAddress || address.isMulticastAddress
+        }) { "REMOTE_HOST_NOT_ALLOWED" }
+        return uri
+    }
+
+    private fun remoteFileName(uri: URI): String = uri.path.substringAfterLast('/').takeIf { it.isNotBlank() } ?: "remote-resource"
+
+    private fun remoteMimeType(contentType: String?, name: String?, uri: URI): String {
+        val headerType = contentType?.substringBefore(';')?.trim()?.lowercase().orEmpty()
+        if (headerType.startsWith("image/") || headerType.startsWith("video/")) return headerType
+        val guessed = URLConnectionMime.guess(name ?: "").takeIf { it != "application/octet-stream" }
+            ?: URLConnectionMime.guess(uri.path)
+        require(guessed.startsWith("image/") || guessed.startsWith("video/")) { "REMOTE_CONTENT_TYPE_UNSUPPORTED" }
+        return guessed
+    }
+
+    private object URLConnectionMime {
+        fun guess(name: String): String {
+            val extension = name.substringBefore('?').substringAfterLast('.', "").lowercase()
+            return when (extension) {
+                "jpg", "jpeg" -> "image/jpeg"
+                "png" -> "image/png"
+                "gif" -> "image/gif"
+                "webp" -> "image/webp"
+                "bmp" -> "image/bmp"
+                "mp4", "m4v" -> "video/mp4"
+                "webm" -> "video/webm"
+                "mov" -> "video/quicktime"
+                "mkv" -> "video/x-matroska"
+                else -> "application/octet-stream"
+            }
+        }
+    }
+
     private class SignageDatabase(context: Context) : SQLiteOpenHelper(context, DATABASE_NAME, null, DATABASE_VERSION) {
         override fun onConfigure(db: SQLiteDatabase) { db.setForeignKeyConstraintsEnabled(true) }
         override fun onCreate(db: SQLiteDatabase) {
@@ -420,10 +679,22 @@ class SignageStore(context: Context) {
             db.execSQL("CREATE TABLE playlists (id TEXT PRIMARY KEY NOT NULL, name TEXT NOT NULL, loop INTEGER NOT NULL, updated_at INTEGER NOT NULL)")
             db.execSQL("CREATE TABLE playlist_items (playlist_id TEXT NOT NULL, position INTEGER NOT NULL, scene_id TEXT NOT NULL, duration_ms INTEGER, enabled INTEGER NOT NULL, PRIMARY KEY(playlist_id, position), FOREIGN KEY(playlist_id) REFERENCES playlists(id) ON DELETE CASCADE, FOREIGN KEY(scene_id) REFERENCES scenes(id))")
             db.execSQL("CREATE TABLE meta (key TEXT PRIMARY KEY NOT NULL, value TEXT NOT NULL)")
+            db.execSQL("CREATE TABLE playback_errors (id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, media_id TEXT, scene_id TEXT, error_code TEXT NOT NULL, action TEXT NOT NULL, attempt INTEGER NOT NULL, created_at INTEGER NOT NULL)")
+            db.execSQL("CREATE TABLE paired_devices (device_id TEXT PRIMARY KEY NOT NULL, device_name TEXT NOT NULL, host TEXT NOT NULL, port INTEGER NOT NULL, token TEXT NOT NULL, paired_at INTEGER NOT NULL)")
             db.execSQL("CREATE INDEX scenes_resource_idx ON scenes(resource_id)")
             db.execSQL("CREATE INDEX playlist_items_scene_idx ON playlist_items(scene_id)")
+            db.execSQL("CREATE INDEX playback_errors_created_idx ON playback_errors(created_at DESC)")
         }
-        override fun onUpgrade(db: SQLiteDatabase, oldVersion: Int, newVersion: Int) { if (oldVersion < 2) db.execSQL("CREATE INDEX IF NOT EXISTS resources_hash_idx ON resources(hash)") }
+        override fun onUpgrade(db: SQLiteDatabase, oldVersion: Int, newVersion: Int) {
+            if (oldVersion < 2) db.execSQL("CREATE INDEX IF NOT EXISTS resources_hash_idx ON resources(hash)")
+            if (oldVersion < 3) {
+                db.execSQL("CREATE TABLE IF NOT EXISTS playback_errors (id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, media_id TEXT, scene_id TEXT, error_code TEXT NOT NULL, action TEXT NOT NULL, attempt INTEGER NOT NULL, created_at INTEGER NOT NULL)")
+                db.execSQL("CREATE INDEX IF NOT EXISTS playback_errors_created_idx ON playback_errors(created_at DESC)")
+            }
+            if (oldVersion < 4) {
+                db.execSQL("CREATE TABLE IF NOT EXISTS paired_devices (device_id TEXT PRIMARY KEY NOT NULL, device_name TEXT NOT NULL, host TEXT NOT NULL, port INTEGER NOT NULL, token TEXT NOT NULL, paired_at INTEGER NOT NULL)")
+            }
+        }
     }
 
     private fun parseResources(raw: String?): List<SignageResource> = runCatching { JSONArray(raw ?: "[]").let { array -> buildList { for (i in 0 until array.length()) { val item = array.getJSONObject(i); add(SignageResource(item.getString("id"), item.getString("name"), item.getString("mimeType"), item.getString("path"), item.getString("hash"), item.getLong("sizeBytes"), item.getLong("createdAt"))) } } } }.getOrDefault(emptyList())
@@ -443,8 +714,9 @@ class SignageStore(context: Context) {
     private fun android.database.Cursor.getLongOrNull(index: Int): Long? = if (isNull(index)) null else getLong(index)
 
     private companion object {
+        val SHA256_PATTERN = Regex("[a-f0-9]{64}")
         const val DATABASE_NAME = "signage.db"
-        const val DATABASE_VERSION = 2
+        const val DATABASE_VERSION = 4
         const val LEGACY_PREFERENCES = "local_signage"
         const val KEY_SCHEMA_MIGRATED = "schema_migrated"
         const val KEY_DEVICE_ID = "device_id"
@@ -462,14 +734,28 @@ class SignageStore(context: Context) {
         const val KEY_POSITION = "position"
         const val KEY_ERROR = "error"
         const val KEY_COMMAND_REVISION = "command_revision"
+        const val KEY_FALLBACK_SCENE = "fallback_scene"
+        const val KEY_KEEP_SCREEN_AWAKE = "keep_screen_awake"
+        const val KEY_AUTO_RESUME = "auto_resume"
+        const val KEY_FULLSCREEN = "fullscreen"
         const val KEY_SESSION_ID = "session_id"
         const val KEY_SESSION_CLIENT = "session_client"
         const val KEY_SESSION_EXPIRES = "session_expires"
         const val CONTROL_SESSION_TTL_MS = 60_000L
         const val MAX_CLIENT_NAME_LENGTH = 80
+        const val MAX_DEVICE_NAME_LENGTH = 80
         const val MAX_RESOURCE_BYTES = 200L * 1024L * 1024L
         const val MAX_TOTAL_RESOURCE_BYTES = 2L * 1024L * 1024L * 1024L
+        const val REMOTE_CONNECT_TIMEOUT_MS = 10_000
+        const val REMOTE_READ_TIMEOUT_MS = 30_000
+        const val MAX_REMOTE_REDIRECTS = 5
+        val REDIRECT_STATUSES = setOf(301, 302, 303, 307, 308)
+        const val MAX_ERROR_HISTORY = 100
+        const val MAX_ERROR_CODE_LENGTH = 120
+        const val MAX_ERROR_ACTION_LENGTH = 32
         val RESOURCE_COLUMNS = arrayOf("id", "name", "mime_type", "path", "hash", "size_bytes", "created_at")
         val SCENE_COLUMNS = arrayOf("id", "name", "resource_id", "fit_mode", "crop_gravity", "background_type", "background_color", "volume", "muted", "created_at")
+        val ERROR_COLUMNS = arrayOf("id", "media_id", "scene_id", "error_code", "action", "attempt", "created_at")
+        val PAIRED_DEVICE_COLUMNS = arrayOf("device_id", "device_name", "host", "port", "token", "paired_at")
     }
 }

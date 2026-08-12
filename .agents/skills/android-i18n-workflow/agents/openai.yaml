@@ -1,0 +1,4 @@
+interface:
+  display_name: "Android 国际化"
+  short_description: "处理 strings、多语言、占位符和 WebView 文案"
+  default_prompt: "使用 $android-i18n-workflow 处理这个 Android 文案或多语言任务。"

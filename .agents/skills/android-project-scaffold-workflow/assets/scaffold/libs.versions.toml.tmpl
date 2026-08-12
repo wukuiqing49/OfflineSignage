@@ -1,0 +1,35 @@
+[versions]
+agp = "{{AGP_VERSION}}"
+kotlin = "{{KOTLIN_VERSION}}"
+compileSdk = "{{COMPILE_SDK}}"
+targetSdk = "{{TARGET_SDK}}"
+minSdk = "{{MIN_SDK}}"
+androidx-core = "{{ANDROIDX_CORE_VERSION}}"
+androidx-activity = "{{ANDROIDX_ACTIVITY_VERSION}}"
+androidx-appcompat = "{{ANDROIDX_APPCOMPAT_VERSION}}"
+androidx-fragment = "{{ANDROIDX_FRAGMENT_VERSION}}"
+androidx-lifecycle = "{{ANDROIDX_LIFECYCLE_VERSION}}"
+androidx-constraintlayout = "{{ANDROIDX_CONSTRAINTLAYOUT_VERSION}}"
+androidx-recyclerview = "{{ANDROIDX_RECYCLERVIEW_VERSION}}"
+material = "{{MATERIAL_VERSION}}"
+wkq-core-base = "{{WKQ_CORE_BASE_VERSION}}"
+wkq-core-utils = "{{WKQ_CORE_UTILS_VERSION}}"
+
+[libraries]
+androidx-core-ktx = { module = "androidx.core:core-ktx", version.ref = "androidx-core" }
+androidx-activity-ktx = { module = "androidx.activity:activity-ktx", version.ref = "androidx-activity" }
+androidx-appcompat = { module = "androidx.appcompat:appcompat", version.ref = "androidx-appcompat" }
+androidx-fragment-ktx = { module = "androidx.fragment:fragment-ktx", version.ref = "androidx-fragment" }
+androidx-lifecycle-runtime-ktx = { module = "androidx.lifecycle:lifecycle-runtime-ktx", version.ref = "androidx-lifecycle" }
+androidx-lifecycle-viewmodel-ktx = { module = "androidx.lifecycle:lifecycle-viewmodel-ktx", version.ref = "androidx-lifecycle" }
+androidx-lifecycle-livedata-ktx = { module = "androidx.lifecycle:lifecycle-livedata-ktx", version.ref = "androidx-lifecycle" }
+androidx-constraintlayout = { module = "androidx.constraintlayout:constraintlayout", version.ref = "androidx-constraintlayout" }
+androidx-recyclerview = { module = "androidx.recyclerview:recyclerview", version.ref = "androidx-recyclerview" }
+material = { module = "com.google.android.material:material", version.ref = "material" }
+wkq-core-base = { module = "{{WKQ_CORE_BASE_COORDINATE}}", version.ref = "wkq-core-base" }
+wkq-core-utils = { module = "{{WKQ_CORE_UTILS_COORDINATE}}", version.ref = "wkq-core-utils" }
+
+[plugins]
+android-application = { id = "com.android.application", version.ref = "agp" }
+android-library = { id = "com.android.library", version.ref = "agp" }
+kotlin-android = { id = "org.jetbrains.kotlin.android", version.ref = "kotlin" }

@@ -1,0 +1,13 @@
+plugins {
+    alias(libs.plugins.android.library)
+}
+
+android {
+    namespace = '{{FEATURE_RES_NAMESPACE}}'
+    compileSdk = libs.versions.compileSdk.get().toInteger()
+
+    defaultConfig {
+        minSdk = libs.versions.minSdk.get().toInteger()
+        consumerProguardFiles '{{LIBRARY_CONSUMER_RULES_FILE}}'
+    }
+}

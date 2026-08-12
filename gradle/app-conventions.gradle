@@ -1,0 +1,108 @@
+def appConfigFile = rootProject.file('app-config.properties')
+if (!appConfigFile.isFile()) {
+    throw new GradleException('缺少公开应用配置：app-config.properties')
+}
+
+def appConfig = new Properties()
+appConfigFile.withInputStream { appConfig.load(it) }
+
+def appNamespace = appConfig.getProperty('namespace', '').trim()
+def appApplicationId = appConfig.getProperty('applicationId', '').trim()
+def appVersionName = appConfig.getProperty('versionName', '').trim()
+if (!appNamespace) {
+    throw new GradleException('namespace 不能为空')
+}
+if (!appApplicationId) {
+    throw new GradleException('applicationId 不能为空')
+}
+if (!(appVersionName ==~ /\d+\.\d+\.\d+/)) {
+    throw new GradleException('versionName 必须是 major.minor.patch，例如 1.0.1')
+}
+
+def versionParts = appVersionName.split('\\.').collect { it.toLong() }
+if (versionParts[1] > 999 || versionParts[2] > 999) {
+    throw new GradleException('versionName 的 minor 和 patch 不能超过 999')
+}
+def calculatedVersionCode = versionParts[0] * 1_000_000L + versionParts[1] * 1_000L + versionParts[2]
+if (calculatedVersionCode < 1 || calculatedVersionCode > 2_100_000_000L) {
+    throw new GradleException('根据 versionName 计算出的 versionCode 超出 Google Play 范围')
+}
+
+def signingProperties = new Properties()
+def signingPropertiesFile = rootProject.file('keystore.properties')
+if (signingPropertiesFile.isFile()) {
+    signingPropertiesFile.withInputStream { signingProperties.load(it) }
+}
+def signingValue = { String propertyName, String environmentName ->
+    providers.environmentVariable(environmentName).orNull ?: signingProperties.getProperty(propertyName)
+}
+def appStoreFile = signingValue('storeFile', 'ANDROID_KEYSTORE_FILE')
+def appStorePassword = signingValue('storePassword', 'ANDROID_KEYSTORE_PASSWORD')
+def appKeyAlias = signingValue('keyAlias', 'ANDROID_KEY_ALIAS')
+def appKeyPassword = signingValue('keyPassword', 'ANDROID_KEY_PASSWORD')
+def appSigningValues = [appStoreFile, appStorePassword, appKeyAlias, appKeyPassword]
+def configuredSigningValueCount = appSigningValues.count { it }
+def signingConfigurationError = null
+if (configuredSigningValueCount > 0 && configuredSigningValueCount < appSigningValues.size()) {
+    signingConfigurationError = '应用签名配置不完整，必须同时提供 storeFile、storePassword、keyAlias、keyPassword'
+}
+def appStorePath = appStoreFile ? rootProject.file(appStoreFile) : null
+if (configuredSigningValueCount == appSigningValues.size() && !appStorePath.isFile()) {
+    signingConfigurationError = "应用 keystore 不存在: ${appStoreFile}"
+}
+def appSigningReady = configuredSigningValueCount == appSigningValues.size() && signingConfigurationError == null
+def requireReleaseSigning = appConfig.getProperty('requireReleaseSigning', 'false').toBoolean()
+
+android {
+    namespace = appNamespace
+
+    defaultConfig {
+        applicationId = appApplicationId
+        versionCode = calculatedVersionCode.toInteger()
+        versionName = appVersionName
+    }
+
+    signingConfigs {
+        if (appSigningReady) {
+            sharedApp {
+                storeFile = appStorePath
+                storePassword = appStorePassword
+                keyAlias = appKeyAlias
+                keyPassword = appKeyPassword
+                enableV1Signing = true
+                enableV2Signing = true
+                enableV3Signing = true
+                enableV4Signing = true
+            }
+        }
+    }
+
+    buildTypes {
+        debug {
+            if (appSigningReady) {
+                signingConfig = signingConfigs.sharedApp
+            }
+            minifyEnabled = false
+        }
+        release {
+            if (appSigningReady) {
+                signingConfig = signingConfigs.sharedApp
+            }
+            minifyEnabled = true
+            shrinkResources = true
+            proguardFiles getDefaultProguardFile('proguard-android-optimize.txt'), 'proguard-rules.pro'
+        }
+    }
+}
+
+if (signingConfigurationError) {
+    throw new GradleException(signingConfigurationError)
+}
+gradle.taskGraph.whenReady { graph ->
+    def releaseTaskRequested = graph.allTasks.any { task ->
+        task.name.toLowerCase().contains('release')
+    }
+    if (requireReleaseSigning && releaseTaskRequested && !appSigningReady) {
+        throw new GradleException('正式发布要求签名，请配置 keystore.properties 或签名环境变量')
+    }
+}

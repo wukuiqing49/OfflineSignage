@@ -1,0 +1,4 @@
+interface:
+  display_name: "Android 项目架构"
+  short_description: "分析模块边界、共享能力归属和 WKQ 框架复用"
+  default_prompt: "使用 $android-project-architecture-workflow 分析这个 Android 架构或共享能力任务。"

@@ -1,0 +1,24 @@
+pluginManagement {
+    repositories {
+        google()
+        mavenCentral()
+        gradlePluginPortal()
+    }
+}
+
+dependencyResolutionManagement {
+    repositoriesMode.set(RepositoriesMode.FAIL_ON_PROJECT_REPOS)
+    repositories {
+        google()
+        mavenCentral()
+        maven { url = uri('https://jitpack.io') }
+    }
+}
+
+rootProject.name = '{{PROJECT_NAME}}'
+
+include '{{APP_PROJECT}}'
+include '{{CORE_BASE_PROJECT}}'
+include '{{CORE_UTILS_PROJECT}}'
+include '{{FEATURE_APP_PROJECT}}'
+include '{{FEATURE_RES_PROJECT}}'

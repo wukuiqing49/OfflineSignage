@@ -1,0 +1,150 @@
+# Android 项目脚手架固定配置
+projectName: Local Signage
+packageName: com.wkq.localsignage
+applicationId: com.wkq.localsignage
+
+application:
+  configFile: app-config.properties
+  conventionsFile: gradle/app-conventions.gradle
+  namespaceKey: namespace
+  applicationIdKey: applicationId
+  versionNameKey: versionName
+  requireSigningKey: requireReleaseSigning
+  applicationClassName: LocalSignageApplication
+  versionName: 0.1.0
+  versionCodePolicy: semver-major-minor-patch
+  versionCodeFormula: major*1000000+minor*1000+patch
+
+gradle:
+  dsl: groovy
+  settingsFile: settings.gradle
+  buildFile: build.gradle
+  useKotlinDsl: false
+
+versions:
+  policy: pinned-stable-baseline
+  agp: 8.13.2
+  gradle: 8.13
+  kotlin: 2.3.0
+  compileSdk: 36
+  targetSdk: 36
+  minSdk: 23
+  androidxCore: 1.18.0
+  androidxActivity: 1.13.0
+  androidxAppcompat: 1.7.1
+  androidxFragment: 1.8.9
+  androidxLifecycle: 2.10.0
+  androidxConstraintlayout: 2.2.1
+  androidxRecyclerview: 1.4.0
+  material: 1.13.0
+
+language:
+  kotlin: true
+  java: true
+  sourceRoot: src/main/java
+
+native:
+  abiPolicy: required-library-intersection
+  abis:
+    - arm64-v8a
+    - x86_64
+  require16KbPageSize: true
+
+modules:
+  app: app
+  coreRoot: core
+  coreBase: core/core_base
+  coreUtils: core/core_utils
+  featureRoot: feature
+  featureApp: feature/feature_app
+  featureRes: feature/feature_res
+
+wkq:
+  enabled: true
+  versionPolicy: latest-git-tag-at-integration
+  coreBase:
+    repository: https://github.com/wukuiqing49/AndroidCoreBase
+    coordinate: com.github.wukuiqing49:AndroidCoreBase
+  coreUtils:
+    repository: https://github.com/wukuiqing49/AndroidCoreUtils
+    coordinate: com.github.wukuiqing49:AndroidCoreUtils
+  requireBaseInheritance: true
+  initializeCoreUtilsInApplication: true
+
+release:
+  createProguardFiles: true
+  appProguardFile: proguard-rules.pro
+  libraryConsumerRulesFile: consumer-rules.pro
+  minifyEnabled: true
+  shrinkResources: true
+  signingPropertiesFile: keystore.properties
+  signingKeystoreFile: app/local_signage.jks
+  requireSigningByDefault: true
+  signingEnvironment:
+    storeFile: ANDROID_KEYSTORE_FILE
+    storePassword: ANDROID_KEYSTORE_PASSWORD
+    keyAlias: ANDROID_KEY_ALIAS
+    keyPassword: ANDROID_KEY_PASSWORD
+  neverWriteSecrets: true
+
+androidCompatibility:
+  networkSecurity:
+    enabled: true
+    cleartextTrafficPermitted: false
+    trustSystemCertificatesOnly: true
+    resource: app/src/main/res/xml/network_security_config.xml
+  fileProvider:
+    enabled: true
+    authority: "${applicationId}.fileprovider"
+    pathsResource: app/src/main/res/xml/file_paths.xml
+    exposeOnlySharedSubdirectories: true
+    sharedSubdirectory: shared/
+
+ui:
+  rtl:
+    enabled: true
+    preferRelativeAttributes: true
+    requireVisualValidationForDirectionalUi: true
+  edgeToEdge:
+    enabled: true
+    consumeInBaseActivity: true
+    lightStatusBar: true
+    lightNavigationBar: true
+    navigationBarContrastEnforced: false
+    ordinaryPagesHideSystemBars: false
+    fullScreenPagesRequireRestoreStrategy: true
+    dialogPopupRequireWindowInsets: true
+
+resources:
+  createAppResourceSkeleton: true
+  createFeatureResSkeleton: true
+  localizedValueDirs:
+    - values-en
+    - values-zh-rCN
+  includeNightResources: true
+  includeDrawableNightResources: true
+
+dependencies:
+  useVersionCatalog: true
+  includeKotlinAndroidPlugin: true
+  app:
+    - androidx-core-ktx
+    - androidx-activity-ktx
+    - androidx-appcompat
+    - material
+    - androidx-constraintlayout
+  coreBase:
+    - alias: wkq-core-base
+      configuration: api
+  coreUtils:
+    - alias: wkq-core-utils
+      configuration: api
+  featureApp:
+    - androidx-core-ktx
+    - androidx-constraintlayout
+    - androidx-fragment-ktx
+    - androidx-lifecycle-runtime-ktx
+    - androidx-lifecycle-viewmodel-ktx
+    - androidx-lifecycle-livedata-ktx
+    - androidx-recyclerview
+  featureRes: []

@@ -1,0 +1,40 @@
+plugins {
+    alias(libs.plugins.android.application)
+    alias(libs.plugins.kotlin.android)
+}
+
+apply from: rootProject.file('{{APP_CONVENTIONS_FILE}}')
+
+android {
+    compileSdk = libs.versions.compileSdk.get().toInteger()
+
+    defaultConfig {
+        minSdk = libs.versions.minSdk.get().toInteger()
+        targetSdk = libs.versions.targetSdk.get().toInteger()
+
+        ndk {
+            abiFilters {{ABI_FILTERS}}
+        }
+    }
+
+    compileOptions {
+        sourceCompatibility = JavaVersion.VERSION_17
+        targetCompatibility = JavaVersion.VERSION_17
+    }
+
+    kotlinOptions {
+        jvmTarget = '17'
+    }
+
+    buildFeatures {
+        viewBinding = true
+        buildConfig = true
+    }
+}
+
+dependencies {
+    implementation project('{{CORE_BASE_PROJECT}}')
+    implementation project('{{CORE_UTILS_PROJECT}}')
+    implementation project('{{FEATURE_APP_PROJECT}}')
+{{APP_DEPENDENCIES}}
+}

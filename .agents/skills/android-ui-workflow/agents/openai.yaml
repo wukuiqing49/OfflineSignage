@@ -1,0 +1,4 @@
+interface:
+  display_name: "Android XML UI"
+  short_description: "实现并验证 XML、ViewBinding 页面和系统栏适配"
+  default_prompt: "使用 $android-ui-workflow 实现或修改这个 Android XML 页面。"

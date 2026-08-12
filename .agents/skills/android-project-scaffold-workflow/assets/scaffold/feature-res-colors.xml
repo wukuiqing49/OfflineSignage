@@ -1,0 +1,4 @@
+<resources>
+    <color name="feature_res_surface">#FFFFFF</color>
+    <color name="feature_res_on_surface">#1F1F1F</color>
+</resources>

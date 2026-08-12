@@ -1,0 +1,11 @@
+.gradle/
+build/
+local.properties
+*.iml
+__pycache__/
+*.pyc
+
+app/build/
+core/*/build/
+feature/*/build/
+.ai-work/

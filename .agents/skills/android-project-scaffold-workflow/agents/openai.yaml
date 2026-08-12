@@ -1,0 +1,4 @@
+interface:
+  display_name: "Android 项目脚手架"
+  short_description: "从空目录一键生成并验证完整 Android 多模块工程"
+  default_prompt: "使用 $android-project-scaffold-workflow 创建或调整 Android 多模块工程，并验证生成结果。"

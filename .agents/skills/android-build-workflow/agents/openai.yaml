@@ -1,0 +1,4 @@
+interface:
+  display_name: "Android 构建配置"
+  short_description: "处理 Gradle、依赖、签名、发布和高版本兼容"
+  default_prompt: "使用 $android-build-workflow 处理这个 Android 构建或发布配置任务。"

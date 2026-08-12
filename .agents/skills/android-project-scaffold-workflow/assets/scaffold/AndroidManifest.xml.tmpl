@@ -1,0 +1,25 @@
+<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+
+{{NETWORK_PERMISSIONS}}
+
+    <application
+        android:name=".{{APPLICATION_CLASS}}"
+        android:allowBackup="true"
+        android:label="@string/app_name"
+{{NETWORK_ATTRIBUTES}}
+        android:supportsRtl="{{SUPPORTS_RTL}}"
+        android:theme="@style/{{THEME_NAME}}">
+        <activity
+            android:name=".MainActivity"
+            android:exported="true">
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN" />
+
+                <category android:name="android.intent.category.LAUNCHER" />
+            </intent-filter>
+        </activity>
+
+{{FILE_PROVIDER_BLOCK}}
+    </application>
+
+</manifest>

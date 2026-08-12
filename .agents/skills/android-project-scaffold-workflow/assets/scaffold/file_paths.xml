@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="utf-8"?>
+<paths xmlns:android="http://schemas.android.com/apk/res/android">
+    <files-path
+        name="shared_files"
+        path="{{SHARED_SUBDIRECTORY}}" />
+    <cache-path
+        name="shared_cache"
+        path="{{SHARED_SUBDIRECTORY}}" />
+    <external-files-path
+        name="external_shared_files"
+        path="{{SHARED_SUBDIRECTORY}}" />
+    <external-cache-path
+        name="external_shared_cache"
+        path="{{SHARED_SUBDIRECTORY}}" />
+</paths>

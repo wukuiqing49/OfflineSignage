@@ -1,0 +1,5 @@
+<resources>
+    <dimen name="feature_res_spacing_small">8dp</dimen>
+    <dimen name="feature_res_spacing_medium">16dp</dimen>
+    <dimen name="feature_res_spacing_large">24dp</dimen>
+</resources>

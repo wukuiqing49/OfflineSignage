@@ -1,0 +1,4 @@
+interface:
+  display_name: "Zeplin Android 图层实现"
+  short_description: "按 Zeplin 图层实现 Android 页面"
+  default_prompt: "使用 $zeplin-android-layer-implementation 按照这个 Zeplin 页面实现 Android 界面。"

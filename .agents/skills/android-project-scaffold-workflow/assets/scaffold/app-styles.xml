@@ -1,0 +1,3 @@
+<resources>
+    <style name="TextAppearance.AndroidSkill.Title" parent="TextAppearance.Material3.TitleLarge" />
+</resources>

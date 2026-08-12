@@ -1,0 +1,13 @@
+package {{PACKAGE_NAME}}
+
+{{EDGE_TO_EDGE_IMPORT}}
+import com.wkq.base.activity.BaseActivity
+import {{PACKAGE_NAME}}.databinding.ActivityMainBinding
+
+class MainActivity : BaseActivity<ActivityMainBinding>() {
+
+    override fun initView() {
+{{EDGE_TO_EDGE_INIT}}    }
+
+    override fun initData() = Unit
+}

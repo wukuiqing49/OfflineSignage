@@ -1,0 +1,11 @@
+<resources>
+    <style name="{{THEME_NAME}}" parent="Theme.Material3.DayNight.NoActionBar">
+        <item name="colorPrimary">@color/primary</item>
+        <item name="colorOnPrimary">@color/on_primary</item>
+        <item name="android:statusBarColor">@android:color/transparent</item>
+        <item name="android:navigationBarColor">@android:color/transparent</item>
+        <item name="android:windowLightStatusBar">{{LIGHT_STATUS_BAR}}</item>
+        <item name="android:windowLightNavigationBar">{{LIGHT_NAVIGATION_BAR}}</item>
+        <item name="android:enforceNavigationBarContrast">{{NAVIGATION_BAR_CONTRAST_ENFORCED}}</item>
+    </style>
+</resources>

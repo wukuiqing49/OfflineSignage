@@ -1,0 +1,18 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- colors.xml 示例 -->
+    <color name="xxx_page_bg">#FFFFFF</color>
+    <color name="xxx_text_primary">#333333</color>
+    <color name="xxx_text_secondary">#999999</color>
+
+    <!-- strings.xml 示例 -->
+    <string name="xxx_page_title">页面标题</string>
+    <string name="xxx_empty_title">暂无数据</string>
+
+    <!-- dimens.xml 示例 -->
+    <dimen name="xxx_page_padding_horizontal">12dp</dimen>
+    <dimen name="xxx_card_radius">8dp</dimen>
+
+    <!-- 尺寸必须由 Figma px 按 360dp 基准宽度换算后填写，不能直接 px 当 dp -->
+    <!-- 缺失图标使用 Material Design 临时代替时，资源清单必须标注“MD 图标替代” -->
+</resources>

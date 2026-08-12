@@ -1,0 +1,4 @@
+interface:
+  display_name: "Android Figma 页面"
+  short_description: "将 Figma 图层映射为可验证的 Android 页面"
+  default_prompt: "使用 $android-figma-workflow 分析这个 Figma Frame，生成页面任务卡并等待确认，不实现代码。"

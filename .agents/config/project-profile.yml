@@ -1,0 +1,62 @@
+schemaVersion: 1
+
+project:
+  name: Local Signage
+  description: Local-first Android digital signage player and LAN web control system
+  primaryLanguage: kotlin
+  compatibleLanguages:
+    - kotlin
+    - java
+
+android:
+  gradleDsl: groovy
+  jvmTarget: 17
+  uiToolkit: xml
+  viewBinding: true
+  dataBinding: false
+  compose: false
+  architecturePattern: mvvm
+  annotationProcessing:
+    active: none
+    preferredWhenRequired: ksp
+
+modules:
+  app: app
+  coreBase: core/core_base
+  coreUtils: core/core_utils
+  featureApp: feature/feature_app
+  featureRes: feature/feature_res
+  containerDirectories:
+    - core
+    - feature
+
+frameworks:
+  active:
+    - AndroidCoreBase
+    - AndroidCoreUtils
+  preferredWhenRequired:
+    media: AndroidX Media3
+    network: AndroidX/OkHttp
+    storage: Room/DataStore
+    discovery: Android NSD
+
+resources:
+  defaultValuesDir: values
+  localizedValueDirs:
+    - values-en
+    - values-zh-rCN
+  sharedResourceModule: feature/feature_res
+
+sourceOfTruth:
+  dependencyVersions: gradle/libs.versions.toml
+  gradleWrapper: gradle/wrapper/gradle-wrapper.properties
+  applicationProperties: app-config.properties
+  gradleProperties: gradle.properties
+  moduleGraph: settings.gradle
+  moduleBuildFiles: '**/build.gradle'
+  scaffoldDefaults: .agents/config/project-scaffold.yml
+
+validation:
+  agentStructure: python -X utf8 .agents/scripts/validate_agent_structure.py
+  workflowAggregate: python -X utf8 .agents/scripts/validate_android_workflows.py --project-root . --skip-figma
+  debugBuild: .\gradlew.bat :app:assembleDebug

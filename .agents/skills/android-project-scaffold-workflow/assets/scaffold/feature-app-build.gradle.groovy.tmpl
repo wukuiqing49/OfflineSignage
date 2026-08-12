@@ -1,0 +1,34 @@
+plugins {
+    alias(libs.plugins.android.library)
+    alias(libs.plugins.kotlin.android)
+}
+
+android {
+    namespace = '{{FEATURE_APP_NAMESPACE}}'
+    compileSdk = libs.versions.compileSdk.get().toInteger()
+
+    defaultConfig {
+        minSdk = libs.versions.minSdk.get().toInteger()
+        consumerProguardFiles '{{LIBRARY_CONSUMER_RULES_FILE}}'
+    }
+
+    compileOptions {
+        sourceCompatibility = JavaVersion.VERSION_17
+        targetCompatibility = JavaVersion.VERSION_17
+    }
+
+    kotlinOptions {
+        jvmTarget = '17'
+    }
+
+    buildFeatures {
+        viewBinding = true
+    }
+}
+
+dependencies {
+    implementation project('{{CORE_BASE_PROJECT}}')
+    implementation project('{{CORE_UTILS_PROJECT}}')
+    implementation project('{{FEATURE_RES_PROJECT}}')
+{{FEATURE_APP_DEPENDENCIES}}
+}

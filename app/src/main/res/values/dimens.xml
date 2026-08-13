@@ -2,4 +2,8 @@
     <dimen name="app_spacing_small">8dp</dimen>
     <dimen name="app_spacing_medium">16dp</dimen>
     <dimen name="app_spacing_large">24dp</dimen>
+    <dimen name="pairing_screen_padding">32dp</dimen>
+    <dimen name="pairing_qr_size">240dp</dimen>
+    <dimen name="pairing_qr_pixels">512px</dimen>
+    <dimen name="pairing_content_gap">40dp</dimen>
 </resources>

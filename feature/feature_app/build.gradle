@@ -37,9 +37,16 @@ dependencies {
     implementation libs.androidx.lifecycle.viewmodel.ktx
     implementation libs.androidx.lifecycle.livedata.ktx
     implementation libs.androidx.recyclerview
+    api libs.androidx.viewpager2
+    implementation libs.coil
     implementation libs.ktor.server.core
     implementation libs.ktor.server.cio
     implementation libs.ktor.server.websockets
+    implementation libs.zxing.core
     implementation libs.media3.exoplayer
+    implementation libs.media3.exoplayer.hls
+    implementation libs.media3.exoplayer.dash
+    implementation libs.media3.exoplayer.rtsp
     implementation libs.media3.ui
+    testImplementation libs.junit4
 }

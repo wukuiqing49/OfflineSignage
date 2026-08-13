@@ -1,374 +1,95 @@
-# Local Signage 未完成功能与明日实施计划
+# Local Signage 剩余工作
 
-> 更新时间：2026-08-12
+> 更新日期：2026-08-13
 >
-> 当前基线：P0 单设备播放和 P1 多设备控制主链路已经实现；本文只记录尚未完成、部分完成或尚未经过真实设备验收的内容。
+> 本文只记录尚未实现、尚未完成物理验收或明确延期的内容。支付不在当前范围。
 
 ## 1. 当前结论
 
-当前工程已经具备：
-
-- Android 全屏 Media3/ExoPlayer 图片和视频播放。
-- Ktor HTTP Server、WebSocket 状态推送和内置 Web 控制页。
-- Resource、Scene、Playlist 持久化和默认内容恢复。
-- 播放失败 Retry、Skip、Fallback、错误记录和 Service 存活。
-- Foreground Service、开机恢复、Keep Screen Awake、音量和静音。
-- Control Session、Heartbeat、Takeover、Command Revision。
-- NSD/mDNS 设备发现、设备配对持久化和设备 Token 鉴权。
-- SHA-256 资源去重、资源同步、Scene/Playlist 同步和多设备控制。
-- HTTPS 远程图片/视频缓存，下载后转为本地资源，断网可继续播放。
-
-本轮新增远程资源接口：
-
-```text
-POST /api/resources/remote
-{
-  "url": "https://example.com/promo.mp4",
-  "name": "promo.mp4"
-}
-```
-
-远程下载当前限制 HTTPS、拒绝内网地址、限制重定向和文件大小，并复用本地资源配额与哈希去重。
-
-## 2. 未实现功能总表
-
-| 优先级 | 功能 | 当前状态 | 明日建议 |
-|---|---|---|---|
-| P1 收口 | 二维码首次连接 | 未实现 | 优先实现 |
-| P1 收口 | 临时 Token 生命周期 | 部分实现，当前是持久控制 Token | 优先整改 |
-| P1 收口 | Token 轮换与撤销 | 未实现 | 与二维码一起实现 |
-| P1 收口 | 多设备实时状态聚合 | 部分实现，只返回操作结果 | 优先实现 |
-| P1 收口 | API 契约和错误码统一 | 部分实现 | 与测试一起收口 |
-| P2 | Local HTML / Remote WebView | 未实现 | 第二阶段 |
-| P2 | HLS / DASH / RTSP | 未实现 | 按协议拆分 |
-| P2 | Text / Ticker | 未实现 | 可先做静态 Text |
-| P2 | Overlay | 未实现 | 依赖 Scene 模型升级 |
-| P2 | Blur 背景 | 未实现 | 图片 FIT 模式后实现 |
-| P2 | UDP Discovery fallback | 未实现 | NSD 不稳定时补充 |
-| P2 | 复杂 Scene 编辑器 | 未实现 | 最后实现 |
-| 质量 | 自动化测试 | 基础校验，无业务测试 | 明日同步补齐 |
-| 质量 | 双真实设备联调 | 未完成 | 必须安排 |
-| 质量 | 长时间、断电、重启测试 | 未完成 | 发布前必须完成 |
-
-## 3. 明日第一优先级：二维码与 Token 生命周期
-
-### 3.1 当前问题
-
-当前 Web 页面和 `/api/device` 可以拿到设备控制 Token。它适合内部调试，但不符合正式产品的临时连接设计：
-
-- Token 没有明确的短期有效期。
-- 没有 Token 轮换。
-- 没有 Token 撤销。
-- 没有二维码生成和展示。
-- 没有区分只读访问、控制访问和设备间同步访问。
-
-### 3.2 建议接口
-
-```text
-GET  /api/pairing
-POST /api/pairing/rotate
-POST /api/pairing/revoke
-```
-
-建议返回：
-
-```json
-{
-  "url": "http://192.168.1.10:8080/?pairingToken=...",
-  "token": "...",
-  "expiresAt": 0
-}
-```
-
-要求：
-
-- 二维码只保存局域网地址、端口和短期 Token。
-- Token 使用随机高强度值，数据库只保存必要信息。
-- 连接成功后可以立即撤销或轮换。
-- 轮换后旧 Token 立即失效。
-- Token 不写入日志和错误响应。
-- Web 页面不直接展示长期设备密钥。
-
-### 3.3 实施文件
-
-- `SignageStore.kt`：保存 Token、过期时间、撤销状态。
-- `SignageRuntime.kt`：暴露 pairing API。
-- `KtorSignageServer.kt`：增加接口和二维码页面。
-- `feature_app/build.gradle`：如无现有二维码库，增加稳定二维码生成依赖；否则先提供二维码内容 URL。
-- `app/src/main/AndroidManifest.xml`：确认局域网访问边界。
-
-### 3.4 验收
-
-- 浏览器或手机扫描二维码可打开 Web 控制页。
-- Token 过期后返回 `401`。
-- 轮换后旧 Token 不能控制设备。
-- 两个浏览器可以读状态，但只有一个 Control Session 能写入。
-- 重启后未过期的临时配对行为符合产品决定；默认建议重启后仍可恢复设备服务，但配对 Token 重新生成。
-
-## 4. 第二优先级：多设备实时状态聚合
-
-### 当前状态
-
-当前可以发现设备、读取单台状态、同步资源和发送控制，但 Web 页面主要展示：
-
-- 设备是否配对。
-- 操作是否成功。
-- 返回的错误码。
-
-还缺少稳定的设备状态聚合：
-
-- online/offline。
-- 当前 Scene、Playlist、资源。
-- 播放/暂停状态。
-- 音量、静音、错误。
-- 最后心跳时间。
-- 目标设备命令 revision。
-
-### 建议实现
-
-在 `SignageDeviceFleet` 增加：
-
-```kotlin
-fun statuses(targets: List<PairedDevice>): List<FleetStatus>
-```
-
-每台设备使用短连接超时请求：
-
-```text
-GET /api/status
-```
-
-新增接口：
-
-```text
-GET /api/devices/status
-```
-
-要求：
-
-- 并发读取，单台失败不影响其他设备。
-- 明确区分 `OFFLINE`、`UNAUTHORIZED`、`TIMEOUT`、`INVALID_RESPONSE`。
-- 不在 API 返回 Token。
-- WebSocket 可推送 Gateway 自身状态；多设备状态先采用轮询，后续再做设备间 WebSocket。
-
-### 验收
-
-- 关闭一台目标设备后，其他设备状态仍正常返回。
-- 页面显示最后在线时间和失败原因。
-- 恢复设备后状态自动恢复。
-- 同步或控制结果能关联到最新设备状态。
-
-## 5. 第三优先级：API 契约收口
-
-当前接口已经可用，但与规格还有以下差异或风险：
-
-- 规格使用 `X-Control-Session`，实现使用 `X-Local-Signage-Session`，需要统一或兼容两者。
-- 规格要求 `X-Command-Id` 幂等，当前主要依赖 `commandRevision`，还没有完整 commandId 去重记录。
-- 部分错误只返回 `code`，缺少稳定的 `message` 和 `details`。
-- 删除接口部分返回 `200`，规格允许但建议统一为 `204` 或固定 JSON。
-- 上传过大、MIME 不支持、远程资源失败需要稳定映射到 `413/415/400/502`。
-- 设备 Token、控制 Token、Session Token 的语义还需要在文档中明确区分。
-
-### 建议
-
-建立统一错误结构：
-
-```json
-{
-  "error": {
-    "code": "REMOTE_URL_PROTOCOL_NOT_ALLOWED",
-    "message": "Remote URL protocol is not allowed",
-    "details": {}
-  }
-}
-```
-
-建立 command result 表或轻量缓存，保存：
-
-```text
-deviceId / commandId / revision / action / result / createdAt
-```
-
-相同 `commandId` 重复请求返回第一次结果，不重复执行。
-
-## 6. P2 播放能力
-
-### 6.1 Local HTML / Remote WebView
-
-未实现内容：
-
-- HTML Resource 类型。
-- 本地 HTML 上传和本地播放。
-- Remote WebView 场景。
-- 页面加载超时、失败页和离线策略。
-- WebView 安全配置。
-
-建议先做 Local HTML，再做 Remote WebView：
-
-1. Resource 增加 `text/html` 类型和 HTML 文件保存。
-2. 播放页增加 WebView 播放容器。
-3. 关闭不必要的 `file access`、Universal Access From File URLs 和调试开关。
-4. Remote WebView 默认只允许 HTTPS。
-5. 所有 WebView 页面设置加载超时和错误状态。
-
-风险：WebView 与 ExoPlayer 的全屏生命周期、进程崩溃、远程脚本和本地文件权限。
-
-### 6.2 HLS / DASH / RTSP
-
-目前只有本地图片/视频资源，Media3 直播流没有资源类型、URL 白名单和重连策略。
-
-建议顺序：
-
-1. HLS：Media3 默认支持，先实现 HTTPS `.m3u8`。
-2. DASH：增加 MPD 资源和 DRM/错误策略评估。
-3. RTSP：最后实现，明确 UDP/TCP、认证和断线重连。
-
-每种流都需要：
-
-- URL 协议白名单。
-- 连接和缓冲超时。
-- 断线重连。
-- 播放失败 Retry/Skip/Fallback。
-- 不把直播 URL 当作本地文件同步。
-- Scene/Playlist 持久化流配置，但不保存敏感凭据。
-
-### 6.3 Text / Ticker / Overlay
-
-当前 Scene 只有单一 Resource，没有 Overlay 数组，也没有文字渲染模型。
-
-建议新增：
-
-```text
-Overlay
-  id
-  type: TEXT | TICKER | IMAGE
-  content
-  x / y / width / height
-  textSize
-  textColor
-  backgroundColor
-  durationMs
-  animation
-  zIndex
-```
-
-先实现静态 Text，再实现 Ticker，最后实现动画。Overlay 应独立于视频播放器，避免修改视频文件。
-
-### 6.4 Blur 背景
-
-当前支持背景类型字段，但实际只保证基础背景。Blur 需要：
-
-- 图片 FIT 时生成或实时绘制模糊背景。
-- 控制 CPU/GPU 消耗。
-- 图片切换时避免闪烁。
-- 低端设备降级为纯色背景。
-
-## 7. UDP Discovery fallback
-
-当前已有 NSD/mDNS，但没有 UDP 兜底。
-
-建议：
-
-- 使用固定局域网 UDP 广播端口。
-- 广播内容只包含设备 ID、名称、HTTP 端口、协议版本。
-- 不广播控制 Token。
-- 收到响应后仍必须通过 HTTP `/api/device` 校验设备。
-- 只接受局域网接口和有效地址。
-- 广播生命周期跟随 Service，停止时释放 socket。
-
-## 8. 质量与发布前工作
-
-### 自动化测试
-
-当前已通过构建、架构、UI、i18n 校验，但缺少业务自动化测试。至少补充：
-
-- `SignageStore`：上传、哈希去重、配额、删除、远程 URL 校验。
-- Control Session：占用、Heartbeat、超时、Takeover。
-- Command Revision：旧命令拒绝、新命令接受。
-- Playlist：重复同步、未知 Scene、禁用项。
-- Remote Download：重定向、非法协议、内网地址、超大文件、错误 MIME。
-- Device Fleet：一台离线不影响其他设备。
-
-### 双设备联调
-
-- 两台 Android 设备连接同一局域网。
-- 自动 NSD 发现。
-- 配对并读取设备状态。
-- 资源 Hash 去重同步。
-- Scene/Playlist 同步。
-- 统一播放、暂停、音量、静音。
-- 关闭 Gateway 后目标设备继续播放本地文件。
-
-### 稳定性测试
-
-- 连续播放 24 小时。
-- Activity 重建。
-- Android 重启和 `BOOT_COMPLETED`。
-- 网络断开后恢复。
-- 存储空间不足。
-- 损坏媒体文件。
-- 大文件上传和远程下载中断。
-- 快速连续点击控制命令。
-
-### 发布检查
-
-- 正式签名 APK 安装和升级。
-- Release APK 启动、Service、全屏、播放和 Web 控制。
-- 签名证书不进入 Git。
-- R8 后检查 Media3、Ktor、WebSocket 和 JSON。
-- 明确局域网明文 HTTP 是当前业务例外，并评估后续 TLS 或局域网限制。
-- 检查 16 KB page size 风险和目标 SDK 兼容性。
-
-## 9. 明天推荐执行顺序
-
-### 上午：P1 收口
-
-1. 统一 Header 和错误响应契约。
-2. 实现临时配对 Token、轮换、撤销。
-3. 实现二维码内容和 Web 页面展示。
-4. 为配对与 Token 加测试。
-
-### 下午：多设备可运维性
-
-5. 实现 `/api/devices/status`。
-6. Web 页面增加在线状态、最后心跳和错误原因。
-7. 补齐 commandId 幂等缓存。
-8. 做双设备联调 smoke check。
-
-### 后续阶段
-
-9. Local HTML/WebView。
-10. HLS，再评估 DASH、RTSP。
-11. Text/Ticker/Overlay。
-12. Blur 背景。
-13. UDP Discovery fallback。
-14. 复杂 Scene Editor、统计和云能力。
-
-## 10. 明日开始前的验证基线
-
-```powershell
-./gradlew.bat :app:assembleDebug
-./gradlew.bat :app:assembleRelease
-python -X utf8 .agents/scripts/validate_android_workflows.py --project-root . --skip-figma
-git diff --check
-```
-
-当前构建结果：
-
-- Debug APK：`app/build/outputs/apk/debug/app-debug.apk`
-- Release APK：`app/build/outputs/apk/release/app-release.apk`
-- 工作流校验：通过。
-- 已知 warning：Manifest 开启局域网明文流量，且未声明 network security config；这是当前设备间 HTTP 通信的已知风险，不是构建失败。
-
-## 11. 不要重复做的内容
-
-明天继续时无需重新实现以下模块：
-
-- Resource / Scene / Playlist 基础 CRUD。
-- 本地图片和视频播放。
-- 全屏暂停/继续状态页。
-- Ktor Server 和 WebSocket 基础状态。
-- Control Session、Heartbeat、Takeover、Command Revision。
-- NSD/mDNS 发现和配对设备持久化。
-- SHA-256 资源同步和多设备基础控制。
-- HTTPS 远程图片/视频缓存。
+第一阶段代码已完成，具备商业试运行所需的单设备播放、局域网管理、多设备基础控制、安全凭据、诊断与发布构建能力。以下能力已实现，但必须按 `LOCAL_SIGNAGE_COMMERCIAL_RELEASE_CHECKLIST_CN.md` 在真实硬件上验收后，才能标记为商业发布通过：
+
+- Android 12、13、14、15、16 的安装、启动、前台服务和开机恢复。
+- 手机、平板、Android TV、常见电视盒子的全屏显示与遥控器/触摸兼容。
+- 两台设备的发现、配对、资源同步、Scene/Playlist 同步和统一控制。
+- 断网、断电、重启、磁盘不足、损坏媒体和大文件中断。
+- 24 小时连续播放与内存、温度、网络、服务稳定性。
+- 正式签名 APK 的安装、覆盖升级和 R8 后运行。
+
+## 2. 第一阶段已实现
+
+| 能力 | 状态 | 说明 |
+|---|---|---|
+| 全屏图片/视频播放 | 已实现 | Media3/ExoPlayer；Android 端只展示暂停/继续和状态，无进度条 |
+| 首次欢迎页 | 已实现 | 首次人工启动显示三步引导；已有内容升级和开机恢复直接进入播放页 |
+| 首次连接页 | 已实现 | 设备名、IP、网络状态、临时二维码；无资源时显示 |
+| 临时配对 Token | 已实现 | 5 分钟有效、一次性消费、轮换、撤销 |
+| Web 短期 Token | 已实现 | 8 小时有效、轮换/撤销、浏览器本地持久存储；存储不可用时降级到标签页会话 |
+| 配对鉴权 | 已实现 | 匿名页面不签发 Token，数据与操作 API 均鉴权 |
+| 设备间长期 Token | 已实现 | Android Keystore AES-GCM；密钥失效时轮换并要求重新配对 |
+| Control Session | 已实现 | Acquire、Heartbeat、Release、Takeover、双 Header 兼容 |
+| commandId/revision | 已实现 | 幂等结果缓存、请求指纹、单调 revision |
+| Resource/Scene/Playlist Web 管理 | 已实现 | 创建、列表、播放、删除；Playlist Scene 多选 |
+| 多设备状态与控制 | 已实现 | NSD、配对、状态轮询、同步、播放、暂停、音量、静音 |
+| 远程媒体缓存 | 已实现 | 仅 HTTPS、公网地址限制、重定向/大小/MIME/配额校验 |
+| 诊断与日志导出 | 已实现 | 设备、系统、播放、数量、存储、最近错误；不导出凭据和内容 |
+| 备份与网络安全声明 | 已实现 | 禁止系统备份；Manifest 中局域网 HTTP 为显式产品例外 |
+| 设置行为闭环 | 已实现，待真机验收 | Auto Resume 参与启动恢复；常亮和全屏设置对当前 Activity 即时生效 |
+| 网络切换发现恢复 | 已实现，待双真机验收 | 默认网络、能力或地址变化后防抖重启 NSD/UDP，保留 Ktor 监听 |
+| 核心规则单元测试 | 已实现 | Token、配对过期、revision、commandId、Playlist 引用 |
+
+## 3. 商业发布前未完成
+
+这些不是可由桌面构建替代的测试，当前状态统一为“待现场执行”：
+
+1. Android 12-16 与目标电视盒子/平板测试矩阵。
+2. 双真机发现、配对、同步、控制和 Gateway 离线验证。
+3. 断网、恢复网络、强制断电、开机恢复和 Activity 重建。
+4. 24 小时连续图片/视频/Playlist 混播。
+5. 低存储、满配额、损坏媒体和中断上传/下载。
+6. 正式签名 Release APK 全新安装和覆盖升级。
+7. R8 后 Ktor、WebSocket、Media3、JSON、二维码完整 smoke test。
+
+每项都必须记录设备、Android 版本、APK SHA-256、时间、结果、证据和问题编号，不允许用模拟器结果替代电视盒子结论。
+
+## 4. 第二阶段代码实现状态
+
+| 能力 | 状态 | 说明 |
+|---|---|---|
+| Local HTML / Remote WebView | 已实现，待真机验收 | Local HTML 使用隔离 HTTPS base URL；Remote Web 仅 HTTPS；禁止 file/content/mixed-content/地理位置访问，无 JSBridge，主页面错误和超时进入 Retry/Skip/Fallback |
+| HLS / DASH / RTSP | 已实现，待真机验收 | Media3 HLS/DASH/RTSP 官方模块；流地址禁用户信息；1/2/4/8/30 秒重试后进入 Skip/Fallback |
+| Text 主内容 | 已实现，待真机验收 | 独立全屏 TextView，由统一 Scene 调度器管理时长、暂停和继续 |
+| Text / Ticker Overlay | 已实现，待真机验收 | Scene Overlay 持久化、设备同步、层级/位置/颜色/字号/速度；Ticker 暂停与继续冻结动画 |
+| Blur 背景 | 已实现，待真机验收 | Android 12+ 本地图片使用降采样 Bitmap + RenderEffect；低版本、视频、流和 Web 明确降级为背景色，不做高成本实时模糊 |
+| UDP Discovery fallback | 已实现，待双真机验收 | UDP 18080 广播探测，与 NSD 结果合并；报文不含 Token，只接受站点本地 IPv4，60 秒淘汰过期结果 |
+| Web 管理页扩展 | 已实现，待浏览器验收 | 可创建 Remote Web、Local HTML、HLS/DASH/RTSP、Text，并可为 Scene 添加静态文本或跑马灯 Overlay |
+| SQLite schema v6 | 已实现，待升级验收 | 以新增列迁移 Resource kind/source/content/refresh 和 Scene overlays，不重建旧表 |
+
+第二阶段仍不能标记为商业发布通过。必须完成 HLS/DASH/RTSP 服务端兼容、目标设备 WebView、双真机 UDP、Activity 重建、弱网恢复和 24 小时混合 Playlist 测试。
+
+## 5. 真正剩余或后续阶段功能
+
+- 可视化复杂 Scene 编辑器、分屏、排期和统计。
+- TLS 或基于可信网络边界的局域网传输增强。
+- Web 控制台拆为独立前端工程、CSP 和完整多语言。
+- MDM/企业分发、远程升级编排和设备策略管理。
+- SQLite/Ktor/播放器的 Android instrumentation 与端到端自动化测试。
+
+## 6. 当前已知边界
+
+- 服务监听 `0.0.0.0`，依靠局域网部署边界和 Token 鉴权；不得做公网端口映射。
+- 动态私网 IP 无法通过 Android Network Security Config 按固定域名或 CIDR 收窄，所以 Manifest 保留应用级明文 HTTP 例外；构建门禁会持续警告，TLS 升级前不得公网暴露。
+- Web Token 位于同源 `localStorage`，用于在 8 小时有效期内恢复控制；存储不可用时降级到 `sessionStorage`。它仍无法达到 HttpOnly Cookie 的脚本隔离强度。
+- Android 12+ 对后台和开机启动的设备厂商限制需要目标硬件逐台确认。
+- 当前自动化测试集中在纯业务规则；SQLite、Ktor 路由、播放器和双设备链路仍需增加集成测试。
+- 内嵌 Web 管理页已对字符串模板中的业务名称、属性值和事件参数做上下文编码；拆为独立前端时仍应改为 DOM `textContent` 渲染并增加内容安全策略。
+- Remote Web 允许 JavaScript 和 DOM Storage 以兼容看板页面，但不提供 JSBridge；页面自身供应链与 CSP 仍由内容提供方负责。
+- RTSP 允许局域网或明确配置的可信主机，当前校验协议、Host 和禁 URL 内嵌凭据；部署仍必须阻止设备访问非预期网络。
+- Android 12 以下和非图片内容的 Blur 降级为 Scene 背景色；这是性能与兼容策略，不属于实时视频模糊。
+- Local HTML 当前通过 JSON API/管理页提交，未开放任意 HTML 文件上传；内容上限 100 KB。
+
+## 7. 下一阶段优先顺序
+
+1. 完成并留证第一阶段真机验收，修复所有阻断问题。
+2. 按商业清单完成第二阶段 WebView、HLS/DASH/RTSP、Overlay、Blur、UDP 双真机验收。
+3. 增加 SQLite/Ktor 集成测试和 Media3/WebView instrumented smoke test。
+4. 在确认部署网络模型后决定 TLS、MDM 和升级编排方案。

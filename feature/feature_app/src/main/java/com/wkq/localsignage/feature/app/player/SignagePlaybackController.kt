@@ -1,59 +1,98 @@
 package com.wkq.localsignage.feature.app.player
 
-import android.content.Context
+import android.annotation.SuppressLint
+import android.animation.ObjectAnimator
 import android.graphics.Color
+import android.graphics.Bitmap
+import android.graphics.BitmapFactory
+import android.graphics.RenderEffect
+import android.graphics.Shader
+import android.net.Uri
+import android.os.Build
 import android.os.Handler
 import android.os.Looper
+import android.os.SystemClock
+import android.view.Gravity
+import android.view.View
+import android.view.ViewGroup
+import android.webkit.WebResourceError
+import android.webkit.WebResourceRequest
+import android.webkit.WebSettings
+import android.webkit.WebView
+import android.webkit.WebViewClient
+import android.widget.FrameLayout
+import android.widget.TextView
+import androidx.core.view.setPadding
 import androidx.media3.common.AudioAttributes
 import androidx.media3.common.C
 import androidx.media3.common.MediaItem
+import androidx.media3.common.MimeTypes
+import androidx.media3.common.PlaybackException
 import androidx.media3.common.Player
 import androidx.media3.exoplayer.ExoPlayer
 import androidx.media3.ui.AspectRatioFrameLayout
-import androidx.media3.ui.PlayerView
 import com.wkq.localsignage.feature.app.model.PlaybackListener
+import com.wkq.localsignage.feature.app.model.SignageOverlay
+import com.wkq.localsignage.feature.app.model.SignagePlaylistItem
+import com.wkq.localsignage.feature.app.model.PlaybackStartupPolicy
+import com.wkq.localsignage.feature.app.model.SignageResource
 import com.wkq.localsignage.feature.app.model.SignageScene
 import com.wkq.localsignage.feature.app.runtime.SignageRuntime
 import java.util.concurrent.CountDownLatch
 import java.util.concurrent.TimeUnit
+import kotlin.math.max
 
 object SignagePlaybackController {
+    private enum class ContentMode { NONE, IMAGE, VIDEO, STREAM, WEB, TEXT }
+
     private val mainHandler = Handler(Looper.getMainLooper())
+    private var player: ExoPlayer? = null
+    private var listener: PlaybackListener? = null
+    private var views: SignagePlaybackViews? = null
+    private var slideshowRenderer: ImageSlideshowRenderer? = null
+    private var activeScenes: List<SignageScene> = emptyList()
+    private var activeItems: List<SignagePlaylistItem> = emptyList()
+    private var activeIndex = 0
+    private var activePlaylistId: String? = null
+    private var activeLoop = true
+    private var contentMode = ContentMode.NONE
+    private var desiredPlaying = false
+    private var scenePositionMs = 0L
+    private var sceneStartedAt = 0L
+    private var sceneDurationMs: Long? = null
+    private var fallbackActive = false
+    private var pendingRetry: Runnable? = null
+    private val retryAttempts = mutableMapOf<String, Int>()
+    private val failedSceneIds = mutableSetOf<String>()
+    private val tickerAnimators = mutableListOf<ObjectAnimator>()
+    private var textAnimator: ObjectAnimator? = null
+    private var blurBitmap: Bitmap? = null
+
+    private val sceneTimeout = Runnable { if (desiredPlaying) advance(1, fromFailure = false) }
+    private val webLoadTimeout = Runnable { handleSceneFailure("WEB_TIMEOUT") }
+    private val webRefresh = Runnable { views?.webView?.reload(); scheduleWebRefresh() }
+    private val positionSaver = object : Runnable {
+        override fun run() {
+            if (desiredPlaying) SignageRuntime.setPosition(currentPositionMs())
+            mainHandler.postDelayed(this, POSITION_SAVE_INTERVAL_MS)
+        }
+    }
     private val supervisor = object : Runnable {
         override fun run() {
             val current = player
-            if (current != null && SignageRuntime.state().playing && current.mediaItemCount > 0 &&
-                !current.isPlaying && current.playbackState == Player.STATE_IDLE
+            if (contentMode in setOf(ContentMode.VIDEO, ContentMode.STREAM) && desiredPlaying && current != null &&
+                current.mediaItemCount > 0 && current.playbackState == Player.STATE_IDLE &&
+                currentScene()?.id !in retryAttempts
             ) {
-                runCatching {
-                    current.prepare()
-                    current.playWhenReady = true
-                    SignageRuntime.setError("SUPERVISOR_RECOVERY")
-                }.onFailure {
-                    SignageRuntime.setError("SUPERVISOR_FAILED")
-                }
+                runCatching { current.prepare(); current.playWhenReady = true }
+                    .onFailure { handleSceneFailure("SUPERVISOR_FAILED") }
             }
             mainHandler.postDelayed(this, SUPERVISOR_INTERVAL_MS)
         }
     }
-    private val positionSaver = object : Runnable {
-        override fun run() {
-            player?.let { SignageRuntime.setPosition(it.currentPosition) }
-            mainHandler.postDelayed(this, POSITION_SAVE_INTERVAL_MS)
-        }
-    }
-    private var player: ExoPlayer? = null
-    private var listener: PlaybackListener? = null
-    private var attachedView: PlayerView? = null
-    private var loadedPlaylistId: String? = null
-    private var loadedSceneIds: List<String> = emptyList()
-    private var loadedLoop = true
-    private val retryAttempts = mutableMapOf<String, Int>()
-    private val failedMediaIds = mutableSetOf<String>()
-    private var fallbackActive = false
 
     @Synchronized
-    fun initialize(context: Context) {
+    fun initialize(context: android.content.Context) {
         if (player != null) return
         SignageRuntime.registerContentListener { refreshContent() }
         player = ExoPlayer.Builder(context.applicationContext).build().apply {
@@ -64,159 +103,158 @@ object SignagePlaybackController {
                     .build(),
                 true
             )
-            repeatMode = Player.REPEAT_MODE_ALL
+            repeatMode = Player.REPEAT_MODE_OFF
             addListener(object : Player.Listener {
-                override fun onIsPlayingChanged(isPlaying: Boolean) {
-                    SignageRuntime.setPlaying(isPlaying)
-                    publish()
-                }
-
-                override fun onMediaItemTransition(mediaItem: MediaItem?, reason: Int) {
-                    mediaItem?.mediaId?.let { retryAttempts.remove(it) }
-                    if (mediaItem?.mediaId != SignageRuntime.settings().fallbackSceneId) fallbackActive = false
-                    updateCurrentScene()
-                    publish()
-                }
+                override fun onIsPlayingChanged(isPlaying: Boolean) = publish()
 
                 override fun onPlaybackStateChanged(playbackState: Int) {
-                    if (playbackState == Player.STATE_ENDED) updateCurrentScene()
+                    if (playbackState == Player.STATE_READY) {
+                        currentScene()?.id?.let { retryAttempts.remove(it); failedSceneIds.remove(it) }
+                    } else if (playbackState == Player.STATE_ENDED) {
+                        when (contentMode) {
+                            ContentMode.VIDEO -> advance(1, fromFailure = false)
+                            ContentMode.STREAM -> handleSceneFailure("STREAM_ENDED")
+                            else -> Unit
+                        }
+                    }
                     publish()
                 }
 
-                override fun onPlayerError(error: androidx.media3.common.PlaybackException) {
-                    recoverFromPlaybackError(error)
+                override fun onPlayerError(error: PlaybackException) {
+                    handleSceneFailure(error.errorCodeName)
                     publish()
                 }
             })
         }
+        desiredPlaying = PlaybackStartupPolicy.shouldResume(
+            persistedPlaying = SignageRuntime.state().playing,
+            autoResume = SignageRuntime.settings().autoResume
+        )
         mainHandler.post(positionSaver)
         mainHandler.postDelayed(supervisor, SUPERVISOR_INTERVAL_MS)
-        runOnMainAndWait { applyAudioState(); loadPlaylist(restorePosition = true); true }
+        runOnMainAndWait { loadPlaylist(restorePosition = true); true }
     }
 
-    fun attach(view: PlayerView, listener: PlaybackListener) {
-        check(Looper.myLooper() == Looper.getMainLooper()) { "PlayerView must be attached on the main thread" }
+    fun attach(playbackViews: SignagePlaybackViews, listener: PlaybackListener) {
+        check(Looper.myLooper() == Looper.getMainLooper()) { "Playback views must be attached on the main thread" }
         this.listener = listener
-        attachedView = view
-        view.player = requirePlayer()
-        loadPlaylist(restorePosition = true)
-        applyDisplayState()
+        views = playbackViews
+        slideshowRenderer = ImageSlideshowRenderer(playbackViews.imageSlideshow)
+        configureWebView(playbackViews.webView)
+        playbackViews.playerView.apply {
+            setKeepContentOnPlayerReset(true)
+            setShutterBackgroundColor(Color.TRANSPARENT)
+            player = requirePlayer()
+        }
+        scenePositionMs = currentPositionMs()
+        renderCurrent(restorePosition = true)
         publish()
     }
 
-    fun detach(view: PlayerView) {
-        if (view.player === player) view.player = null
-        if (attachedView === view) attachedView = null
+    fun detach(playbackViews: SignagePlaybackViews) {
+        if (playbackViews.playerView.player === player) playbackViews.playerView.player = null
+        releaseWebView(playbackViews.webView, destroy = false)
+        clearOverlays(playbackViews.overlayContainer)
+        textAnimator?.cancel()
+        textAnimator = null
+        slideshowRenderer?.release()
+        playbackViews.blurBackgroundView.setImageDrawable(null)
+        releaseBlurBitmap()
+        if (views?.playerView === playbackViews.playerView) views = null
+        slideshowRenderer = null
         listener = null
     }
 
     fun release() {
-        mainHandler.removeCallbacks(positionSaver)
-        mainHandler.removeCallbacks(supervisor)
+        mainHandler.removeCallbacksAndMessages(null)
+        views?.let {
+            it.playerView.player = null
+            releaseWebView(it.webView, destroy = true)
+            clearOverlays(it.overlayContainer)
+        }
+        textAnimator?.cancel()
+        textAnimator = null
+        slideshowRenderer?.release()
         player?.release()
+        releaseBlurBitmap()
         SignageRuntime.unregisterContentListener()
         player = null
-        loadedPlaylistId = null
-        loadedSceneIds = emptyList()
-        attachedView = null
-        retryAttempts.clear()
-        failedMediaIds.clear()
-        fallbackActive = false
+        views = null
         listener = null
+        activeScenes = emptyList()
+        activeItems = emptyList()
+        retryAttempts.clear()
+        failedSceneIds.clear()
+        contentMode = ContentMode.NONE
     }
 
     fun togglePause() = applyCommand("TOGGLE")
 
     fun refreshContent() {
         if (player == null) return
-        if (Looper.myLooper() == Looper.getMainLooper()) {
-            loadPlaylist(restorePosition = true, forceReload = true)
-            applyDisplayState()
-            publish()
-        } else {
+        if (Looper.myLooper() != Looper.getMainLooper()) {
             mainHandler.post { refreshContent() }
+            return
         }
+        loadPlaylist(restorePosition = true, forceReload = true)
+        publish()
     }
 
-    fun applyCommand(action: String, resourceId: String? = null, sceneId: String? = null, playlistId: String? = null, value: Int? = null, revision: Long? = null): Boolean {
+    fun applyCommand(
+        action: String,
+        resourceId: String? = null,
+        sceneId: String? = null,
+        playlistId: String? = null,
+        value: Int? = null,
+        revision: Long? = null
+    ): Boolean {
         val normalized = action.uppercase()
         if (normalized !in SUPPORTED_ACTIONS) return false
         return runOnMainAndWait {
-            val validRequest = SignageRuntime.canAcceptCommandRevision(revision) &&
+            val valid = SignageRuntime.canAcceptCommandRevision(revision) &&
                 (resourceId == null || SignageRuntime.resource(resourceId) != null) &&
                 (sceneId == null || SignageRuntime.scene(sceneId) != null) &&
                 (playlistId == null || SignageRuntime.playlist(playlistId) != null)
-            if (!validRequest) {
-                false
-            } else when (normalized) {
+            if (valid) SignageRuntime.setError(null)
+            val executed = valid && when (normalized) {
                 "PLAY", "RESUME" -> {
-                    val targetScene = sceneId?.let(SignageRuntime::scene)
-                        ?: resourceId?.let { targetResourceId ->
-                            SignageRuntime.scenes().firstOrNull { it.resourceId == targetResourceId }
+                    when {
+                        resourceId != null -> SignageRuntime.scenes().firstOrNull { it.resourceId == resourceId }
+                            ?.let(::loadStandaloneScene)
+                        sceneId != null -> SignageRuntime.scene(sceneId)?.let(::loadStandaloneScene)
+                        playlistId != null -> {
+                            SignageRuntime.selectPlaylist(playlistId)
+                            loadPlaylist(restorePosition = false, forceReload = true, followCurrentScene = false)
                         }
-                    targetScene?.let { scene ->
-                        SignageRuntime.selectScene(scene.id)
-                        loadTargetScene(scene)
-                    } ?: playlistId?.let { targetPlaylistId ->
-                        SignageRuntime.selectPlaylist(targetPlaylistId)
-                        loadPlaylist(restorePosition = false, forceReload = true, followCurrentScene = false)
-                    } ?: loadPlaylist(restorePosition = false, forceReload = true)
-                    requirePlayer().play()
-                    true
-                }
-                "PAUSE" -> { requirePlayer().pause(); true }
-                "STOP" -> {
-                    requirePlayer().stop()
-                    SignageRuntime.setPlaying(false)
-                    SignageRuntime.setPosition(0L)
-                    true
-                }
-                "TOGGLE" -> {
-                    if (requirePlayer().isPlaying) {
-                        requirePlayer().pause()
-                    } else {
-                        loadPlaylist(restorePosition = true)
-                        requirePlayer().play()
+                        activeScenes.isEmpty() -> loadPlaylist(restorePosition = true)
                     }
+                    resumePlayback()
                     true
                 }
-                "NEXT" -> { requirePlayer().seekToNextMediaItem(); true }
-                "PREVIOUS" -> { requirePlayer().seekToPreviousMediaItem(); true }
+                "PAUSE" -> { pausePlayback(); true }
+                "STOP" -> { stopPlayback(); true }
+                "TOGGLE" -> { if (desiredPlaying) pausePlayback() else resumePlayback(); true }
+                "NEXT" -> { advance(1, fromFailure = false); true }
+                "PREVIOUS" -> { advance(-1, fromFailure = false); true }
                 "VOLUME" -> if (value == null) false else {
-                    SignageRuntime.command("VOLUME", value = value)
-                    applyAudioState()
-                    true
+                    SignageRuntime.command("VOLUME", value = value); applyAudioState(); true
                 }
                 "MUTE" -> { SignageRuntime.command("MUTE"); applyAudioState(); true }
                 "UNMUTE" -> { SignageRuntime.command("UNMUTE"); applyAudioState(); true }
-                "PLAY_SCENE" -> {
-                    val targetScene = sceneId?.let(SignageRuntime::scene)
-                    if (targetScene == null) false else {
-                        SignageRuntime.selectScene(targetScene.id)
-                        loadTargetScene(targetScene)
-                        requirePlayer().play()
-                        true
-                    }
-                }
-                "PLAY_PLAYLIST" -> {
-                    val targetPlaylistId = playlistId
-                    if (targetPlaylistId == null) false else {
-                        SignageRuntime.selectPlaylist(targetPlaylistId)
-                        loadPlaylist(restorePosition = false, forceReload = true, followCurrentScene = false)
-                        requirePlayer().play()
-                        true
-                    }
-                }
+                "PLAY_SCENE" -> sceneId?.let(SignageRuntime::scene)?.let {
+                    loadTargetScene(it); resumePlayback(); true
+                } ?: false
+                "PLAY_PLAYLIST" -> playlistId?.let {
+                    SignageRuntime.selectPlaylist(it)
+                    loadPlaylist(restorePosition = false, forceReload = true, followCurrentScene = false)
+                    resumePlayback()
+                    true
+                } ?: false
                 else -> false
             }
-            .let { executed ->
-                if (!executed || !SignageRuntime.commitCommandRevision(revision)) {
-                    false
-                } else {
-                    SignageRuntime.setError(null)
-                    publish()
-                    true
-                }
+            if (!executed || !SignageRuntime.commitCommandRevision(revision)) false else {
+                publish()
+                true
             }
         }
     }
@@ -228,257 +266,560 @@ object SignagePlaybackController {
     ) {
         val playlist = SignageRuntime.playlist(SignageRuntime.state().currentPlaylistId)
             ?: SignageRuntime.playlists().firstOrNull()
-            ?: run {
-                clearQueue("NO_PLAYLIST")
-                return
-            }
-        val currentScene = SignageRuntime.scene(SignageRuntime.state().currentSceneId)
-        if (followCurrentScene && currentScene != null && playlist.items.none { it.enabled && it.sceneId == currentScene.id }) {
-            loadTargetScene(currentScene)
+            ?: return clearPlayback("NO_PLAYLIST")
+        val enabled = playlist.items.mapNotNull { item ->
+            if (!item.enabled) null else SignageRuntime.scene(item.sceneId)?.let { it to item }
+        }
+        if (enabled.isEmpty()) return clearPlayback("NO_PLAYABLE_SCENE")
+        val currentId = SignageRuntime.state().currentSceneId
+        val currentOutside = followCurrentScene && currentId != null && enabled.none { it.first.id == currentId }
+        if (currentOutside) {
+            SignageRuntime.scene(currentId)?.let { loadTargetScene(it) }
             return
         }
-        val enabledItems = playlist.items.filter { it.enabled && SignageRuntime.scene(it.sceneId) != null }
-        val scenes = enabledItems.mapNotNull { SignageRuntime.scene(it.sceneId) }
-        if (scenes.isEmpty()) {
-            clearQueue("NO_PLAYABLE_SCENE")
-            return
-        }
-        loadScenes(
-            scenes = scenes,
-            playlistId = playlist.id,
-            loop = playlist.loop,
-            restorePosition = restorePosition,
-            forceReload = forceReload
-        )
+        val ids = enabled.map { it.first.id }
+        if (!forceReload && activePlaylistId == playlist.id && activeScenes.map { it.id } == ids) return
+        activeScenes = enabled.map { it.first }
+        activeItems = enabled.map { it.second }
+        activePlaylistId = playlist.id
+        activeLoop = playlist.loop
+        activeIndex = ids.indexOf(currentId).coerceAtLeast(0)
+        fallbackActive = false
+        retryAttempts.clear()
+        failedSceneIds.clear()
+        scenePositionMs = if (restorePosition) SignageRuntime.state().positionMs else 0L
+        renderCurrent(restorePosition)
     }
 
     private fun loadTargetScene(scene: SignageScene) {
-        val currentPlaylist = SignageRuntime.playlist(SignageRuntime.state().currentPlaylistId)
-        val targetIsInCurrentPlaylist = currentPlaylist?.items?.any { it.enabled && it.sceneId == scene.id } == true
-        if (targetIsInCurrentPlaylist) {
-            loadPlaylist(restorePosition = false, forceReload = true)
-            seekToScene(scene.id)
-            return
-        }
-        val containingPlaylist = SignageRuntime.playlists().firstOrNull { playlist ->
+        val containing = SignageRuntime.playlists().firstOrNull { playlist ->
             playlist.items.any { it.enabled && it.sceneId == scene.id }
         }
-        if (containingPlaylist != null) {
-            SignageRuntime.selectPlaylist(containingPlaylist.id)
-            loadPlaylist(restorePosition = false, forceReload = true)
-            seekToScene(scene.id)
+        if (containing != null) {
+            SignageRuntime.selectPlaylist(containing.id)
+            val enabled = containing.items.mapNotNull { item ->
+                if (!item.enabled) null else SignageRuntime.scene(item.sceneId)?.let { it to item }
+            }
+            activeScenes = enabled.map { it.first }
+            activeItems = enabled.map { it.second }
+            activePlaylistId = containing.id
+            activeLoop = containing.loop
+            activeIndex = activeScenes.indexOfFirst { it.id == scene.id }.coerceAtLeast(0)
         } else {
-            loadScenes(listOf(scene), playlistId = null, loop = false, restorePosition = false, forceReload = true)
+            activeScenes = listOf(scene)
+            activeItems = listOf(SignagePlaylistItem(scene.id))
+            activePlaylistId = null
+            activeLoop = false
+            activeIndex = 0
         }
+        scenePositionMs = 0L
+        renderCurrent(restorePosition = false)
     }
 
-    private fun loadScenes(
-        scenes: List<SignageScene>,
-        playlistId: String?,
-        loop: Boolean,
-        restorePosition: Boolean,
-        forceReload: Boolean
-    ) {
-        if (scenes.isEmpty()) return
-        val ids = scenes.map { it.id }
-        if (!forceReload && loadedPlaylistId == playlistId && loadedLoop == loop && loadedSceneIds == ids && requirePlayer().currentMediaItem != null) {
-            applyAudioState()
-            applyDisplayState()
-            return
-        }
-        retryAttempts.clear()
-        failedMediaIds.clear()
-        fallbackActive = false
-        val playableScenes = scenes.filter { scene ->
-            val resource = SignageRuntime.resource(scene.resourceId)
-            resource != null && SignageRuntime.fileFor(resource).isFile
-        }
-        if (playableScenes.isEmpty()) {
-            clearQueue("NO_PLAYABLE_RESOURCE")
-            return
-        }
-        val currentSceneId = SignageRuntime.state().currentSceneId
-        val playableIds = playableScenes.map { it.id }
-        loadedPlaylistId = playlistId
-        loadedSceneIds = playableIds
-        loadedLoop = loop
-        val index = playableIds.indexOf(currentSceneId).coerceAtLeast(0)
-        requirePlayer().setMediaItems(playableScenes.map { scene ->
-            val resource = SignageRuntime.resource(scene.resourceId) ?: error("Resource disappeared")
-            MediaItem.Builder()
-                .setMediaId(scene.id)
-                .setUri(SignageRuntime.fileFor(resource).toURI().toString())
-                .apply {
-                    if (!resource.isVideo) {
-                        val duration = SignageRuntime.playlist(playlistId)?.items?.firstOrNull { it.sceneId == scene.id }?.durationMs
-                        setImageDurationMs(duration ?: DEFAULT_IMAGE_DURATION_MS)
-                    }
-                }
-                .build()
-        }.filterNotNull(), index, if (restorePosition) SignageRuntime.state().positionMs else 0L)
-        requirePlayer().repeatMode = if (loop) Player.REPEAT_MODE_ALL else Player.REPEAT_MODE_OFF
-        requirePlayer().prepare()
-        playableScenes.getOrNull(index)?.let { SignageRuntime.selectScene(it.id) }
+    private fun loadStandaloneScene(scene: SignageScene) {
+        activeScenes = listOf(scene)
+        activeItems = listOf(SignagePlaylistItem(scene.id))
+        activePlaylistId = null
+        activeLoop = true
+        activeIndex = 0
+        scenePositionMs = 0L
+        renderCurrent(restorePosition = false)
+    }
+
+    private fun renderCurrent(restorePosition: Boolean) {
+        cancelSceneCallbacks()
+        textAnimator?.cancel()
+        textAnimator = null
+        val scene = currentScene() ?: return clearPlayback("NO_PLAYABLE_SCENE")
+        val resource = SignageRuntime.resource(scene.resourceId) ?: return handleSceneFailure("RESOURCE_MISSING")
+        SignageRuntime.selectScene(scene.id)
+        scenePositionMs = if (restorePosition) scenePositionMs else 0L
+        sceneStartedAt = SystemClock.elapsedRealtime()
+        sceneDurationMs = currentItem()?.durationMs
+        applyDisplayState(scene)
         applyAudioState()
-        applyDisplayState()
-        requirePlayer().playWhenReady = SignageRuntime.settings().autoResume && SignageRuntime.state().playing
+        when {
+            resource.isImage -> renderImages(scene, resource)
+            resource.isVideo -> renderVideo(scene, resource)
+            resource.isStream -> renderStream(scene, resource)
+            resource.isWeb -> renderWeb(resource)
+            resource.isText -> renderText(resource)
+            else -> handleSceneFailure("UNSUPPORTED_RESOURCE_KIND")
+        }
+        renderOverlays(scene)
+        if (desiredPlaying) scheduleSceneTimeout()
+        SignageRuntime.setPlaying(desiredPlaying)
+        publish()
     }
 
-    private fun recoverFromPlaybackError(error: androidx.media3.common.PlaybackException) {
-        val current = requirePlayer()
-        val mediaId = current.currentMediaItem?.mediaId
-        val sceneId = mediaId
-        if (mediaId == null) {
-            SignageRuntime.setPlaying(false)
-            SignageRuntime.setError(error.errorCodeName)
-            SignageRuntime.recordPlaybackError(null, null, error.errorCodeName, "STOP", 1)
-            return
+    private fun renderImages(scene: SignageScene, resource: SignageResource) {
+        contentMode = ContentMode.IMAGE
+        requirePlayer().stop()
+        requirePlayer().clearMediaItems()
+        showMode(ContentMode.IMAGE)
+        val allImages = activeScenes.mapNotNull { candidate ->
+            SignageRuntime.resource(candidate.resourceId)?.takeIf { it.isImage }?.let { ImageSlide(candidate, it) }
         }
-        val attempts = retryAttempts[mediaId] ?: 0
-        if (attempts == 0) {
-            retryAttempts[mediaId] = 1
-            SignageRuntime.recordPlaybackError(mediaId, sceneId, error.errorCodeName, "RETRY", 1)
-            SignageRuntime.setError("RETRYING_${error.errorCodeName}")
-            mainHandler.postDelayed({
-                if (player === current) {
-                    current.prepare()
-                    current.playWhenReady = true
-                }
-            }, RETRY_BACKOFF_MS)
-            return
+        val isPureImagePlaylist = allImages.size == activeScenes.size
+        val slides = if (isPureImagePlaylist) allImages else listOf(ImageSlide(scene, resource))
+        val pageIndex = if (isPureImagePlaylist) activeIndex else 0
+        slideshowRenderer?.show(slides, pageIndex)
+    }
+
+    private fun renderVideo(scene: SignageScene, resource: SignageResource) {
+        contentMode = ContentMode.VIDEO
+        renderMedia(scene, resource)
+    }
+
+    private fun renderStream(scene: SignageScene, resource: SignageResource) {
+        contentMode = ContentMode.STREAM
+        renderMedia(scene, resource)
+    }
+
+    private fun renderMedia(scene: SignageScene, resource: SignageResource) {
+        showMode(contentMode)
+        val uri = if (resource.isLocalFile) {
+            val file = runCatching { SignageRuntime.fileFor(resource) }.getOrNull()
+            if (file?.isFile != true) return handleSceneFailure("LOCAL_FILE_MISSING")
+            Uri.fromFile(file)
+        } else {
+            Uri.parse(resource.sourceUri ?: return handleSceneFailure("STREAM_URI_MISSING"))
         }
-        retryAttempts.remove(mediaId)
-        failedMediaIds += mediaId
-        if (skipToNextAvailable(current)) {
-            SignageRuntime.recordPlaybackError(mediaId, sceneId, error.errorCodeName, "SKIP", attempts + 1)
-            SignageRuntime.setError("SKIPPED_${error.errorCodeName}")
-            return
+        val item = MediaItem.Builder().setMediaId(scene.id).setUri(uri).apply {
+            val source = resource.sourceUri.orEmpty().lowercase()
+            when {
+                source.substringBefore('?').endsWith(".m3u8") -> setMimeType(MimeTypes.APPLICATION_M3U8)
+                source.substringBefore('?').endsWith(".mpd") -> setMimeType(MimeTypes.APPLICATION_MPD)
+                source.startsWith("rtsp://") -> setMimeType(MimeTypes.APPLICATION_RTSP)
+            }
+        }.build()
+        requirePlayer().apply {
+            setMediaItem(item, scenePositionMs)
+            prepare()
+            playWhenReady = desiredPlaying
         }
-        if (activateFallback(error.errorCodeName, mediaId, sceneId)) return
-        SignageRuntime.recordPlaybackError(mediaId, sceneId, error.errorCodeName, "STOP", attempts + 1)
-        current.stop()
+    }
+
+    private fun renderWeb(resource: SignageResource) {
+        contentMode = ContentMode.WEB
+        requirePlayer().stop(); requirePlayer().clearMediaItems()
+        showMode(ContentMode.WEB)
+        val webView = views?.webView ?: return
+        mainHandler.postDelayed(webLoadTimeout, WEB_LOAD_TIMEOUT_MS)
+        val html = resource.content
+        if (!html.isNullOrBlank()) {
+            webView.loadDataWithBaseURL(LOCAL_HTML_BASE_URL, html, "text/html", "UTF-8", null)
+        } else {
+            webView.loadUrl(resource.sourceUri ?: return handleSceneFailure("WEB_URI_MISSING"))
+        }
+        scheduleWebRefresh()
+        if (desiredPlaying) webView.onResume() else webView.onPause()
+    }
+
+    private fun renderText(resource: SignageResource) {
+        contentMode = ContentMode.TEXT
+        requirePlayer().stop(); requirePlayer().clearMediaItems()
+        showMode(ContentMode.TEXT)
+        views?.textView?.apply {
+            text = resource.content.orEmpty()
+            post { startTextTicker(this) }
+        }
+    }
+
+    private fun startTextTicker(text: TextView) {
+        textAnimator?.cancel()
+        val parentWidth = (text.parent as? View)?.width ?: return
+        if (parentWidth <= 0 || text.width <= 0) return
+        val distance = parentWidth + text.width.toFloat()
+        val speed = DEFAULT_TEXT_SPEED_DP_PER_SECOND * text.resources.displayMetrics.density
+        textAnimator = ObjectAnimator.ofFloat(text, View.TRANSLATION_X, parentWidth.toFloat(), -text.width.toFloat()).apply {
+            duration = (distance / speed * 1_000L).toLong().coerceAtLeast(1_000L)
+            repeatCount = ObjectAnimator.INFINITE
+            repeatMode = ObjectAnimator.RESTART
+            start()
+            if (!desiredPlaying) pause()
+        }
+    }
+
+    private fun resumePlayback() {
+        if (activeScenes.isEmpty()) loadPlaylist(restorePosition = true)
+        desiredPlaying = true
+        sceneStartedAt = SystemClock.elapsedRealtime()
+        when (contentMode) {
+            ContentMode.VIDEO, ContentMode.STREAM -> requirePlayer().play()
+            ContentMode.WEB -> views?.webView?.onResume()
+            else -> Unit
+        }
+        textAnimator?.let { if (it.isPaused) it.resume() }
+        tickerAnimators.forEach { if (it.isPaused) it.resume() }
+        scheduleSceneTimeout()
+        SignageRuntime.setPlaying(true)
+    }
+
+    private fun pausePlayback() {
+        scenePositionMs = currentPositionMs()
+        desiredPlaying = false
+        cancelSceneTimeout()
+        mainHandler.removeCallbacks(webRefresh)
+        requirePlayer().pause()
+        views?.webView?.onPause()
+        tickerAnimators.forEach { if (it.isStarted && !it.isPaused) it.pause() }
+        textAnimator?.let { if (it.isStarted && !it.isPaused) it.pause() }
+        SignageRuntime.setPosition(scenePositionMs)
         SignageRuntime.setPlaying(false)
-        SignageRuntime.setError(error.errorCodeName)
     }
 
-    private fun activateFallback(errorCode: String, failedMediaId: String, failedSceneId: String?) : Boolean {
+    private fun stopPlayback() {
+        pausePlayback()
+        scenePositionMs = 0L
+        requirePlayer().stop()
+        SignageRuntime.setPosition(0L)
+    }
+
+    private fun advance(offset: Int, fromFailure: Boolean) {
+        cancelSceneCallbacks()
+        if (activeScenes.isEmpty()) return clearPlayback("NO_PLAYABLE_SCENE")
+        val next = activeIndex + offset
+        activeIndex = when {
+            next in activeScenes.indices -> next
+            activeLoop -> (next % activeScenes.size + activeScenes.size) % activeScenes.size
+            else -> {
+                desiredPlaying = false
+                SignageRuntime.setPlaying(false)
+                SignageRuntime.setPosition(0L)
+                return
+            }
+        }
+        scenePositionMs = 0L
+        if (!fromFailure) fallbackActive = false
+        renderCurrent(restorePosition = false)
+    }
+
+    private fun handleSceneFailure(errorCode: String) {
+        val scene = currentScene() ?: return clearPlayback(errorCode)
+        val attempts = retryAttempts[scene.id] ?: 0
+        val resource = SignageRuntime.resource(scene.resourceId)
+        val retryable = resource?.isStream == true || resource?.isWeb == true
+        if (retryable && attempts < RETRY_BACKOFF_MS.size) {
+            val nextAttempt = attempts + 1
+            retryAttempts[scene.id] = nextAttempt
+            SignageRuntime.recordPlaybackError(resource.id, scene.id, errorCode, "RETRY", nextAttempt)
+            SignageRuntime.setError("RETRYING_$errorCode")
+            cancelSceneCallbacks()
+            pendingRetry = Runnable {
+                if (currentScene()?.id == scene.id) renderCurrent(restorePosition = false)
+            }.also { mainHandler.postDelayed(it, RETRY_BACKOFF_MS[attempts]) }
+            return
+        }
+        failedSceneIds += scene.id
+        retryAttempts.remove(scene.id)
+        if (activateFallback(errorCode, resource?.id, scene.id)) return
+        if (hasNextAvailable()) {
+            SignageRuntime.recordPlaybackError(resource?.id, scene.id, errorCode, "SKIP", attempts + 1)
+            SignageRuntime.setError("SKIPPED_$errorCode")
+            advance(1, fromFailure = true)
+        } else {
+            SignageRuntime.recordPlaybackError(resource?.id, scene.id, errorCode, "STOP", attempts + 1)
+            clearPlayback(errorCode)
+        }
+    }
+
+    private fun activateFallback(errorCode: String, resourceId: String?, sceneId: String): Boolean {
         if (fallbackActive) return false
-        val fallbackId = SignageRuntime.settings().fallbackSceneId ?: return false
-        val fallback = SignageRuntime.scene(fallbackId) ?: return false
-        if (fallback.id == failedSceneId || fallback.resourceId == failedMediaId) return false
-        val resource = SignageRuntime.resource(fallback.resourceId) ?: return false
-        if (!SignageRuntime.fileFor(resource).isFile) return false
+        val fallback = SignageRuntime.settings().fallbackSceneId?.let(SignageRuntime::scene) ?: return false
+        if (fallback.id == sceneId || SignageRuntime.resource(fallback.resourceId) == null) return false
         fallbackActive = true
-        SignageRuntime.selectScene(fallback.id)
-        loadScenes(listOf(fallback), playlistId = null, loop = true, restorePosition = false, forceReload = true)
-        fallbackActive = true
-        requirePlayer().play()
-        SignageRuntime.recordPlaybackError(failedMediaId, failedSceneId, errorCode, "FALLBACK", 2)
-        SignageRuntime.setError("FALLBACK_${errorCode}")
+        SignageRuntime.recordPlaybackError(resourceId, sceneId, errorCode, "FALLBACK", 1)
+        activeScenes = listOf(fallback)
+        activeItems = listOf(SignagePlaylistItem(fallback.id))
+        activeIndex = 0
+        activePlaylistId = null
+        activeLoop = true
+        scenePositionMs = 0L
+        renderCurrent(restorePosition = false)
+        SignageRuntime.setError("FALLBACK_$errorCode")
         return true
     }
 
-    private fun skipToNextAvailable(current: ExoPlayer): Boolean {
-        val count = current.mediaItemCount
-        if (count < 2) return false
-        val start = current.currentMediaItemIndex
-        val canWrap = current.repeatMode == Player.REPEAT_MODE_ALL
-        val maxOffset = if (canWrap) count - 1 else count - start - 1
-        for (offset in 1..maxOffset) {
-            val index = (start + offset) % count
-            val candidateId = current.getMediaItemAt(index).mediaId
-            if (candidateId !in failedMediaIds) {
-                current.seekTo(index, 0L)
-                current.prepare()
-                current.playWhenReady = true
-                return true
+    private fun hasNextAvailable(): Boolean {
+        if (activeScenes.size < 2) return false
+        val max = if (activeLoop) activeScenes.size - 1 else activeScenes.lastIndex - activeIndex
+        return (1..max).any { offset -> activeScenes[(activeIndex + offset) % activeScenes.size].id !in failedSceneIds }
+    }
+
+    @SuppressLint("SetJavaScriptEnabled")
+    private fun configureWebView(webView: WebView) {
+        WebView.setWebContentsDebuggingEnabled(false)
+        webView.settings.apply {
+            javaScriptEnabled = true
+            domStorageEnabled = true
+            allowFileAccess = false
+            allowContentAccess = false
+            allowFileAccessFromFileURLs = false
+            allowUniversalAccessFromFileURLs = false
+            mixedContentMode = WebSettings.MIXED_CONTENT_NEVER_ALLOW
+            setGeolocationEnabled(false)
+            databaseEnabled = false
+            mediaPlaybackRequiresUserGesture = false
+        }
+        webView.webChromeClient = null
+        webView.webViewClient = object : WebViewClient() {
+            @Suppress("DEPRECATION")
+            override fun shouldOverrideUrlLoading(view: WebView, url: String): Boolean = !isAllowedWebUri(Uri.parse(url))
+
+            override fun shouldOverrideUrlLoading(view: WebView, request: WebResourceRequest): Boolean {
+                return !isAllowedWebUri(request.url)
+            }
+
+            override fun onPageFinished(view: WebView, url: String) {
+                mainHandler.removeCallbacks(webLoadTimeout)
+                retryAttempts.remove(currentScene()?.id)
+            }
+
+            override fun onReceivedError(view: WebView, request: WebResourceRequest, error: WebResourceError) {
+                if (request.isForMainFrame) handleSceneFailure("WEB_${error.errorCode}")
             }
         }
-        return false
     }
 
-    private fun seekToScene(sceneId: String) {
-        val index = loadedSceneIds.indexOf(sceneId)
-        if (index >= 0) requirePlayer().seekToDefaultPosition(index)
+    private fun releaseWebView(webView: WebView, destroy: Boolean) {
+        mainHandler.removeCallbacks(webLoadTimeout)
+        mainHandler.removeCallbacks(webRefresh)
+        webView.onPause()
+        webView.stopLoading()
+        webView.loadUrl("about:blank")
+        webView.webChromeClient = null
+        webView.webViewClient = WebViewClient()
+        if (destroy) {
+            (webView.parent as? ViewGroup)?.removeView(webView)
+            webView.removeAllViews()
+            webView.destroy()
+        }
     }
 
-    private fun updateCurrentScene() {
-        val scene = SignageRuntime.scene(requirePlayer().currentMediaItem?.mediaId) ?: return
-        SignageRuntime.selectScene(scene.id)
-        SignageRuntime.setPosition(requirePlayer().currentPosition)
-        applyAudioState()
-        applyDisplayState()
+    private fun scheduleWebRefresh() {
+        mainHandler.removeCallbacks(webRefresh)
+        val interval = currentScene()?.let { SignageRuntime.resource(it.resourceId) }?.refreshIntervalMs ?: return
+        if (desiredPlaying) mainHandler.postDelayed(webRefresh, interval)
     }
 
-    private fun applyAudioState() {
-        val current = requirePlayer()
-        val scene = SignageRuntime.scene(current.currentMediaItem?.mediaId)
-        val volume = scene?.volume ?: SignageRuntime.state().volume
-        current.volume = if (scene?.muted == true || SignageRuntime.state().muted) 0f else volume.coerceIn(0, 100) / 100f
+    private fun renderOverlays(scene: SignageScene) {
+        val container = views?.overlayContainer ?: return
+        clearOverlays(container)
+        scene.overlays.filter { it.enabled }.sortedBy { it.zIndex }.forEach { overlay ->
+            val text = TextView(container.context).apply {
+                this.text = overlay.content
+                textSize = overlay.textSizeSp.coerceIn(8, 160).toFloat()
+                setTextColor(parseColor(overlay.textColor, Color.WHITE))
+                setBackgroundColor(parseColor(overlay.backgroundColor, Color.TRANSPARENT))
+                setPadding(dp(container, overlay.paddingDp.coerceIn(0, 64)))
+                maxLines = if (overlay.type.equals("TICKER", true)) 1 else Int.MAX_VALUE
+            }
+            container.addView(text, overlayLayoutParams(overlay))
+            if (overlay.type.equals("TICKER", true)) startTicker(container, text, overlay)
+        }
     }
 
-    private fun applyDisplayState() {
-        val view = attachedView ?: return
-        val scene = SignageRuntime.scene(requirePlayer().currentMediaItem?.mediaId)
-        view.resizeMode = when (scene?.fitMode?.uppercase()) {
+    private fun startTicker(container: FrameLayout, text: TextView, overlay: SignageOverlay) {
+        text.post {
+            if (text.parent !== container) return@post
+            val distance = container.width + text.width.toFloat()
+            val speed = max(1, overlay.speedDpPerSecond) * container.resources.displayMetrics.density
+            ObjectAnimator.ofFloat(text, View.TRANSLATION_X, container.width.toFloat(), -text.width.toFloat()).apply {
+                duration = (distance / speed * 1_000L).toLong().coerceAtLeast(1_000L)
+                repeatCount = ObjectAnimator.INFINITE
+                repeatMode = ObjectAnimator.RESTART
+                tickerAnimators += this
+                start()
+                if (!desiredPlaying) pause()
+            }
+        }
+    }
+
+    private fun clearOverlays(container: FrameLayout) {
+        tickerAnimators.forEach { it.cancel() }
+        tickerAnimators.clear()
+        container.removeAllViews()
+    }
+
+    private fun overlayLayoutParams(overlay: SignageOverlay): FrameLayout.LayoutParams {
+        val horizontal = when (overlay.horizontalPosition.uppercase()) {
+            "LEFT", "START" -> Gravity.START
+            "RIGHT", "END" -> Gravity.END
+            else -> Gravity.CENTER_HORIZONTAL
+        }
+        val vertical = when (overlay.verticalPosition.uppercase()) {
+            "TOP" -> Gravity.TOP
+            "CENTER" -> Gravity.CENTER_VERTICAL
+            else -> Gravity.BOTTOM
+        }
+        return FrameLayout.LayoutParams(
+            if (overlay.type.equals("TICKER", true)) ViewGroup.LayoutParams.WRAP_CONTENT else ViewGroup.LayoutParams.WRAP_CONTENT,
+            ViewGroup.LayoutParams.WRAP_CONTENT,
+            horizontal or vertical
+        )
+    }
+
+    private fun applyDisplayState(scene: SignageScene) {
+        val currentViews = views ?: return
+        currentViews.playerView.resizeMode = when (scene.fitMode.uppercase()) {
             "FILL", "STRETCH" -> AspectRatioFrameLayout.RESIZE_MODE_FILL
             "CROP" -> AspectRatioFrameLayout.RESIZE_MODE_ZOOM
             else -> AspectRatioFrameLayout.RESIZE_MODE_FIT
         }
-        val background = scene?.backgroundColor?.takeIf { it.isNotBlank() }?.let { value ->
-            runCatching { Color.parseColor(value) }.getOrNull()
-        } ?: Color.BLACK
-        view.setBackgroundColor(background)
+        val background = parseColor(scene.backgroundColor, Color.BLACK)
+        currentViews.playerView.setBackgroundColor(background)
+        currentViews.playerView.setShutterBackgroundColor(Color.TRANSPARENT)
+        currentViews.webView.setBackgroundColor(background)
+        currentViews.textView.setBackgroundColor(background)
+        currentViews.blurBackgroundView.apply {
+            visibility = View.GONE
+            setImageDrawable(null)
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) setRenderEffect(null)
+        }
+        releaseBlurBitmap()
+        val resource = SignageRuntime.resource(scene.resourceId)
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S && scene.backgroundType.equals("BLUR", true) &&
+            resource?.isLocalFile == true && resource.isImage
+        ) {
+            runCatching { SignageRuntime.fileFor(resource) }.getOrNull()?.takeIf { it.isFile }?.let { file ->
+                decodeSampledBitmap(file.absolutePath)?.let { bitmap ->
+                    blurBitmap = bitmap
+                    currentViews.blurBackgroundView.setImageBitmap(bitmap)
+                    currentViews.blurBackgroundView.visibility = View.VISIBLE
+                    currentViews.blurBackgroundView.setRenderEffect(
+                        RenderEffect.createBlurEffect(BLUR_RADIUS_PX, BLUR_RADIUS_PX, Shader.TileMode.CLAMP)
+                    )
+                    currentViews.playerView.setBackgroundColor(Color.TRANSPARENT)
+                    currentViews.playerView.setShutterBackgroundColor(Color.TRANSPARENT)
+                }
+            }
+        }
     }
 
-    private fun clearQueue(error: String) {
-        val current = requirePlayer()
-        current.stop()
-        current.clearMediaItems()
-        loadedPlaylistId = null
-        loadedSceneIds = emptyList()
+    private fun applyAudioState() {
+        val scene = currentScene()
+        val volume = scene?.volume ?: SignageRuntime.state().volume
+        requirePlayer().volume = if (scene?.muted == true || SignageRuntime.state().muted) 0f else volume.coerceIn(0, 100) / 100f
+    }
+
+    private fun showMode(mode: ContentMode) {
+        views?.let {
+            it.imageSlideshow.visibility = if (mode == ContentMode.IMAGE) View.VISIBLE else View.GONE
+            it.playerView.visibility = if (mode == ContentMode.VIDEO || mode == ContentMode.STREAM) View.VISIBLE else View.GONE
+            it.webView.visibility = if (mode == ContentMode.WEB) View.VISIBLE else View.GONE
+            it.textView.visibility = if (mode == ContentMode.TEXT) View.VISIBLE else View.GONE
+        }
+    }
+
+    private fun scheduleSceneTimeout() {
+        cancelSceneTimeout()
+        val duration = sceneDurationMs ?: when (contentMode) {
+            ContentMode.IMAGE -> if (activeScenes.size > 1) DEFAULT_SCENE_DURATION_MS else null
+            else -> null
+        }
+        if (duration != null && desiredPlaying) {
+            mainHandler.postDelayed(sceneTimeout, (duration - scenePositionMs).coerceAtLeast(MIN_TIMEOUT_MS))
+        }
+        scheduleWebRefresh()
+    }
+
+    private fun cancelSceneTimeout() = mainHandler.removeCallbacks(sceneTimeout)
+
+    private fun cancelSceneCallbacks() {
+        cancelSceneTimeout()
+        mainHandler.removeCallbacks(webLoadTimeout)
+        mainHandler.removeCallbacks(webRefresh)
+        pendingRetry?.let(mainHandler::removeCallbacks)
+        pendingRetry = null
+    }
+
+    private fun currentPositionMs(): Long = when {
+        contentMode == ContentMode.VIDEO || contentMode == ContentMode.STREAM -> requirePlayer().currentPosition.coerceAtLeast(0L)
+        desiredPlaying -> scenePositionMs + (SystemClock.elapsedRealtime() - sceneStartedAt)
+        else -> scenePositionMs
+    }
+
+    private fun currentScene(): SignageScene? = activeScenes.getOrNull(activeIndex)
+    private fun currentItem(): SignagePlaylistItem? = activeItems.getOrNull(activeIndex)
+
+    private fun clearPlayback(error: String) {
+        cancelSceneCallbacks()
+        requirePlayer().stop(); requirePlayer().clearMediaItems()
+        activeScenes = emptyList(); activeItems = emptyList()
+        activePlaylistId = null; contentMode = ContentMode.NONE; desiredPlaying = false
+        showMode(ContentMode.NONE)
+        views?.overlayContainer?.let(::clearOverlays)
+        textAnimator?.cancel()
+        textAnimator = null
         SignageRuntime.setPlaying(false)
         SignageRuntime.setPosition(0L)
         SignageRuntime.setError(error)
-        attachedView?.setBackgroundColor(Color.BLACK)
     }
 
     private fun publish() {
-        listener?.onStateChanged(SignageRuntime.state().copy(
-            playing = player?.isPlaying == true,
-            positionMs = player?.currentPosition ?: SignageRuntime.state().positionMs
-        ))
+        listener?.onStateChanged(
+            SignageRuntime.state().copy(playing = desiredPlaying, positionMs = currentPositionMs())
+        )
     }
 
     private fun runOnMainAndWait(block: () -> Boolean): Boolean {
-        if (Looper.myLooper() == Looper.getMainLooper()) {
-            return runCatching { block() }.getOrElse {
-                SignageRuntime.setError("COMMAND_FAILED")
-                false
-            }
+        if (Looper.myLooper() == Looper.getMainLooper()) return runCatching(block).getOrElse {
+            SignageRuntime.setError("COMMAND_FAILED"); false
         }
         var result = false
         val latch = CountDownLatch(1)
         mainHandler.post {
-            try {
-                result = runCatching { block() }.getOrElse {
-                    SignageRuntime.setError("COMMAND_FAILED")
-                    false
-                }
-            } finally {
-                latch.countDown()
-            }
+            try { result = runCatching(block).getOrElse { SignageRuntime.setError("COMMAND_FAILED"); false } }
+            finally { latch.countDown() }
         }
-        if (!latch.await(COMMAND_TIMEOUT_MS, TimeUnit.MILLISECONDS)) return false
-        return result
+        return latch.await(COMMAND_TIMEOUT_MS, TimeUnit.MILLISECONDS) && result
+    }
+
+    private fun parseColor(value: String?, fallback: Int): Int =
+        value?.takeIf { it.isNotBlank() }?.let { runCatching { Color.parseColor(it) }.getOrNull() } ?: fallback
+
+    private fun isAllowedWebUri(uri: Uri): Boolean =
+        uri.scheme.equals("https", true) || uri.toString().startsWith(LOCAL_HTML_BASE_URL)
+
+    private fun dp(view: View, value: Int): Int = (value * view.resources.displayMetrics.density).toInt()
+
+    private fun decodeSampledBitmap(path: String): Bitmap? {
+        val bounds = BitmapFactory.Options().apply { inJustDecodeBounds = true }
+        BitmapFactory.decodeFile(path, bounds)
+        if (bounds.outWidth <= 0 || bounds.outHeight <= 0) return null
+        var sampleSize = 1
+        while (bounds.outWidth / sampleSize > MAX_BLUR_BITMAP_EDGE ||
+            bounds.outHeight / sampleSize > MAX_BLUR_BITMAP_EDGE
+        ) sampleSize *= 2
+        return runCatching {
+            BitmapFactory.decodeFile(path, BitmapFactory.Options().apply {
+                inSampleSize = sampleSize
+                inPreferredConfig = Bitmap.Config.RGB_565
+            })
+        }.getOrNull()
+    }
+
+    private fun releaseBlurBitmap() {
+        blurBitmap?.takeUnless { it.isRecycled }?.recycle()
+        blurBitmap = null
     }
 
     private fun requirePlayer(): ExoPlayer = checkNotNull(player) { "SignagePlaybackController is not initialized" }
 
     private const val POSITION_SAVE_INTERVAL_MS = 1_000L
     private const val COMMAND_TIMEOUT_MS = 3_000L
-    private const val DEFAULT_IMAGE_DURATION_MS = 10_000L
-    private const val RETRY_BACKOFF_MS = 1_000L
+    private const val DEFAULT_SCENE_DURATION_MS = 10_000L
+    private const val MIN_TIMEOUT_MS = 100L
+    private const val WEB_LOAD_TIMEOUT_MS = 20_000L
     private const val SUPERVISOR_INTERVAL_MS = 10_000L
-    private val SUPPORTED_ACTIONS = setOf("PLAY", "RESUME", "PAUSE", "STOP", "TOGGLE", "NEXT", "PREVIOUS", "VOLUME", "MUTE", "UNMUTE", "PLAY_SCENE", "PLAY_PLAYLIST")
+    private const val LOCAL_HTML_BASE_URL = "https://local.signage.invalid/"
+    private const val BLUR_RADIUS_PX = 24f
+    private const val MAX_BLUR_BITMAP_EDGE = 1_280
+    private const val DEFAULT_TEXT_SPEED_DP_PER_SECOND = 90
+    private val RETRY_BACKOFF_MS = longArrayOf(1_000L, 2_000L, 4_000L, 8_000L, 30_000L)
+    private val SUPPORTED_ACTIONS = setOf(
+        "PLAY", "RESUME", "PAUSE", "STOP", "TOGGLE", "NEXT", "PREVIOUS", "VOLUME", "MUTE", "UNMUTE",
+        "PLAY_SCENE", "PLAY_PLAYLIST"
+    )
 }

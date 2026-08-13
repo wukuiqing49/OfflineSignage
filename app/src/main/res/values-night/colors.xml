@@ -1,4 +1,9 @@
 <resources>
     <color name="primary">#81C784</color>
     <color name="on_primary">#0B1F0D</color>
+    <color name="welcome_background">#101613</color>
+    <color name="welcome_text_primary">#F2F7F3</color>
+    <color name="welcome_text_secondary">#B6C2BA</color>
+    <color name="welcome_accent">#81C995</color>
+    <color name="welcome_accent_surface">#20392A</color>
 </resources>

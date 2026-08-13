@@ -5,13 +5,20 @@ import android.net.Uri
 import com.wkq.localsignage.feature.app.model.PlaybackListener
 import com.wkq.localsignage.feature.app.model.ControlSession
 import com.wkq.localsignage.feature.app.model.SignagePlaylist
+import com.wkq.localsignage.feature.app.model.SignagePlaylistItem
 import com.wkq.localsignage.feature.app.model.SignageResource
 import com.wkq.localsignage.feature.app.model.SignageScene
 import com.wkq.localsignage.feature.app.model.SignageState
 import com.wkq.localsignage.feature.app.model.PlaybackErrorRecord
 import com.wkq.localsignage.feature.app.model.SignageSettings
 import com.wkq.localsignage.feature.app.model.PairedDevice
+import com.wkq.localsignage.feature.app.model.ResourceKind
+import com.wkq.localsignage.feature.app.pairing.PairingCode
+import com.wkq.localsignage.feature.app.pairing.PairingCodeProvider
 import com.wkq.localsignage.feature.app.storage.SignageStore
+import com.wkq.localsignage.feature.app.storage.StoredCommandResult
+import com.wkq.localsignage.feature.app.storage.TemporaryPairingToken
+import com.wkq.localsignage.feature.app.storage.ResourceStorageSummary
 import java.io.InputStream
 import java.util.concurrent.CopyOnWriteArraySet
 
@@ -25,7 +32,11 @@ object SignageRuntime {
 
     @Synchronized
     fun initialize(context: Context) {
-        if (store == null) store = SignageStore(context.applicationContext)
+        if (store == null) {
+            store = SignageStore(context.applicationContext)
+            requireStore().revokeWebAccessToken()
+            requireStore().revokePairingToken()
+        }
         requireStore().ensureDefaultContent()
     }
 
@@ -49,7 +60,22 @@ object SignageRuntime {
     fun playlists(): List<SignagePlaylist> = requireStore().playlists()
     fun playlist(id: String?): SignagePlaylist? = requireStore().playlist(id)
     fun controlToken(): String = requireStore().controlToken()
+    fun webAccessToken(): String = requireStore().webAccessToken()
+    fun rotateWebAccessToken(): String = requireStore().rotateWebAccessToken()
+    fun revokeWebAccessToken() = requireStore().revokeWebAccessToken()
+    fun hasWebAccessToken(token: String?): Boolean = requireStore().hasWebAccessToken(token)
+    fun issuePairingToken(): TemporaryPairingToken = requireStore().issuePairingToken()
+    fun pairingToken(): TemporaryPairingToken = requireStore().pairingToken()
+    fun consumePairingToken(token: String?): Boolean = requireStore().consumePairingToken(token)
+    fun revokePairingToken() = requireStore().revokePairingToken()
+    fun pairingCode(sizePx: Int = 512): PairingCode {
+        val pairing = requireStore().pairingToken()
+        return PairingCodeProvider.create(pairing.token, pairing.expiresAt, SERVER_PORT, sizePx)
+    }
+    fun commandResult(commandId: String, fingerprint: String): StoredCommandResult? = requireStore().commandResult(commandId, fingerprint)
+    fun saveCommandResult(result: StoredCommandResult) = requireStore().saveCommandResult(result)
     fun pairedDevices(): List<PairedDevice> = requireStore().pairedDevices()
+    fun resourceStorageSummary(): ResourceStorageSummary = requireStore().resourceStorageSummary()
     fun pairedDevice(deviceId: String): PairedDevice? = requireStore().pairedDevice(deviceId)
     fun savePairedDevice(device: PairedDevice): PairedDevice = requireStore().savePairedDevice(device)
     fun deletePairedDevice(deviceId: String): Boolean = requireStore().deletePairedDevice(deviceId)
@@ -77,6 +103,32 @@ object SignageRuntime {
 
     fun saveRemote(url: String, name: String? = null): SignageResource =
         requireStore().saveRemote(url, name).also { notifyContentChanged() }
+
+    fun saveRemoteReference(name: String, url: String, mediaType: String): SignageResource =
+        requireStore().saveRemoteReference(name, url, mediaType).also { notifyContentChanged() }
+
+    fun createImageSlideshow(name: String, resourceIds: List<String>, durationMs: Long): SignagePlaylist {
+        val imageIds = resourceIds.distinct().filter { resource(it)?.isImage == true }
+        require(imageIds.isNotEmpty()) { "SLIDESHOW_IMAGES_REQUIRED" }
+        val scenesByResource = scenes().associateBy { it.resourceId }
+        val playlist = SignagePlaylist(
+            id = java.util.UUID.randomUUID().toString(),
+            name = name.ifBlank { "Image slideshow" },
+            items = imageIds.map { resourceId ->
+                SignagePlaylistItem(
+                    sceneId = requireNotNull(scenesByResource[resourceId]) { "SLIDESHOW_SCENE_MISSING" }.id,
+                    durationMs = durationMs.coerceIn(1_000L, 3_600_000L)
+                )
+            },
+            loop = true
+        )
+        savePlaylist(playlist)
+        selectPlaylist(playlist.id)
+        return playlist
+    }
+
+    fun saveVirtualResource(name: String, kind: ResourceKind, sourceUri: String?, content: String?, refreshIntervalMs: Long?): SignageResource =
+        requireStore().saveVirtualResource(name, kind, sourceUri, content, refreshIntervalMs).also { notifyContentChanged() }
 
     fun deleteResource(id: String): Boolean = requireStore().deleteResource(id).also { notifyContentChanged() }
     fun deleteScene(id: String): Boolean = requireStore().deleteScene(id).also { notifyContentChanged() }

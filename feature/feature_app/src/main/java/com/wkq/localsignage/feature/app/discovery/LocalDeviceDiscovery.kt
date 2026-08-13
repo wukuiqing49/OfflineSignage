@@ -11,41 +11,55 @@ object LocalDeviceDiscovery {
     private const val DEVICE_ID_ATTRIBUTE = "deviceId"
     private const val DEVICE_NAME_ATTRIBUTE = "deviceName"
 
-    private val devices = ConcurrentHashMap<String, DiscoveredDevice>()
+    private val nsdDevices = ConcurrentHashMap<String, DiscoveredDevice>()
+    private val udpDevices = ConcurrentHashMap<String, DiscoveredDevice>()
     private val resolvingServices = ConcurrentHashMap.newKeySet<String>()
     private var nsdManager: NsdManager? = null
     private var registrationListener: NsdManager.RegistrationListener? = null
     private var discoveryListener: NsdManager.DiscoveryListener? = null
     private var localDeviceId: String? = null
     private var localServiceName: String? = null
+    private var udpDiscovery: UdpDeviceDiscovery? = null
 
     @Synchronized
     fun start(context: Context, deviceId: String, deviceName: String, port: Int) {
-        if (nsdManager != null) return
-        val manager = context.applicationContext.getSystemService(NsdManager::class.java) ?: return
-        nsdManager = manager
+        if (nsdManager != null || udpDiscovery != null) return
         localDeviceId = deviceId
-        registerLocalService(manager, deviceId, deviceName, port)
-        startDiscovery(manager)
+        udpDiscovery = UdpDeviceDiscovery(deviceId, deviceName, port) { device ->
+            udpDevices[device.deviceId] = device
+        }.also { it.start() }
+        context.applicationContext.getSystemService(NsdManager::class.java)?.let { manager ->
+            nsdManager = manager
+            registerLocalService(manager, deviceId, deviceName, port)
+            startDiscovery(manager)
+        }
     }
 
     @Synchronized
     fun stop() {
-        val manager = nsdManager ?: return
-        discoveryListener?.let { listener -> runCatching { manager.stopServiceDiscovery(listener) } }
-        registrationListener?.let { listener -> runCatching { manager.unregisterService(listener) } }
+        nsdManager?.let { manager ->
+            discoveryListener?.let { listener -> runCatching { manager.stopServiceDiscovery(listener) } }
+            registrationListener?.let { listener -> runCatching { manager.unregisterService(listener) } }
+        }
         discoveryListener = null
         registrationListener = null
         nsdManager = null
         localDeviceId = null
         localServiceName = null
-        devices.clear()
+        udpDiscovery?.stop()
+        udpDiscovery = null
+        nsdDevices.clear()
+        udpDevices.clear()
         resolvingServices.clear()
     }
 
-    fun snapshot(): List<DiscoveredDevice> = devices.values.sortedBy { it.deviceName.lowercase() }
+    fun snapshot(): List<DiscoveredDevice> {
+        val staleBefore = System.currentTimeMillis() - UDP_STALE_AFTER_MS
+        udpDevices.entries.removeIf { it.value.lastSeenAt < staleBefore }
+        return (udpDevices + nsdDevices).values.sortedBy { it.deviceName.lowercase() }
+    }
 
-    fun find(deviceId: String): DiscoveredDevice? = devices[deviceId]
+    fun find(deviceId: String): DiscoveredDevice? = nsdDevices[deviceId] ?: udpDevices[deviceId]
 
     private fun registerLocalService(manager: NsdManager, deviceId: String, deviceName: String, port: Int) {
         val serviceInfo = NsdServiceInfo().apply {
@@ -77,7 +91,7 @@ object LocalDeviceDiscovery {
             }
             override fun onServiceLost(serviceInfo: NsdServiceInfo) {
                 resolvingServices.remove(serviceInfo.serviceName)
-                devices.entries.removeIf { it.value.serviceName == serviceInfo.serviceName }
+                nsdDevices.entries.removeIf { it.value.serviceName == serviceInfo.serviceName }
             }
             override fun onDiscoveryStopped(serviceType: String) = Unit
             override fun onStartDiscoveryFailed(serviceType: String, errorCode: Int) { discoveryListener = null }
@@ -97,7 +111,7 @@ object LocalDeviceDiscovery {
             val host = serviceInfo.host?.hostAddress ?: return
             val deviceName = attributes[DEVICE_NAME_ATTRIBUTE]?.toString(Charsets.UTF_8)
                 ?.takeIf { it.isNotBlank() } ?: serviceInfo.serviceName
-            devices[deviceId] = DiscoveredDevice(
+            nsdDevices[deviceId] = DiscoveredDevice(
                 deviceId = deviceId,
                 deviceName = deviceName,
                 host = host,
@@ -111,4 +125,6 @@ object LocalDeviceDiscovery {
             resolvingServices.remove(serviceInfo.serviceName)
         }
     }
+
+    private const val UDP_STALE_AFTER_MS = 60_000L
 }

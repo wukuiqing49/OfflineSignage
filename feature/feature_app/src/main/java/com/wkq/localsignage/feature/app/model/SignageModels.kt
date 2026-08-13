@@ -7,10 +7,37 @@ data class SignageResource(
     val path: String,
     val hash: String,
     val sizeBytes: Long,
-    val createdAt: Long
+    val createdAt: Long,
+    val kind: String = ResourceKind.LOCAL_FILE.name,
+    val sourceUri: String? = null,
+    val content: String? = null,
+    val refreshIntervalMs: Long? = null
 ) {
     val isVideo: Boolean get() = mimeType.startsWith("video/")
+    val isImage: Boolean get() = mimeType.startsWith("image/")
+    val isLocalFile: Boolean get() = kind == ResourceKind.LOCAL_FILE.name
+    val isRemoteFile: Boolean get() = kind == ResourceKind.REMOTE_FILE.name
+    val isWeb: Boolean get() = kind == ResourceKind.WEB.name
+    val isStream: Boolean get() = kind == ResourceKind.STREAM.name
+    val isText: Boolean get() = kind == ResourceKind.TEXT.name
 }
+
+enum class ResourceKind { LOCAL_FILE, REMOTE_FILE, WEB, STREAM, TEXT }
+
+data class SignageOverlay(
+    val id: String,
+    val type: String,
+    val content: String,
+    val horizontalPosition: String = "CENTER",
+    val verticalPosition: String = "BOTTOM",
+    val textSizeSp: Int = 28,
+    val textColor: String = "#FFFFFFFF",
+    val backgroundColor: String = "#99000000",
+    val paddingDp: Int = 12,
+    val speedDpPerSecond: Int = 80,
+    val enabled: Boolean = true,
+    val zIndex: Int = 0
+)
 
 data class SignageScene(
     val id: String,
@@ -22,7 +49,8 @@ data class SignageScene(
     val backgroundColor: String? = null,
     val volume: Int? = null,
     val muted: Boolean = false,
-    val createdAt: Long = System.currentTimeMillis()
+    val createdAt: Long = System.currentTimeMillis(),
+    val overlays: List<SignageOverlay> = emptyList()
 )
 
 data class SignagePlaylistItem(

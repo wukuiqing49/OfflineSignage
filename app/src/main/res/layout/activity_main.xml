@@ -1,38 +1,173 @@
 <?xml version="1.0" encoding="utf-8"?>
 <FrameLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:id="@+id/playback_root"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
     android:background="#000000">
+
+    <ImageView
+        android:id="@+id/blur_background_view"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:contentDescription="@null"
+        android:scaleType="centerCrop"
+        android:visibility="gone" />
+
+    <androidx.viewpager2.widget.ViewPager2
+        android:id="@+id/image_slideshow"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:overScrollMode="never"
+        android:visibility="gone" />
 
     <androidx.media3.ui.PlayerView
         android:id="@+id/player_view"
         android:layout_width="match_parent"
         android:layout_height="match_parent"
-        android:keepScreenOn="true"
         android:background="#000000"
-        app:controller_layout_id="@layout/empty_media_controller"
-        xmlns:app="http://schemas.android.com/apk/res-auto" />
+        app:controller_layout_id="@layout/empty_media_controller" />
+
+    <WebView
+        android:id="@+id/web_view"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:background="#000000"
+        android:visibility="gone" />
+
+    <TextView
+        android:id="@+id/text_content_view"
+        android:layout_width="wrap_content"
+        android:layout_height="match_parent"
+        android:gravity="center_vertical"
+        android:padding="32dp"
+        android:singleLine="true"
+        android:textColor="#FFFFFF"
+        android:textSize="36sp"
+        android:visibility="gone" />
+
+    <FrameLayout
+        android:id="@+id/overlay_container"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:clipChildren="true"
+        android:clipToPadding="true" />
+
+    <ScrollView
+        android:id="@+id/pairing_panel"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:background="@color/pairing_background"
+        android:fillViewport="true"
+        android:scrollbars="none">
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="match_parent"
+            android:gravity="center"
+            android:orientation="horizontal"
+            android:padding="@dimen/pairing_screen_padding">
+
+            <ImageView
+                android:id="@+id/pairing_qr_code"
+                android:layout_width="@dimen/pairing_qr_size"
+                android:layout_height="@dimen/pairing_qr_size"
+                android:background="@color/pairing_qr_background"
+                android:contentDescription="@string/pairing_qr_content_description"
+                android:padding="@dimen/app_spacing_small"
+                android:scaleType="fitCenter" />
+
+            <LinearLayout
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_marginStart="@dimen/pairing_content_gap"
+                android:layout_weight="1"
+                android:gravity="start"
+                android:orientation="vertical">
+
+                <TextView
+                    android:id="@+id/pairing_device_name"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:maxLines="2"
+                    android:textColor="@color/pairing_text_primary"
+                    android:textSize="28sp"
+                    android:textStyle="bold" />
+
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="@dimen/app_spacing_small"
+                    android:text="@string/pairing_ready"
+                    android:textColor="@color/pairing_accent"
+                    android:textSize="15sp" />
+
+                <TextView
+                    android:id="@+id/pairing_address"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="@dimen/app_spacing_large"
+                    android:maxLines="2"
+                    android:textColor="@color/pairing_text_primary"
+                    android:textIsSelectable="true"
+                    android:textSize="18sp" />
+
+                <TextView
+                    android:id="@+id/pairing_hint"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="@dimen/app_spacing_small"
+                    android:maxLines="3"
+                    android:text="@string/pairing_scan_hint"
+                    android:textColor="@color/pairing_text_secondary"
+                    android:textSize="14sp" />
+
+                <com.google.android.material.button.MaterialButton
+                    android:id="@+id/close_pairing_button"
+                    style="@style/Widget.Material3.Button.OutlinedButton"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="@dimen/app_spacing_large"
+                    android:text="@string/return_to_playback"
+                    android:visibility="gone" />
+            </LinearLayout>
+        </LinearLayout>
+    </ScrollView>
 
     <LinearLayout
-        android:layout_width="match_parent"
+        android:id="@+id/playback_status_bar"
+        android:layout_width="wrap_content"
         android:layout_height="wrap_content"
-        android:layout_gravity="bottom"
+        android:layout_gravity="top|end"
+        android:layout_margin="@dimen/app_spacing_medium"
+        android:background="@drawable/bg_playback_controls"
         android:gravity="center_vertical"
         android:orientation="horizontal"
-        android:padding="16dp"
-        android:background="#88000000">
-        <TextView
-            android:id="@+id/status_text"
-            android:layout_width="0dp"
-            android:layout_height="wrap_content"
-            android:layout_weight="1"
-            android:text="@string/paused_status"
-            android:textColor="#ffffff"
-            android:textSize="14sp" />
-        <Button
-            android:id="@+id/pause_resume_button"
+        android:paddingStart="@dimen/app_spacing_small"
+        android:paddingTop="4dp"
+        android:paddingEnd="4dp"
+        android:paddingBottom="4dp"
+        android:visibility="gone">
+
+        <com.google.android.material.button.MaterialButton
+            android:id="@+id/show_pairing_button"
+            style="@style/Widget.Material3.Button.TextButton"
             android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:text="@string/resume" />
+            android:layout_height="48dp"
+            android:minWidth="0dp"
+            android:text="@string/show_pairing"
+            android:textColor="@android:color/white" />
+
+        <com.google.android.material.button.MaterialButton
+            android:id="@+id/pause_resume_button"
+            style="@style/Widget.Material3.Button.IconButton"
+            android:layout_width="48dp"
+            android:layout_height="48dp"
+            android:layout_marginStart="4dp"
+            android:contentDescription="@string/resume"
+            android:minWidth="0dp"
+            android:text=""
+            app:icon="@android:drawable/ic_media_play"
+            app:iconTint="@android:color/white" />
     </LinearLayout>
 </FrameLayout>

@@ -5,8 +5,15 @@ import android.app.NotificationChannel
 import android.app.NotificationManager
 import android.app.Service
 import android.content.Intent
+import android.net.ConnectivityManager
+import android.net.LinkProperties
+import android.net.Network
+import android.net.NetworkCapabilities
+import android.net.NetworkRequest
 import android.os.Build
+import android.os.Handler
 import android.os.IBinder
+import android.os.Looper
 import androidx.core.app.NotificationCompat
 import com.wkq.localsignage.feature.app.runtime.SignageRuntime
 import com.wkq.localsignage.feature.app.discovery.LocalDeviceDiscovery
@@ -14,6 +21,26 @@ import com.wkq.localsignage.feature.app.player.SignagePlaybackController
 import com.wkq.localsignage.feature.app.server.KtorSignageServer
 
 class SignageService : Service() {
+    private val networkHandler = Handler(Looper.getMainLooper())
+    private var connectivityManager: ConnectivityManager? = null
+    private val startDiscovery = Runnable {
+        val state = SignageRuntime.state()
+        LocalDeviceDiscovery.start(this, state.deviceId, state.deviceName, SignageRuntime.SERVER_PORT)
+    }
+    private val restartDiscovery = Runnable {
+        LocalDeviceDiscovery.stop()
+        networkHandler.removeCallbacks(startDiscovery)
+        networkHandler.postDelayed(startDiscovery, DISCOVERY_REREGISTRATION_DELAY_MS)
+    }
+    private val networkCallback = object : ConnectivityManager.NetworkCallback() {
+        override fun onAvailable(network: Network) = scheduleDiscoveryRestart()
+        override fun onLost(network: Network) = scheduleDiscoveryRestart()
+        override fun onCapabilitiesChanged(network: Network, capabilities: NetworkCapabilities) =
+            scheduleDiscoveryRestart()
+        override fun onLinkPropertiesChanged(network: Network, linkProperties: LinkProperties) =
+            scheduleDiscoveryRestart()
+    }
+
     override fun onCreate() {
         super.onCreate()
         createNotificationChannel()
@@ -21,6 +48,7 @@ class SignageService : Service() {
         SignageRuntime.initialize(this)
         val state = SignageRuntime.state()
         LocalDeviceDiscovery.start(this, state.deviceId, state.deviceName, SignageRuntime.SERVER_PORT)
+        registerNetworkCallback()
         SignagePlaybackController.initialize(this)
         KtorSignageServerHolder.start(this)
     }
@@ -28,6 +56,10 @@ class SignageService : Service() {
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int = START_STICKY
 
     override fun onDestroy() {
+        networkHandler.removeCallbacks(restartDiscovery)
+        networkHandler.removeCallbacks(startDiscovery)
+        connectivityManager?.let { manager -> runCatching { manager.unregisterNetworkCallback(networkCallback) } }
+        connectivityManager = null
         KtorSignageServerHolder.stop()
         LocalDeviceDiscovery.stop()
         SignagePlaybackController.release()
@@ -35,6 +67,29 @@ class SignageService : Service() {
     }
 
     override fun onBind(intent: Intent?): IBinder? = null
+
+    private fun registerNetworkCallback() {
+        val manager = getSystemService(ConnectivityManager::class.java) ?: return
+        connectivityManager = manager
+        runCatching {
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.N) {
+                manager.registerDefaultNetworkCallback(networkCallback)
+            } else {
+                manager.registerNetworkCallback(
+                    NetworkRequest.Builder()
+                        .addCapability(NetworkCapabilities.NET_CAPABILITY_NOT_VPN)
+                        .build(),
+                    networkCallback
+                )
+            }
+        }
+    }
+
+    private fun scheduleDiscoveryRestart() {
+        networkHandler.removeCallbacks(restartDiscovery)
+        networkHandler.removeCallbacks(startDiscovery)
+        networkHandler.postDelayed(restartDiscovery, NETWORK_RESTART_DEBOUNCE_MS)
+    }
 
     private fun notification(): Notification = NotificationCompat.Builder(this, CHANNEL_ID)
         .setSmallIcon(android.R.drawable.ic_media_play)
@@ -53,6 +108,8 @@ class SignageService : Service() {
     private companion object {
         const val CHANNEL_ID = "local_signage_service"
         const val NOTIFICATION_ID = 1001
+        const val NETWORK_RESTART_DEBOUNCE_MS = 1_500L
+        const val DISCOVERY_REREGISTRATION_DELAY_MS = 500L
     }
 }
 
@@ -60,7 +117,7 @@ private object KtorSignageServerHolder {
     private var server: KtorSignageServer? = null
 
     fun start(context: android.content.Context) {
-        if (server == null) server = KtorSignageServer(SignageRuntime.SERVER_PORT)
+        if (server == null) server = KtorSignageServer(context.applicationContext, SignageRuntime.SERVER_PORT)
         server?.start()
     }
 

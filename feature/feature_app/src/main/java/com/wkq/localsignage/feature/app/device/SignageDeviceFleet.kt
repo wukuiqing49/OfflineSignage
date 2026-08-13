@@ -11,7 +11,39 @@ import kotlinx.coroutines.coroutineScope
 import java.io.File
 
 object SignageDeviceFleet {
-    suspend fun sync(resource: SignageResource, file: File, targets: List<PairedDevice>): List<FleetResult> = coroutineScope {
+    suspend fun statuses(targets: List<PairedDevice>): List<FleetStatus> = coroutineScope {
+        targets.map { target ->
+            async(Dispatchers.IO) {
+                val checkedAt = System.currentTimeMillis()
+                val remote = LocalDeviceClient(target).status()
+                val state = when {
+                    remote.status == 401 -> FleetStatusState.UNAUTHORIZED
+                    remote.status == -1 -> FleetStatusState.TIMEOUT
+                    remote.status !in 200..299 -> FleetStatusState.OFFLINE
+                    remote.deviceId == null -> FleetStatusState.INVALID_RESPONSE
+                    else -> FleetStatusState.ONLINE
+                }
+                FleetStatus(
+                    deviceId = target.deviceId,
+                    deviceName = remote.deviceName ?: target.deviceName,
+                    host = target.host,
+                    port = target.port,
+                    state = state,
+                    checkedAt = checkedAt,
+                    currentResourceId = remote.currentResourceId,
+                    currentSceneId = remote.currentSceneId,
+                    currentPlaylistId = remote.currentPlaylistId,
+                    playing = remote.playing,
+                    volume = remote.volume,
+                    muted = remote.muted,
+                    error = remote.error,
+                    commandRevision = remote.commandRevision
+                )
+            }
+        }.awaitAll()
+    }
+
+    suspend fun sync(resource: SignageResource, file: File?, targets: List<PairedDevice>): List<FleetResult> = coroutineScope {
         targets.map { target ->
             async(Dispatchers.IO) {
                 val client = LocalDeviceClient(target)
@@ -19,7 +51,7 @@ object SignageDeviceFleet {
                 if (exists.exists) {
                     FleetResult(target.deviceId, target.deviceName, true, true, "ALREADY_EXISTS")
                 } else {
-                    val uploaded = client.upload(resource, file)
+                    val uploaded = if (resource.isLocalFile && file != null) client.upload(resource, file) else client.saveVirtualResource(resource)
                     FleetResult(target.deviceId, target.deviceName, uploaded.exists, false, if (uploaded.exists) "UPLOADED" else "UPLOAD_FAILED")
                 }
             }
@@ -59,16 +91,20 @@ object SignageDeviceFleet {
                     if (failure != null) return@forEach
                     val resource = resources[scene.resourceId]
                     val file = resource?.let { files[it.id] }
-                    if (resource == null || file == null) {
+                    if (resource == null || resource.isLocalFile && file == null) {
                         failure = "RESOURCE_NOT_FOUND"
                         return@forEach
                     }
                     val exists = client.resourceExists(resource.hash)
-                    val remoteId = exists.resourceId ?: client.upload(resource, file).resourceId
+                    val remoteId = exists.resourceId ?: if (resource.isLocalFile) {
+                        client.upload(resource, checkNotNull(file)).resourceId
+                    } else {
+                        client.saveVirtualResource(resource).resourceId
+                    }
                     if (remoteId == null) failure = "RESOURCE_SYNC_FAILED" else remoteResourceIds[resource.id] = remoteId
                 }
                 if (failure != null) {
-                    FleetResult(target.deviceId, target.deviceName, false, false, failure.toString())
+                    FleetResult(target.deviceId, target.deviceName, false, false, failure.orEmpty())
                 } else {
                     val scenesSaved = scenes.all { scene ->
                         val remoteId = remoteResourceIds[scene.resourceId] ?: return@all false
@@ -88,4 +124,23 @@ object SignageDeviceFleet {
         val skipped: Boolean,
         val code: String
     )
+
+    data class FleetStatus(
+        val deviceId: String,
+        val deviceName: String,
+        val host: String,
+        val port: Int,
+        val state: FleetStatusState,
+        val checkedAt: Long,
+        val currentResourceId: String?,
+        val currentSceneId: String?,
+        val currentPlaylistId: String?,
+        val playing: Boolean,
+        val volume: Int,
+        val muted: Boolean,
+        val error: String?,
+        val commandRevision: Long
+    )
+
+    enum class FleetStatusState { ONLINE, OFFLINE, UNAUTHORIZED, TIMEOUT, INVALID_RESPONSE }
 }

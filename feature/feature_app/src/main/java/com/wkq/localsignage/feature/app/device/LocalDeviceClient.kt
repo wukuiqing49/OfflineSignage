@@ -8,6 +8,8 @@ import org.json.JSONArray
 import org.json.JSONObject
 import java.io.File
 import java.net.HttpURLConnection
+import java.net.Inet4Address
+import java.net.InetAddress
 import java.net.URL
 import java.net.URLEncoder
 import java.nio.charset.StandardCharsets
@@ -23,9 +25,22 @@ class LocalDeviceClient(private val device: PairedDevice) {
 
     fun status(): RemoteStatusResult {
         val response = request("GET", "/api/status")
-        if (response.status !in 200..299) return RemoteStatusResult(response.status, 0L)
-        val revision = runCatching { JSONObject(response.body).optLong("commandRevision", 0L) }.getOrDefault(0L)
-        return RemoteStatusResult(response.status, revision)
+        if (response.status !in 200..299) return RemoteStatusResult(response.status)
+        val json = runCatching { JSONObject(response.body) }.getOrNull()
+            ?: return RemoteStatusResult(response.status)
+        return RemoteStatusResult(
+            status = response.status,
+            deviceId = json.optString("deviceId").takeIf { it.isNotBlank() },
+            deviceName = json.optString("deviceName").takeIf { it.isNotBlank() },
+            currentResourceId = json.optString("currentResourceId").takeIf { it.isNotBlank() },
+            currentSceneId = json.optString("currentSceneId").takeIf { it.isNotBlank() },
+            currentPlaylistId = json.optString("currentPlaylistId").takeIf { it.isNotBlank() },
+            playing = json.optBoolean("playing"),
+            volume = json.optInt("volume", 80),
+            muted = json.optBoolean("muted"),
+            error = json.optString("error").takeIf { it.isNotBlank() },
+            commandRevision = json.optLong("commandRevision", 0L)
+        )
     }
 
     fun upload(resource: SignageResource, file: File): RemoteResourceResult {
@@ -47,6 +62,17 @@ class LocalDeviceClient(private val device: PairedDevice) {
             val json = runCatching { JSONObject(response.body) }.getOrNull()
             RemoteResourceResult(response.status in 200..299, json?.optString("id")?.takeIf { it.isNotBlank() }, response.status)
         }.getOrElse { RemoteResourceResult(false, null, -1) }
+    }
+
+    fun saveVirtualResource(resource: SignageResource): RemoteResourceResult {
+        val response = postJson("/api/internal/sync/resource", JSONObject().apply {
+            put("name", resource.name); put("kind", resource.kind)
+            resource.sourceUri?.let { put("sourceUri", it) }
+            resource.content?.let { put("content", it) }
+            resource.refreshIntervalMs?.let { put("refreshIntervalMs", it) }
+        })
+        val json = runCatching { JSONObject(response.body) }.getOrNull()
+        return RemoteResourceResult(response.status in 200..299, json?.optString("id")?.takeIf { it.isNotBlank() }, response.status)
     }
 
     fun command(action: String, resourceId: String? = null, value: Int? = null, revision: Long? = null): RemoteCommandResult {
@@ -76,6 +102,13 @@ class LocalDeviceClient(private val device: PairedDevice) {
             scene.backgroundColor?.let { put("backgroundColor", it) }
             scene.volume?.let { put("volume", it) }
             put("muted", scene.muted)
+            put("overlays", JSONArray().apply { scene.overlays.forEach { overlay -> put(JSONObject().apply {
+                put("id", overlay.id); put("type", overlay.type); put("content", overlay.content)
+                put("horizontalPosition", overlay.horizontalPosition); put("verticalPosition", overlay.verticalPosition)
+                put("textSizeSp", overlay.textSizeSp); put("textColor", overlay.textColor); put("backgroundColor", overlay.backgroundColor)
+                put("paddingDp", overlay.paddingDp); put("speedDpPerSecond", overlay.speedDpPerSecond)
+                put("enabled", overlay.enabled); put("zIndex", overlay.zIndex)
+            }) } })
         }
         return postJson("/api/internal/sync/scene", body).status in 200..299
     }
@@ -112,6 +145,7 @@ class LocalDeviceClient(private val device: PairedDevice) {
     private fun postJson(path: String, body: JSONObject): HttpResponse = request("POST", path, body.toString())
 
     private fun open(method: String, path: String): HttpURLConnection {
+        require(isPrivateIpv4Host(device.host)) { "DEVICE_HOST_NOT_LOCAL" }
         val connection = URL("http://${hostForUrl()}:${device.port}$path").openConnection() as HttpURLConnection
         connection.requestMethod = method
         connection.connectTimeout = TIMEOUT_MS
@@ -133,8 +167,29 @@ class LocalDeviceClient(private val device: PairedDevice) {
     private fun hostForUrl(): String = if (device.host.contains(":") && !device.host.startsWith("[")) "[${device.host}]" else device.host
     private fun urlEncode(value: String): String = URLEncoder.encode(value, StandardCharsets.UTF_8.name())
 
+    private fun isPrivateIpv4Host(host: String): Boolean = runCatching {
+        InetAddress.getAllByName(host).let { addresses ->
+            addresses.isNotEmpty() && addresses.all { address ->
+                address is Inet4Address && address.isSiteLocalAddress &&
+                    !address.isLoopbackAddress && !address.isLinkLocalAddress
+            }
+        }
+    }.getOrDefault(false)
+
     data class RemoteResourceResult(val exists: Boolean, val resourceId: String?, val status: Int)
-    data class RemoteStatusResult(val status: Int, val commandRevision: Long)
+    data class RemoteStatusResult(
+        val status: Int,
+        val deviceId: String? = null,
+        val deviceName: String? = null,
+        val currentResourceId: String? = null,
+        val currentSceneId: String? = null,
+        val currentPlaylistId: String? = null,
+        val playing: Boolean = false,
+        val volume: Int = 80,
+        val muted: Boolean = false,
+        val error: String? = null,
+        val commandRevision: Long = 0L
+    )
     data class RemoteCommandResult(val success: Boolean, val status: Int, val body: String)
     private data class HttpResponse(val status: Int, val body: String)
 

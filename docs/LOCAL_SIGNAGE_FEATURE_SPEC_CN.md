@@ -38,14 +38,16 @@
 - Heartbeat、超时释放、Take Control
 - 按设备持久化的 Command Revision
 
-### P2：后续增强
+### P2：第二阶段增强
 
 - Remote Image / Video 缓存策略
 - Local HTML 与 Remote WebView
 - HLS、RTSP、DASH 直播流
 - Text、Ticker、Overlay、Blur 背景
 - UDP Discovery 兜底
-- 复杂 Scene 编辑器、分屏、统计和云能力
+- 复杂 Scene 编辑器、分屏、统计和云能力（后续阶段）
+
+当前代码已实现 Remote Image/Video 缓存、Local HTML/Remote WebView、HLS/DASH/RTSP、Text/Ticker/Overlay、图片 Blur 背景和 UDP Discovery 兜底。状态为“代码完成、待目标设备与真实网络验收”，不得据此直接判定商业发布通过。
 
 ## 4. 核心数据模型
 
@@ -55,12 +57,15 @@
 {
   "id": "resource-001",
   "hash": "sha256:...",
-  "type": "IMAGE|VIDEO",
+  "kind": "LOCAL_FILE|WEB|STREAM|TEXT",
   "source": "LOCAL_UPLOAD",
   "name": "promo.mp4",
   "mimeType": "video/mp4",
   "sizeBytes": 123456,
   "localPath": "shared/resources/...",
+  "sourceUri": null,
+  "content": null,
+  "refreshIntervalMs": null,
   "createdAt": 0,
   "updatedAt": 0
 }
@@ -78,7 +83,7 @@
   "display": {"fitMode": "FILL", "cropGravity": "CENTER", "background": "BLACK"},
   "volume": null,
   "muted": false,
-  "fallbackSceneId": null
+  "overlays": []
 }
 ```
 
@@ -121,6 +126,8 @@ GET    /api/device
 GET    /api/status
 GET    /api/resources
 POST   /api/resources/upload
+POST   /api/resources/remote
+POST   /api/resources/virtual
 DELETE /api/resources/{id}
 GET    /api/scenes
 POST   /api/scenes
@@ -163,7 +170,8 @@ WebSocket 用于实时状态，不替代 HTTP 资源 CRUD。连接建立后先�
 - 默认只监听局域网可达地址，不设计公网穿透。
 - 上传限制 MIME、扩展名、单文件大小和总存储配额。
 - 所有路径通过应用私有目录解析，拒绝 `..` 和符号链接逃逸。
-- Remote URL 仅允许 `https`、必要时显式允许 `http`；WebView 禁止不必要的 file access。
+- Remote 文件缓存和 Remote Web 仅允许 `https`；流媒体允许 HTTPS HLS/DASH 或 RTSP，禁止 URL 内嵌用户信息。
+- WebView 禁止 file/content access、mixed content、地理位置和 JSBridge；Local HTML 使用隔离 HTTPS base URL。
 - Token 不写入日志，不持久化为长期凭据；二维码只承载临时地址和 Token。
 
 ## 9. P0 验收
@@ -175,3 +183,15 @@ WebSocket 用于实时状态，不替代 HTTP 资源 CRUD。连接建立后先�
 - 音量、静音、常亮和全屏设置可恢复。
 - 损坏资源不会导致应用或 Service 崩溃。
 - `:app:assembleDebug`、结构门禁、架构门禁、构建门禁和 i18n 门禁通过。
+
+## 10. 手机 Web 操作台
+
+手机控制流程、工作区职责、控制权、安全约束和后续方向见 `LOCAL_SIGNAGE_WEB_MOBILE_WORKFLOW_CN.md`。控制台必须优先保证扫码连接、当前状态、快速播放和上传路径，不能把低频设备诊断与高频播放操作混在同一长页面中。
+
+## 11. 首次启动与显示设置
+
+- 新安装首次人工启动显示欢迎页，说明同局域网连接、扫码配对和全屏播放三步流程。
+- 用户完成欢迎页后，后续桌面启动直接进入播放页；已有内容的覆盖升级自动跳过欢迎页。
+- 开机恢复显式进入播放页，不依赖欢迎页完成状态，避免无人值守设备停在引导界面。
+- `autoResume=false` 时进程重建不自动继续播放；常亮和全屏设置变更应立即作用于当前播放 Activity。
+- 默认网络、链路属性或地址变化后，设备发现能力应防抖重启；Ktor Server 保持监听，无需因 DHCP 地址变化重建。

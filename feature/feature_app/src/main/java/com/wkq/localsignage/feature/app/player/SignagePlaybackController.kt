@@ -5,8 +5,10 @@ import android.animation.ObjectAnimator
 import android.graphics.Color
 import android.graphics.Bitmap
 import android.graphics.BitmapFactory
+import android.graphics.Paint
 import android.graphics.RenderEffect
 import android.graphics.Shader
+import android.graphics.drawable.GradientDrawable
 import android.net.Uri
 import android.os.Build
 import android.os.Handler
@@ -35,6 +37,7 @@ import com.wkq.localsignage.feature.app.model.PlaybackListener
 import com.wkq.localsignage.feature.app.model.SignageOverlay
 import com.wkq.localsignage.feature.app.model.SignagePlaylistItem
 import com.wkq.localsignage.feature.app.model.PlaybackStartupPolicy
+import com.wkq.localsignage.feature.app.model.PlaybackTimingPolicy
 import com.wkq.localsignage.feature.app.model.SignageResource
 import com.wkq.localsignage.feature.app.model.SignageScene
 import com.wkq.localsignage.feature.app.runtime.SignageRuntime
@@ -47,6 +50,7 @@ object SignagePlaybackController {
 
     private val mainHandler = Handler(Looper.getMainLooper())
     private var player: ExoPlayer? = null
+    private var applicationContext: android.content.Context? = null
     private var listener: PlaybackListener? = null
     private var views: SignagePlaybackViews? = null
     private var slideshowRenderer: ImageSlideshowRenderer? = null
@@ -94,6 +98,7 @@ object SignagePlaybackController {
     @Synchronized
     fun initialize(context: android.content.Context) {
         if (player != null) return
+        applicationContext = context.applicationContext
         SignageRuntime.registerContentListener { refreshContent() }
         player = ExoPlayer.Builder(context.applicationContext).build().apply {
             setAudioAttributes(
@@ -179,6 +184,7 @@ object SignagePlaybackController {
         releaseBlurBitmap()
         SignageRuntime.unregisterContentListener()
         player = null
+        applicationContext = null
         views = null
         listener = null
         activeScenes = emptyList()
@@ -220,8 +226,8 @@ object SignagePlaybackController {
                 "PLAY", "RESUME" -> {
                     when {
                         resourceId != null -> SignageRuntime.scenes().firstOrNull { it.resourceId == resourceId }
-                            ?.let(::loadStandaloneScene)
-                        sceneId != null -> SignageRuntime.scene(sceneId)?.let(::loadStandaloneScene)
+                            ?.let { loadStandaloneScene(it) }
+                        sceneId != null -> SignageRuntime.scene(sceneId)?.let { loadStandaloneScene(it) }
                         playlistId != null -> {
                             SignageRuntime.selectPlaylist(playlistId)
                             loadPlaylist(restorePosition = false, forceReload = true, followCurrentScene = false)
@@ -253,6 +259,7 @@ object SignagePlaybackController {
                 else -> false
             }
             if (!executed || !SignageRuntime.commitCommandRevision(revision)) false else {
+                SignageRuntime.notifyState()
                 publish()
                 true
             }
@@ -264,7 +271,15 @@ object SignagePlaybackController {
         forceReload: Boolean = false,
         followCurrentScene: Boolean = true
     ) {
-        val playlist = SignageRuntime.playlist(SignageRuntime.state().currentPlaylistId)
+        val persistedState = SignageRuntime.state()
+        if (persistedState.currentPlaylistId == null && persistedState.currentSceneId != null) {
+            val standalone = SignageRuntime.scene(persistedState.currentSceneId)
+            if (standalone != null) {
+                loadStandaloneScene(standalone, restorePosition)
+                return
+            }
+        }
+        val playlist = SignageRuntime.playlist(persistedState.currentPlaylistId)
             ?: SignageRuntime.playlists().firstOrNull()
             ?: return clearPlayback("NO_PLAYLIST")
         val enabled = playlist.items.mapNotNull { item ->
@@ -316,14 +331,14 @@ object SignagePlaybackController {
         renderCurrent(restorePosition = false)
     }
 
-    private fun loadStandaloneScene(scene: SignageScene) {
+    private fun loadStandaloneScene(scene: SignageScene, restorePosition: Boolean = false) {
         activeScenes = listOf(scene)
         activeItems = listOf(SignagePlaylistItem(scene.id))
         activePlaylistId = null
         activeLoop = true
         activeIndex = 0
-        scenePositionMs = 0L
-        renderCurrent(restorePosition = false)
+        scenePositionMs = if (restorePosition) SignageRuntime.state().positionMs else 0L
+        renderCurrent(restorePosition = restorePosition)
     }
 
     private fun renderCurrent(restorePosition: Boolean) {
@@ -332,7 +347,7 @@ object SignagePlaybackController {
         textAnimator = null
         val scene = currentScene() ?: return clearPlayback("NO_PLAYABLE_SCENE")
         val resource = SignageRuntime.resource(scene.resourceId) ?: return handleSceneFailure("RESOURCE_MISSING")
-        SignageRuntime.selectScene(scene.id)
+        SignageRuntime.selectPlaybackScene(scene.id, activePlaylistId)
         scenePositionMs = if (restorePosition) scenePositionMs else 0L
         sceneStartedAt = SystemClock.elapsedRealtime()
         sceneDurationMs = currentItem()?.durationMs
@@ -395,6 +410,13 @@ object SignagePlaybackController {
         }.build()
         requirePlayer().apply {
             setMediaItem(item, scenePositionMs)
+            setPlaybackSpeed(
+                if (contentMode == ContentMode.VIDEO) {
+                    PlaybackTimingPolicy.normalizeVideoPlaybackSpeed(scene.playbackSpeed)
+                } else {
+                    PlaybackTimingPolicy.DEFAULT_VIDEO_PLAYBACK_SPEED
+                }
+            )
             prepare()
             playWhenReady = desiredPlaying
         }
@@ -418,27 +440,75 @@ object SignagePlaybackController {
 
     private fun renderText(resource: SignageResource) {
         contentMode = ContentMode.TEXT
+        if (sceneDurationMs == null && resource.textRepeatCount != PlaybackTimingPolicy.INFINITE_TEXT_REPEAT_COUNT) {
+            sceneDurationMs = estimateTextDurationMs(resource)
+        }
         requirePlayer().stop(); requirePlayer().clearMediaItems()
         showMode(ContentMode.TEXT)
+        val background = parseColor(resource.textBackgroundColor, Color.BLACK)
+        (views?.textView?.parent as? View)?.setBackgroundColor(background)
         views?.textView?.apply {
             text = resource.content.orEmpty()
-            post { startTextTicker(this) }
+            textSize = resource.textSizeSp.toFloat()
+            setTextColor(parseColor(resource.textColor, Color.WHITE))
+            setBackgroundColor(Color.TRANSPARENT)
+            typeface = DisplayTypefaceResolver.resolve(context, resource.fontFamily, resource.content)
+            post { startTextTicker(this, resource) }
         }
     }
 
-    private fun startTextTicker(text: TextView) {
+    private fun startTextTicker(text: TextView, resource: SignageResource, attempt: Int = 0) {
         textAnimator?.cancel()
+        textAnimator = null
         val parentWidth = (text.parent as? View)?.width ?: return
-        if (parentWidth <= 0 || text.width <= 0) return
-        val distance = parentWidth + text.width.toFloat()
-        val speed = DEFAULT_TEXT_SPEED_DP_PER_SECOND * text.resources.displayMetrics.density
-        textAnimator = ObjectAnimator.ofFloat(text, View.TRANSLATION_X, parentWidth.toFloat(), -text.width.toFloat()).apply {
+        if (parentWidth <= 0 || text.width <= 0) {
+            text.translationX = 0f
+            if (attempt < TEXT_LAYOUT_RETRY_COUNT) {
+                text.postDelayed({
+                    if (views?.textView === text && currentScene()?.resourceId == resource.id) {
+                        startTextTicker(text, resource, attempt + 1)
+                    }
+                }, TEXT_LAYOUT_RETRY_DELAY_MS)
+            }
+            return
+        }
+        val startOffset = (parentWidth - text.paddingLeft).coerceAtLeast(0).toFloat()
+        val distance = startOffset + text.width.toFloat()
+        val speed = PlaybackTimingPolicy.normalizeTextSpeed(resource.textSpeedDpPerSecond) *
+            text.resources.displayMetrics.density
+        val configuredRepeatCount = PlaybackTimingPolicy.normalizeTextRepeatCount(resource.textRepeatCount)
+        val animator = ObjectAnimator.ofFloat(text, View.TRANSLATION_X, startOffset, -text.width.toFloat()).apply {
             duration = (distance / speed * 1_000L).toLong().coerceAtLeast(1_000L)
-            repeatCount = ObjectAnimator.INFINITE
+            this.repeatCount = if (configuredRepeatCount == PlaybackTimingPolicy.INFINITE_TEXT_REPEAT_COUNT) {
+                ObjectAnimator.INFINITE
+            } else {
+                configuredRepeatCount - 1
+            }
             repeatMode = ObjectAnimator.RESTART
             start()
             if (!desiredPlaying) pause()
         }
+        textAnimator = animator
+    }
+
+    private fun estimateTextDurationMs(resource: SignageResource): Long {
+        val context = applicationContext
+        val metrics = context?.resources?.displayMetrics
+        val density = metrics?.density ?: 1f
+        val scaledDensity = density * (context?.resources?.configuration?.fontScale ?: 1f)
+        val screenWidth = (metrics?.widthPixels ?: DEFAULT_TEXT_VIEWPORT_WIDTH_PX).coerceAtLeast(1)
+        val paint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
+            textSize = resource.textSizeSp * scaledDensity
+            typeface = context?.let { DisplayTypefaceResolver.resolve(it, resource.fontFamily, resource.content) }
+        }
+        val textWidth = paint.measureText(resource.content.orEmpty()).coerceAtLeast(screenWidth.toFloat())
+        return PlaybackTimingPolicy.textTickerDurationMs(
+            viewportWidthPx = screenWidth,
+            textWidthPx = textWidth,
+            density = density,
+            speedDpPerSecond = resource.textSpeedDpPerSecond,
+            repeatCount = resource.textRepeatCount
+        )
     }
 
     private fun resumePlayback() {
@@ -611,7 +681,11 @@ object SignagePlaybackController {
                 this.text = overlay.content
                 textSize = overlay.textSizeSp.coerceIn(8, 160).toFloat()
                 setTextColor(parseColor(overlay.textColor, Color.WHITE))
-                setBackgroundColor(parseColor(overlay.backgroundColor, Color.TRANSPARENT))
+                typeface = DisplayTypefaceResolver.resolve(context, overlay.fontFamily, overlay.content)
+                background = GradientDrawable().apply {
+                    setColor(parseColor(overlay.backgroundColor, Color.TRANSPARENT))
+                    cornerRadius = dp(container, overlay.cornerRadiusDp.coerceIn(0, 64)).toFloat()
+                }
                 setPadding(dp(container, overlay.paddingDp.coerceIn(0, 64)))
                 maxLines = if (overlay.type.equals("TICKER", true)) 1 else Int.MAX_VALUE
             }
@@ -663,15 +737,16 @@ object SignagePlaybackController {
     private fun applyDisplayState(scene: SignageScene) {
         val currentViews = views ?: return
         currentViews.playerView.resizeMode = when (scene.fitMode.uppercase()) {
-            "FILL", "STRETCH" -> AspectRatioFrameLayout.RESIZE_MODE_FILL
-            "CROP" -> AspectRatioFrameLayout.RESIZE_MODE_ZOOM
+            "STRETCH" -> AspectRatioFrameLayout.RESIZE_MODE_FILL
+            "FILL", "CROP" -> AspectRatioFrameLayout.RESIZE_MODE_ZOOM
             else -> AspectRatioFrameLayout.RESIZE_MODE_FIT
         }
         val background = parseColor(scene.backgroundColor, Color.BLACK)
+        (currentViews.textView.parent as? View)?.setBackgroundColor(background)
         currentViews.playerView.setBackgroundColor(background)
         currentViews.playerView.setShutterBackgroundColor(Color.TRANSPARENT)
         currentViews.webView.setBackgroundColor(background)
-        currentViews.textView.setBackgroundColor(background)
+        currentViews.textView.setBackgroundColor(Color.TRANSPARENT)
         currentViews.blurBackgroundView.apply {
             visibility = View.GONE
             setImageDrawable(null)
@@ -816,7 +891,9 @@ object SignagePlaybackController {
     private const val LOCAL_HTML_BASE_URL = "https://local.signage.invalid/"
     private const val BLUR_RADIUS_PX = 24f
     private const val MAX_BLUR_BITMAP_EDGE = 1_280
-    private const val DEFAULT_TEXT_SPEED_DP_PER_SECOND = 90
+    private const val DEFAULT_TEXT_VIEWPORT_WIDTH_PX = 1_920
+    private const val TEXT_LAYOUT_RETRY_COUNT = 10
+    private const val TEXT_LAYOUT_RETRY_DELAY_MS = 100L
     private val RETRY_BACKOFF_MS = longArrayOf(1_000L, 2_000L, 4_000L, 8_000L, 30_000L)
     private val SUPPORTED_ACTIONS = setOf(
         "PLAY", "RESUME", "PAUSE", "STOP", "TOGGLE", "NEXT", "PREVIOUS", "VOLUME", "MUTE", "UNMUTE",

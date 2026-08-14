@@ -11,7 +11,13 @@ data class SignageResource(
     val kind: String = ResourceKind.LOCAL_FILE.name,
     val sourceUri: String? = null,
     val content: String? = null,
-    val refreshIntervalMs: Long? = null
+    val refreshIntervalMs: Long? = null,
+    val textSizeSp: Int = TextStylePolicy.DEFAULT_TEXT_SIZE_SP,
+    val textColor: String = TextStylePolicy.DEFAULT_TEXT_COLOR,
+    val textBackgroundColor: String = TextStylePolicy.DEFAULT_BACKGROUND_COLOR,
+    val fontFamily: String = TextStylePolicy.DEFAULT_FONT_FAMILY,
+    val textSpeedDpPerSecond: Int = PlaybackTimingPolicy.DEFAULT_TEXT_SPEED_DP_PER_SECOND,
+    val textRepeatCount: Int = PlaybackTimingPolicy.INFINITE_TEXT_REPEAT_COUNT
 ) {
     val isVideo: Boolean get() = mimeType.startsWith("video/")
     val isImage: Boolean get() = mimeType.startsWith("image/")
@@ -34,6 +40,8 @@ data class SignageOverlay(
     val textColor: String = "#FFFFFFFF",
     val backgroundColor: String = "#99000000",
     val paddingDp: Int = 12,
+    val cornerRadiusDp: Int = 8,
+    val fontFamily: String = TextStylePolicy.DEFAULT_FONT_FAMILY,
     val speedDpPerSecond: Int = 80,
     val enabled: Boolean = true,
     val zIndex: Int = 0
@@ -50,7 +58,8 @@ data class SignageScene(
     val volume: Int? = null,
     val muted: Boolean = false,
     val createdAt: Long = System.currentTimeMillis(),
-    val overlays: List<SignageOverlay> = emptyList()
+    val overlays: List<SignageOverlay> = emptyList(),
+    val playbackSpeed: Float = PlaybackTimingPolicy.DEFAULT_VIDEO_PLAYBACK_SPEED
 )
 
 data class SignagePlaylistItem(

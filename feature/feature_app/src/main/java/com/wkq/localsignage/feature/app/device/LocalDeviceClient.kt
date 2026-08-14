@@ -70,6 +70,12 @@ class LocalDeviceClient(private val device: PairedDevice) {
             resource.sourceUri?.let { put("sourceUri", it) }
             resource.content?.let { put("content", it) }
             resource.refreshIntervalMs?.let { put("refreshIntervalMs", it) }
+            put("textSizeSp", resource.textSizeSp)
+            put("textColor", resource.textColor)
+            put("textBackgroundColor", resource.textBackgroundColor)
+            put("fontFamily", resource.fontFamily)
+            put("textSpeedDpPerSecond", resource.textSpeedDpPerSecond)
+            put("textRepeatCount", resource.textRepeatCount)
         })
         val json = runCatching { JSONObject(response.body) }.getOrNull()
         return RemoteResourceResult(response.status in 200..299, json?.optString("id")?.takeIf { it.isNotBlank() }, response.status)
@@ -102,11 +108,13 @@ class LocalDeviceClient(private val device: PairedDevice) {
             scene.backgroundColor?.let { put("backgroundColor", it) }
             scene.volume?.let { put("volume", it) }
             put("muted", scene.muted)
+            put("playbackSpeed", scene.playbackSpeed.toDouble())
             put("overlays", JSONArray().apply { scene.overlays.forEach { overlay -> put(JSONObject().apply {
                 put("id", overlay.id); put("type", overlay.type); put("content", overlay.content)
                 put("horizontalPosition", overlay.horizontalPosition); put("verticalPosition", overlay.verticalPosition)
                 put("textSizeSp", overlay.textSizeSp); put("textColor", overlay.textColor); put("backgroundColor", overlay.backgroundColor)
-                put("paddingDp", overlay.paddingDp); put("speedDpPerSecond", overlay.speedDpPerSecond)
+                put("paddingDp", overlay.paddingDp); put("cornerRadiusDp", overlay.cornerRadiusDp); put("fontFamily", overlay.fontFamily)
+                put("speedDpPerSecond", overlay.speedDpPerSecond)
                 put("enabled", overlay.enabled); put("zIndex", overlay.zIndex)
             }) } })
         }
@@ -136,7 +144,7 @@ class LocalDeviceClient(private val device: PairedDevice) {
         val connection = open(method, path)
         if (body != null) {
             connection.doOutput = true
-            connection.setRequestProperty("Content-Type", "application/json")
+            connection.setRequestProperty("Content-Type", "application/json; charset=UTF-8")
             connection.outputStream.use { it.write(body.toByteArray(StandardCharsets.UTF_8)) }
         }
         return runCatching { read(connection) }.getOrElse { HttpResponse(-1, "") }

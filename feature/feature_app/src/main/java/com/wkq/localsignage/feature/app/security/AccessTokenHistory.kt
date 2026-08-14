@@ -16,7 +16,18 @@ object AccessTokenHistory {
 
     fun encode(tokens: List<ExpiringAccessToken>, now: Long, limit: Int): String? =
         tokens.filter { it.expiresAt > now }
-            .takeLast(limit)
+            .fold(linkedMapOf<String, ExpiringAccessToken>()) { active, token ->
+                val previous = active.remove(token.value)
+                active[token.value] = if (previous != null && previous.expiresAt > token.expiresAt) {
+                    previous
+                } else {
+                    token
+                }
+                active
+            }
+            .values
+            .toList()
+            .takeLast(limit.coerceAtLeast(0))
             .joinToString("\n") { "${it.value}|${it.expiresAt}" }
             .ifBlank { null }
 

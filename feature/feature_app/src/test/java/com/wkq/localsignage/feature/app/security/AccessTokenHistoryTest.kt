@@ -39,6 +39,21 @@ class AccessTokenHistoryTest {
     }
 
     @Test
+    fun encodeDeduplicatesTokensAndKeepsLatestExpiry() {
+        val encoded = AccessTokenHistory.encode(
+            listOf(
+                ExpiringAccessToken("first", 300),
+                ExpiringAccessToken("second", 250),
+                ExpiringAccessToken("first", 200)
+            ),
+            now = 100,
+            limit = 5
+        )
+
+        assertEquals("second|250\nfirst|300", encoded)
+    }
+
+    @Test
     fun containsAcceptsOnlyActiveExactToken() {
         val tokens = listOf(ExpiringAccessToken("active", 200), ExpiringAccessToken("expired", 100))
 

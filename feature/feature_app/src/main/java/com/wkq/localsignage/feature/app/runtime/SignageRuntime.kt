@@ -12,6 +12,7 @@ import com.wkq.localsignage.feature.app.model.SignageState
 import com.wkq.localsignage.feature.app.model.PlaybackErrorRecord
 import com.wkq.localsignage.feature.app.model.SignageSettings
 import com.wkq.localsignage.feature.app.model.PairedDevice
+import com.wkq.localsignage.feature.app.model.PlaybackTimingPolicy
 import com.wkq.localsignage.feature.app.model.ResourceKind
 import com.wkq.localsignage.feature.app.pairing.PairingCode
 import com.wkq.localsignage.feature.app.pairing.PairingCodeProvider
@@ -34,8 +35,6 @@ object SignageRuntime {
     fun initialize(context: Context) {
         if (store == null) {
             store = SignageStore(context.applicationContext)
-            requireStore().revokeWebAccessToken()
-            requireStore().revokePairingToken()
         }
         requireStore().ensureDefaultContent()
     }
@@ -66,11 +65,21 @@ object SignageRuntime {
     fun hasWebAccessToken(token: String?): Boolean = requireStore().hasWebAccessToken(token)
     fun issuePairingToken(): TemporaryPairingToken = requireStore().issuePairingToken()
     fun pairingToken(): TemporaryPairingToken = requireStore().pairingToken()
+    fun pairingCodeToken(): TemporaryPairingToken = requireStore().pairingCodeToken()
     fun consumePairingToken(token: String?): Boolean = requireStore().consumePairingToken(token)
+    fun consumePairingCode(code: String?): Boolean = requireStore().consumePairingCode(code)
     fun revokePairingToken() = requireStore().revokePairingToken()
     fun pairingCode(sizePx: Int = 512): PairingCode {
         val pairing = requireStore().pairingToken()
-        return PairingCodeProvider.create(pairing.token, pairing.expiresAt, SERVER_PORT, sizePx)
+        val accessCode = requireStore().pairingCodeToken()
+        return PairingCodeProvider.create(
+            pairing.token,
+            pairing.expiresAt,
+            accessCode.token,
+            accessCode.expiresAt,
+            SERVER_PORT,
+            sizePx
+        )
     }
     fun commandResult(commandId: String, fingerprint: String): StoredCommandResult? = requireStore().commandResult(commandId, fingerprint)
     fun saveCommandResult(result: StoredCommandResult) = requireStore().saveCommandResult(result)
@@ -110,14 +119,30 @@ object SignageRuntime {
     fun createImageSlideshow(name: String, resourceIds: List<String>, durationMs: Long): SignagePlaylist {
         val imageIds = resourceIds.distinct().filter { resource(it)?.isImage == true }
         require(imageIds.isNotEmpty()) { "SLIDESHOW_IMAGES_REQUIRED" }
+        return createMediaPlaylist(name, imageIds, PlaybackTimingPolicy.normalizeImageDuration(durationMs))
+    }
+
+    fun createMediaPlaylist(name: String, resourceIds: List<String>, durationMs: Long? = null): SignagePlaylist {
+        require(resourceIds.isNotEmpty()) { "PLAYLIST_RESOURCES_REQUIRED" }
+        val resources = resourceIds.map { id -> requireNotNull(resource(id)) { "PLAYLIST_RESOURCE_MISSING" } }
+        val mediaTypes = resources.map { resource ->
+            when {
+                resource.isImage -> "IMAGE"
+                resource.isVideo -> "VIDEO"
+                resource.isText -> "TEXT"
+                else -> throw IllegalArgumentException("PLAYLIST_RESOURCE_TYPE_INVALID")
+            }
+        }.toSet()
+        require(mediaTypes.size == 1) { "PLAYLIST_RESOURCE_TYPE_MISMATCH" }
+        if (mediaTypes.single() == "IMAGE") require(durationMs != null) { "SLIDESHOW_DURATION_REQUIRED" }
         val scenesByResource = scenes().associateBy { it.resourceId }
         val playlist = SignagePlaylist(
             id = java.util.UUID.randomUUID().toString(),
-            name = name.ifBlank { "Image slideshow" },
-            items = imageIds.map { resourceId ->
+            name = name.ifBlank { "Playlist" },
+            items = resourceIds.map { resourceId ->
                 SignagePlaylistItem(
                     sceneId = requireNotNull(scenesByResource[resourceId]) { "SLIDESHOW_SCENE_MISSING" }.id,
-                    durationMs = durationMs.coerceIn(1_000L, 3_600_000L)
+                    durationMs = durationMs?.let(PlaybackTimingPolicy::normalizeImageDuration)
                 )
             },
             loop = true
@@ -127,8 +152,41 @@ object SignageRuntime {
         return playlist
     }
 
-    fun saveVirtualResource(name: String, kind: ResourceKind, sourceUri: String?, content: String?, refreshIntervalMs: Long?): SignageResource =
-        requireStore().saveVirtualResource(name, kind, sourceUri, content, refreshIntervalMs).also { notifyContentChanged() }
+    fun saveVirtualResource(
+        name: String,
+        kind: ResourceKind,
+        sourceUri: String?,
+        content: String?,
+        refreshIntervalMs: Long?,
+        textSizeSp: Int? = null,
+        textColor: String? = null,
+        textBackgroundColor: String? = null,
+        fontFamily: String? = null,
+        textSpeedDpPerSecond: Int? = null,
+        textRepeatCount: Int? = null
+    ): SignageResource = requireStore().saveVirtualResource(
+        name,
+        kind,
+        sourceUri,
+        content,
+        refreshIntervalMs,
+        textSizeSp,
+        textColor,
+        textBackgroundColor,
+        fontFamily,
+        textSpeedDpPerSecond,
+        textRepeatCount
+    ).also { notifyContentChanged() }
+
+    fun updateDefaultSceneFit(resourceIds: Collection<String>, fitMode: String, cropGravity: String = "CENTER") {
+        requireStore().updateDefaultSceneFit(resourceIds, fitMode, cropGravity)
+        notifyContentChanged()
+    }
+
+    fun updateDefaultScenePlaybackSpeed(resourceIds: Collection<String>, playbackSpeed: Float) {
+        requireStore().updateDefaultScenePlaybackSpeed(resourceIds, playbackSpeed)
+        notifyContentChanged()
+    }
 
     fun deleteResource(id: String): Boolean = requireStore().deleteResource(id).also { notifyContentChanged() }
     fun deleteScene(id: String): Boolean = requireStore().deleteScene(id).also { notifyContentChanged() }
@@ -138,20 +196,29 @@ object SignageRuntime {
     fun savePlaylist(playlist: SignagePlaylist): SignagePlaylist = requireStore().savePlaylist(playlist).also { notifyContentChanged() }
 
     fun selectResource(id: String) {
-        requireStore().setCurrentResource(id)
-        requireStore().scenes().firstOrNull { it.resourceId == id }?.let { requireStore().setCurrentSceneId(it.id) }
+        val scene = requireStore().scenes().firstOrNull { it.resourceId == id } ?: return
+        requireStore().setPlaybackSelection(id, scene.id, null)
         notifyState()
     }
 
     fun selectScene(id: String) {
         val scene = requireStore().scene(id) ?: return
-        requireStore().setCurrentSceneId(scene.id)
-        requireStore().setCurrentResource(scene.resourceId)
+        requireStore().setPlaybackSelection(scene.resourceId, scene.id, null)
         notifyState()
     }
 
     fun selectPlaylist(id: String) {
-        if (requireStore().playlist(id) != null) requireStore().setCurrentPlaylistId(id)
+        val playlist = requireStore().playlist(id) ?: return
+        val scene = playlist.items.firstNotNullOfOrNull { item ->
+            item.takeIf { it.enabled }?.let { requireStore().scene(it.sceneId) }
+        } ?: return
+        requireStore().setPlaybackSelection(scene.resourceId, scene.id, playlist.id)
+        notifyState()
+    }
+
+    fun selectPlaybackScene(id: String, playlistId: String?) {
+        val scene = requireStore().scene(id) ?: return
+        requireStore().setPlaybackSelection(scene.resourceId, scene.id, playlistId)
         notifyState()
     }
 

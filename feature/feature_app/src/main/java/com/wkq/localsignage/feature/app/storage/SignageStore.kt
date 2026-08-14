@@ -17,16 +17,19 @@ import com.wkq.localsignage.feature.app.model.ControlSession
 import com.wkq.localsignage.feature.app.model.PlaybackErrorRecord
 import com.wkq.localsignage.feature.app.model.SignageSettings
 import com.wkq.localsignage.feature.app.model.PairedDevice
+import com.wkq.localsignage.feature.app.model.PlaybackTimingPolicy
 import com.wkq.localsignage.feature.app.model.PlaylistPolicy
 import com.wkq.localsignage.feature.app.model.ResourceKind
 import com.wkq.localsignage.feature.app.model.SecondPhasePolicy
 import com.wkq.localsignage.feature.app.model.SignageOverlay
+import com.wkq.localsignage.feature.app.model.TextStylePolicy
 import com.wkq.localsignage.feature.app.security.LocalSecretCipher
 import com.wkq.localsignage.feature.app.security.CredentialDecryptionException
 import com.wkq.localsignage.feature.app.security.CommandRevisionPolicy
 import com.wkq.localsignage.feature.app.security.ExpiringTokenPolicy
 import com.wkq.localsignage.feature.app.security.AccessTokenHistory
 import com.wkq.localsignage.feature.app.security.ExpiringAccessToken
+import com.wkq.localsignage.feature.app.security.PairingAccessCode
 import org.json.JSONArray
 import org.json.JSONObject
 import java.io.File
@@ -67,8 +70,7 @@ class SignageStore(context: Context) {
             val refreshedScenes = readScenes(this)
             val playlists = readPlaylists(this)
             val currentPlaylist = playlists.firstOrNull { it.id == getMeta(this, KEY_CURRENT_PLAYLIST) }
-                ?: playlists.firstOrNull()
-            if (currentPlaylist == null) {
+            if (playlists.isEmpty()) {
                 val playlist = SignagePlaylist(
                     UUID.randomUUID().toString(),
                     "Default",
@@ -76,14 +78,11 @@ class SignageStore(context: Context) {
                 )
                 insertPlaylist(this, playlist)
                 setMeta(this, KEY_CURRENT_PLAYLIST, playlist.id)
-            } else {
+            } else if (currentPlaylist != null) {
                 val validIds = refreshedScenes.mapTo(mutableSetOf()) { it.id }
                 val validItems = currentPlaylist.items.filter { it.sceneId in validIds }
                 if (validItems != currentPlaylist.items) {
                     replacePlaylist(this, currentPlaylist.copy(items = validItems))
-                }
-                if (getMeta(this, KEY_CURRENT_PLAYLIST) != currentPlaylist.id) {
-                    setMeta(this, KEY_CURRENT_PLAYLIST, currentPlaylist.id)
                 }
             }
             if (getMeta(this, KEY_CURRENT_SCENE) == null) {
@@ -149,13 +148,16 @@ class SignageStore(context: Context) {
         AccessTokenHistory.contains(readWebAccessHistory(database.readableDatabase), normalized, now)
     }
 
-    /** Issues a single active pairing credential for first browser connection. */
+    /** Rotates the independent QR and computer-code credentials together. */
     fun issuePairingToken(): TemporaryPairingToken = synchronized(lock) {
         val now = System.currentTimeMillis()
         val pairing = TemporaryPairingToken(randomToken(), now + PAIRING_TOKEN_TTL_MS)
+        val accessCode = TemporaryPairingToken(randomToken(), now + PAIRING_TOKEN_TTL_MS)
         database.writableDatabase.inTransaction {
             setMeta(this, KEY_PAIRING_TOKEN, pairing.token)
             setMeta(this, KEY_PAIRING_EXPIRES, pairing.expiresAt.toString())
+            setMeta(this, KEY_PAIRING_CODE_TOKEN, accessCode.token)
+            setMeta(this, KEY_PAIRING_CODE_EXPIRES, accessCode.expiresAt.toString())
         }
         pairing
     }
@@ -176,6 +178,20 @@ class SignageStore(context: Context) {
         }
     }
 
+    fun consumePairingCode(code: String?): Boolean = synchronized(lock) {
+        if (code.isNullOrBlank()) return@synchronized false
+        database.writableDatabase.inTransaction {
+            val current = getMeta(this, KEY_PAIRING_CODE_TOKEN)
+            val expiresAt = getMeta(this, KEY_PAIRING_CODE_EXPIRES)?.toLongOrNull() ?: 0L
+            val valid = expiresAt > System.currentTimeMillis() && PairingAccessCode.matches(current, code)
+            if (valid) {
+                setMeta(this, KEY_PAIRING_CODE_TOKEN, null)
+                setMeta(this, KEY_PAIRING_CODE_EXPIRES, null)
+            }
+            valid
+        }
+    }
+
     fun pairingToken(): TemporaryPairingToken = synchronized(lock) {
         val now = System.currentTimeMillis()
         val current = getMeta(database.readableDatabase, KEY_PAIRING_TOKEN)
@@ -183,13 +199,25 @@ class SignageStore(context: Context) {
         if (!current.isNullOrBlank() && expiresAt > now) {
             return@synchronized TemporaryPairingToken(current, expiresAt)
         }
-        issuePairingToken()
+        issueQrPairingTokenLocked(System.currentTimeMillis())
+    }
+
+    fun pairingCodeToken(): TemporaryPairingToken = synchronized(lock) {
+        val now = System.currentTimeMillis()
+        val current = getMeta(database.readableDatabase, KEY_PAIRING_CODE_TOKEN)
+        val expiresAt = getMeta(database.readableDatabase, KEY_PAIRING_CODE_EXPIRES)?.toLongOrNull() ?: 0L
+        if (!current.isNullOrBlank() && expiresAt > now) {
+            return@synchronized TemporaryPairingToken(current, expiresAt)
+        }
+        issueAccessCodeTokenLocked(System.currentTimeMillis())
     }
 
     fun revokePairingToken() = synchronized(lock) {
         database.writableDatabase.inTransaction {
             setMeta(this, KEY_PAIRING_TOKEN, null)
             setMeta(this, KEY_PAIRING_EXPIRES, null)
+            setMeta(this, KEY_PAIRING_CODE_TOKEN, null)
+            setMeta(this, KEY_PAIRING_CODE_EXPIRES, null)
         }
     }
 
@@ -270,56 +298,57 @@ class SignageStore(context: Context) {
         database.writableDatabase.delete("paired_devices", "device_id = ?", arrayOf(deviceId)) > 0
     }
 
-    fun controlSession(): ControlSession? = synchronized(lock) {
-        val db = database.readableDatabase
-        val sessionId = getMeta(db, KEY_SESSION_ID) ?: return@synchronized null
-        val expiresAt = getMeta(db, KEY_SESSION_EXPIRES)?.toLongOrNull() ?: return@synchronized null
-        if (expiresAt <= System.currentTimeMillis()) {
-            clearSession(db)
-            return@synchronized null
+    fun controlSession(sessionId: String? = null): ControlSession? = synchronized(lock) {
+        database.writableDatabase.inTransaction {
+            val sessions = controlSessionsLocked(this)
+            writeControlSessions(this, sessions)
+            sessionId?.let { id -> sessions.firstOrNull { it.sessionId == id } } ?: sessions.firstOrNull()
         }
-        ControlSession(sessionId, getMeta(db, KEY_SESSION_CLIENT) ?: "Unknown", expiresAt)
     }
 
-    fun acquireControlSession(clientName: String, takeover: Boolean): ControlSession? = synchronized(lock) {
+    fun acquireControlSession(clientName: String, takeover: Boolean): ControlSession = synchronized(lock) {
         database.writableDatabase.inTransaction {
-            val existing = controlSessionLocked(this)
-            if (existing != null && !takeover) return@inTransaction null
+            val existing = controlSessionsLocked(this).toMutableList()
             val session = ControlSession(
                 UUID.randomUUID().toString(),
                 clientName.trim().take(MAX_CLIENT_NAME_LENGTH).ifBlank { "Browser" },
                 System.currentTimeMillis() + CONTROL_SESSION_TTL_MS
             )
-            setMeta(this, KEY_SESSION_ID, session.sessionId)
-            setMeta(this, KEY_SESSION_CLIENT, session.clientName)
-            setMeta(this, KEY_SESSION_EXPIRES, session.expiresAt.toString())
+            existing += session
+            writeControlSessions(this, existing.takeLast(MAX_CONTROL_SESSIONS))
+            clearLegacySession(this)
             session
         }
     }
 
     fun heartbeatControlSession(sessionId: String): ControlSession? = synchronized(lock) {
         database.writableDatabase.inTransaction {
-            val current = controlSessionLocked(this) ?: return@inTransaction null
-            if (current.sessionId != sessionId) return@inTransaction null
+            val sessions = controlSessionsLocked(this).toMutableList()
+            val index = sessions.indexOfFirst { it.sessionId == sessionId }
+            if (index < 0) return@inTransaction null
+            val current = sessions[index]
             val refreshed = current.copy(expiresAt = System.currentTimeMillis() + CONTROL_SESSION_TTL_MS)
-            setMeta(this, KEY_SESSION_EXPIRES, refreshed.expiresAt.toString())
+            sessions[index] = refreshed
+            writeControlSessions(this, sessions)
             refreshed
         }
     }
 
     fun releaseControlSession(sessionId: String): Boolean = synchronized(lock) {
         database.writableDatabase.inTransaction {
-            val current = controlSessionLocked(this) ?: return@inTransaction false
-            if (current.sessionId != sessionId) return@inTransaction false
-            clearSession(this)
+            val sessions = controlSessionsLocked(this)
+            val remaining = sessions.filterNot { it.sessionId == sessionId }
+            if (remaining.size == sessions.size) return@inTransaction false
+            writeControlSessions(this, remaining)
             true
         }
     }
 
     fun hasControlSession(sessionId: String): Boolean = synchronized(lock) {
         database.writableDatabase.inTransaction {
-            val current = controlSessionLocked(this) ?: return@inTransaction false
-            current.sessionId == sessionId
+            val sessions = controlSessionsLocked(this)
+            writeControlSessions(this, sessions)
+            sessions.any { it.sessionId == sessionId }
         }
     }
 
@@ -368,12 +397,32 @@ class SignageStore(context: Context) {
     fun setCurrentSceneId(id: String?) = synchronized(lock) { setMeta(database.writableDatabase, KEY_CURRENT_SCENE, id) }
     fun setCurrentPlaylistId(id: String?) = synchronized(lock) { setMeta(database.writableDatabase, KEY_CURRENT_PLAYLIST, id) }
 
-    fun saveScene(scene: SignageScene): SignageScene = synchronized(lock) {
+    fun setPlaybackSelection(resourceId: String, sceneId: String, playlistId: String?) = synchronized(lock) {
         database.writableDatabase.inTransaction {
-            require(resourceExists(this, scene.resourceId)) { "Resource does not exist" }
-            insertScene(this, scene)
+            require(resourceExists(this, resourceId)) { "RESOURCE_NOT_FOUND" }
+            val scene = readScenes(this).firstOrNull { it.id == sceneId && it.resourceId == resourceId }
+                ?: throw IllegalArgumentException("SCENE_NOT_FOUND")
+            if (playlistId != null) {
+                val playlist = readPlaylists(this).firstOrNull { it.id == playlistId }
+                    ?: throw IllegalArgumentException("PLAYLIST_NOT_FOUND")
+                require(playlist.items.any { it.enabled && it.sceneId == scene.id }) { "SCENE_NOT_IN_PLAYLIST" }
+            }
+            setMeta(this, KEY_CURRENT_RESOURCE, resourceId)
+            setMeta(this, KEY_CURRENT_SCENE, sceneId)
+            setMeta(this, KEY_CURRENT_PLAYLIST, playlistId)
+            setMeta(this, KEY_POSITION, "0")
         }
-        scene
+    }
+
+    fun saveScene(scene: SignageScene): SignageScene = synchronized(lock) {
+        val normalizedScene = scene.copy(
+            playbackSpeed = PlaybackTimingPolicy.normalizeVideoPlaybackSpeed(scene.playbackSpeed)
+        )
+        database.writableDatabase.inTransaction {
+            require(resourceExists(this, normalizedScene.resourceId)) { "Resource does not exist" }
+            insertScene(this, normalizedScene)
+        }
+        normalizedScene
     }
 
     fun deleteScene(id: String): Boolean = synchronized(lock) {
@@ -405,17 +454,43 @@ class SignageStore(context: Context) {
         kind: ResourceKind,
         sourceUri: String?,
         content: String?,
-        refreshIntervalMs: Long?
+        refreshIntervalMs: Long?,
+        textSizeSp: Int? = null,
+        textColor: String? = null,
+        textBackgroundColor: String? = null,
+        fontFamily: String? = null,
+        textSpeedDpPerSecond: Int? = null,
+        textRepeatCount: Int? = null
     ): SignageResource = synchronized(lock) {
         SecondPhasePolicy.validateVirtualResource(kind, sourceUri, content)
         val normalizedName = name.trim().take(MAX_RESOURCE_NAME_LENGTH).ifBlank { kind.name.lowercase() }
         val normalizedUri = sourceUri?.trim()?.takeIf { it.isNotEmpty() }
         val normalizedContent = content?.take(MAX_VIRTUAL_CONTENT_LENGTH)?.takeIf { it.isNotBlank() }
-        val identity = listOf(kind.name, normalizedUri.orEmpty(), normalizedContent.orEmpty()).joinToString("\u0000")
+        val normalizedTextSize = TextStylePolicy.normalizeTextSize(textSizeSp)
+        val normalizedTextColor = TextStylePolicy.normalizeColor(textColor, TextStylePolicy.DEFAULT_TEXT_COLOR)
+        val normalizedBackgroundColor = TextStylePolicy.normalizeColor(textBackgroundColor, TextStylePolicy.DEFAULT_BACKGROUND_COLOR)
+        val normalizedFontFamily = TextStylePolicy.fontFamilyForText(fontFamily, normalizedContent)
+        val normalizedTextSpeed = PlaybackTimingPolicy.normalizeTextSpeed(textSpeedDpPerSecond)
+        val normalizedTextRepeatCount = PlaybackTimingPolicy.normalizeTextRepeatCount(textRepeatCount)
+        val styleIdentity = if (kind == ResourceKind.TEXT) {
+            listOf(
+                normalizedTextSize,
+                normalizedTextColor,
+                normalizedBackgroundColor,
+                normalizedFontFamily,
+                normalizedTextSpeed,
+                normalizedTextRepeatCount
+            )
+        } else emptyList()
+        val identity = (listOf(kind.name, normalizedUri.orEmpty(), normalizedContent.orEmpty()) + styleIdentity).joinToString("\u0000")
         val hash = MessageDigest.getInstance("SHA-256").digest(identity.toByteArray())
             .joinToString("") { "%02x".format(it) }
         database.writableDatabase.inTransaction {
-            readResources(this).firstOrNull { it.hash == hash } ?: run {
+            val existing = readResources(this).firstOrNull { it.hash == hash }
+            if (existing != null) {
+                ensureDefaultScene(this, existing)
+                existing
+            } else run {
                 val id = UUID.randomUUID().toString()
                 val resource = SignageResource(
                     id = id,
@@ -434,16 +509,46 @@ class SignageStore(context: Context) {
                     kind = kind.name,
                     sourceUri = normalizedUri,
                     content = normalizedContent,
-                    refreshIntervalMs = SecondPhasePolicy.normalizedRefreshInterval(refreshIntervalMs)
+                    refreshIntervalMs = SecondPhasePolicy.normalizedRefreshInterval(refreshIntervalMs),
+                    textSizeSp = normalizedTextSize,
+                    textColor = normalizedTextColor,
+                    textBackgroundColor = normalizedBackgroundColor,
+                    fontFamily = normalizedFontFamily,
+                    textSpeedDpPerSecond = normalizedTextSpeed,
+                    textRepeatCount = normalizedTextRepeatCount
                 )
                 insertResource(this, resource)
                 val scene = SignageScene(UUID.randomUUID().toString(), resource.name, resource.id)
                 insertScene(this, scene)
-                readPlaylists(this).firstOrNull()?.let { playlist ->
-                    replacePlaylist(this, playlist.copy(items = playlist.items + SignagePlaylistItem(scene.id)))
-                }
                 resource
             }
+        }
+    }
+
+    fun updateDefaultSceneFit(resourceIds: Collection<String>, fitMode: String, cropGravity: String = "CENTER") = synchronized(lock) {
+        val normalizedFit = fitMode.trim().uppercase().takeIf { it in SUPPORTED_FIT_MODES } ?: "FIT"
+        val normalizedGravity = cropGravity.trim().uppercase().takeIf { it in SUPPORTED_CROP_GRAVITIES } ?: "CENTER"
+        val targets = resourceIds.toSet()
+        database.writableDatabase.inTransaction {
+            readScenes(this)
+                .filter { it.resourceId in targets }
+                .groupBy { it.resourceId }
+                .values
+                .mapNotNull { scenes -> scenes.firstOrNull() }
+                .forEach { scene -> insertScene(this, scene.copy(fitMode = normalizedFit, cropGravity = normalizedGravity)) }
+        }
+    }
+
+    fun updateDefaultScenePlaybackSpeed(resourceIds: Collection<String>, playbackSpeed: Float) = synchronized(lock) {
+        val normalizedSpeed = PlaybackTimingPolicy.normalizeVideoPlaybackSpeed(playbackSpeed)
+        val targets = resourceIds.toSet()
+        database.writableDatabase.inTransaction {
+            readScenes(this)
+                .filter { it.resourceId in targets }
+                .groupBy { it.resourceId }
+                .values
+                .mapNotNull { scenes -> scenes.firstOrNull() }
+                .forEach { scene -> insertScene(this, scene.copy(playbackSpeed = normalizedSpeed)) }
         }
     }
 
@@ -462,7 +567,11 @@ class SignageStore(context: Context) {
             .digest("REMOTE_FILE\u0000$mimeType\u0000$normalizedUri".toByteArray())
             .joinToString("") { "%02x".format(it) }
         database.writableDatabase.inTransaction {
-            readResources(this).firstOrNull { it.hash == hash } ?: run {
+            val existing = readResources(this).firstOrNull { it.hash == hash }
+            if (existing != null) {
+                ensureDefaultScene(this, existing)
+                existing
+            } else run {
                 val resource = SignageResource(
                     id = UUID.randomUUID().toString(),
                     name = normalizedName,
@@ -530,7 +639,10 @@ class SignageStore(context: Context) {
                     "Resource storage quota exceeded"
                 }
                 val duplicate = readResources(this).firstOrNull { it.hash == hash }
-                if (duplicate != null) return@inTransaction duplicate
+                if (duplicate != null) {
+                    ensureDefaultScene(this, duplicate)
+                    return@inTransaction duplicate
+                }
                 val resource = SignageResource(id, safeName, normalizedMimeType, File(resourceDirectory, "${id}_$safeName").absolutePath, hash, size, System.currentTimeMillis())
                 try {
                     Files.move(temporary.toPath(), File(resource.path).toPath(), StandardCopyOption.ATOMIC_MOVE)
@@ -541,9 +653,6 @@ class SignageStore(context: Context) {
                 insertResource(this, resource)
                 val scene = SignageScene(UUID.randomUUID().toString(), resource.name, resource.id)
                 insertScene(this, scene)
-                readPlaylists(this).firstOrNull()?.let { playlist ->
-                    replacePlaylist(this, playlist.copy(items = playlist.items + SignagePlaylistItem(scene.id)))
-                }
                 if (getMeta(this, KEY_CURRENT_RESOURCE) == null) setMeta(this, KEY_CURRENT_RESOURCE, resource.id)
                 if (getMeta(this, KEY_CURRENT_SCENE) == null) setMeta(this, KEY_CURRENT_SCENE, scene.id)
                 resource
@@ -732,17 +841,43 @@ class SignageStore(context: Context) {
         database.writableDatabase.delete("playback_errors", null, null)
     }
 
-    private fun controlSessionLocked(db: SQLiteDatabase): ControlSession? {
-        val sessionId = getMeta(db, KEY_SESSION_ID) ?: return null
-        val expiresAt = getMeta(db, KEY_SESSION_EXPIRES)?.toLongOrNull() ?: return null
-        if (expiresAt <= System.currentTimeMillis()) {
-            clearSession(db)
-            return null
-        }
-        return ControlSession(sessionId, getMeta(db, KEY_SESSION_CLIENT) ?: "Unknown", expiresAt)
+    private fun controlSessionsLocked(db: SQLiteDatabase): List<ControlSession> {
+        val now = System.currentTimeMillis()
+        val stored = runCatching {
+            val array = JSONArray(getMeta(db, KEY_CONTROL_SESSIONS) ?: "[]")
+            buildList {
+                for (index in 0 until array.length()) {
+                    val item = array.optJSONObject(index) ?: continue
+                    val sessionId = item.optString("sessionId")
+                    val expiresAt = item.optLong("expiresAt")
+                    if (sessionId.isNotBlank() && expiresAt > now) {
+                        add(ControlSession(sessionId, item.optString("clientName", "Browser"), expiresAt))
+                    }
+                }
+            }
+        }.getOrDefault(emptyList())
+        if (stored.isNotEmpty()) return stored
+        val legacyId = getMeta(db, KEY_SESSION_ID) ?: return emptyList()
+        val legacyExpiry = getMeta(db, KEY_SESSION_EXPIRES)?.toLongOrNull() ?: return emptyList()
+        return if (legacyExpiry > now) {
+            listOf(ControlSession(legacyId, getMeta(db, KEY_SESSION_CLIENT) ?: "Browser", legacyExpiry))
+        } else emptyList()
     }
 
-    private fun clearSession(db: SQLiteDatabase) {
+    private fun writeControlSessions(db: SQLiteDatabase, sessions: List<ControlSession>) {
+        val array = JSONArray().apply {
+            sessions.forEach { session ->
+                put(JSONObject().apply {
+                    put("sessionId", session.sessionId)
+                    put("clientName", session.clientName)
+                    put("expiresAt", session.expiresAt)
+                })
+            }
+        }
+        setMeta(db, KEY_CONTROL_SESSIONS, array.toString())
+    }
+
+    private fun clearLegacySession(db: SQLiteDatabase) {
         setMeta(db, KEY_SESSION_ID, null)
         setMeta(db, KEY_SESSION_CLIENT, null)
         setMeta(db, KEY_SESSION_EXPIRES, null)
@@ -784,7 +919,13 @@ class SignageStore(context: Context) {
                 kind = cursor.getString(7),
                 sourceUri = cursor.getStringOrNull(8),
                 content = cursor.getStringOrNull(9),
-                refreshIntervalMs = cursor.getLongOrNull(10)
+                refreshIntervalMs = cursor.getLongOrNull(10),
+                textSizeSp = cursor.getInt(11),
+                textColor = cursor.getString(12),
+                textBackgroundColor = cursor.getString(13),
+                fontFamily = cursor.getString(14),
+                textSpeedDpPerSecond = cursor.getInt(15),
+                textRepeatCount = cursor.getInt(16)
             ))
         }
     }
@@ -814,14 +955,28 @@ class SignageStore(context: Context) {
             setMeta(this, KEY_WEB_ACCESS_HISTORY, null)
             setMeta(this, KEY_PAIRING_TOKEN, null)
             setMeta(this, KEY_PAIRING_EXPIRES, null)
-            clearSession(this)
+            setMeta(this, KEY_CONTROL_SESSIONS, null)
+            clearLegacySession(this)
         }
         return replacement
     }
 
     private fun readScenes(db: SQLiteDatabase): List<SignageScene> = buildList {
         db.query("scenes", SCENE_COLUMNS, null, null, null, null, "created_at ASC").use { cursor ->
-            while (cursor.moveToNext()) add(SignageScene(cursor.getString(0), cursor.getString(1), cursor.getString(2), cursor.getString(3), cursor.getString(4), cursor.getString(5), cursor.getStringOrNull(6), cursor.getIntOrNull(7), cursor.getInt(8) != 0, cursor.getLong(9), parseOverlays(cursor.getStringOrNull(10))))
+            while (cursor.moveToNext()) add(SignageScene(
+                id = cursor.getString(0),
+                name = cursor.getString(1),
+                resourceId = cursor.getString(2),
+                fitMode = cursor.getString(3),
+                cropGravity = cursor.getString(4),
+                backgroundType = cursor.getString(5),
+                backgroundColor = cursor.getStringOrNull(6),
+                volume = cursor.getIntOrNull(7),
+                muted = cursor.getInt(8) != 0,
+                createdAt = cursor.getLong(9),
+                overlays = parseOverlays(cursor.getStringOrNull(10)),
+                playbackSpeed = cursor.getFloat(11)
+            ))
         }
     }
 
@@ -845,6 +1000,9 @@ class SignageStore(context: Context) {
             put("path", resource.path); put("hash", resource.hash); put("size_bytes", resource.sizeBytes)
             put("created_at", resource.createdAt); put("kind", resource.kind); put("source_uri", resource.sourceUri)
             put("content", resource.content); put("refresh_interval_ms", resource.refreshIntervalMs)
+            put("text_size_sp", resource.textSizeSp); put("text_color", resource.textColor)
+            put("text_background_color", resource.textBackgroundColor); put("font_family", resource.fontFamily)
+            put("text_speed_dp_per_second", resource.textSpeedDpPerSecond); put("text_repeat_count", resource.textRepeatCount)
         })
     }
 
@@ -872,10 +1030,22 @@ class SignageStore(context: Context) {
             put("muted", if (scene.muted) 1 else 0)
             put("created_at", scene.createdAt)
             put("overlays_json", overlaysJson(scene.overlays))
+            put("playback_speed", PlaybackTimingPolicy.normalizeVideoPlaybackSpeed(scene.playbackSpeed))
         }
         if (db.update("scenes", values, "id = ?", arrayOf(scene.id)) == 0) {
             db.insertOrThrow("scenes", null, values)
         }
+    }
+
+    private fun ensureDefaultScene(
+        db: SQLiteDatabase,
+        resource: SignageResource
+    ): SignageScene {
+        readScenes(db).firstOrNull { it.resourceId == resource.id }?.let { return it }
+        val scene = SignageScene(UUID.randomUUID().toString(), resource.name, resource.id)
+        insertScene(db, scene)
+        if (getMeta(db, KEY_CURRENT_SCENE) == null) setMeta(db, KEY_CURRENT_SCENE, scene.id)
+        return scene
     }
 
     private fun insertPlaylist(db: SQLiteDatabase, playlist: SignagePlaylist) {
@@ -908,6 +1078,7 @@ class SignageStore(context: Context) {
                 put("horizontalPosition", overlay.horizontalPosition); put("verticalPosition", overlay.verticalPosition)
                 put("textSizeSp", overlay.textSizeSp); put("textColor", overlay.textColor)
                 put("backgroundColor", overlay.backgroundColor); put("paddingDp", overlay.paddingDp)
+                put("cornerRadiusDp", overlay.cornerRadiusDp); put("fontFamily", overlay.fontFamily)
                 put("speedDpPerSecond", overlay.speedDpPerSecond); put("enabled", overlay.enabled); put("zIndex", overlay.zIndex)
             })
         }
@@ -918,16 +1089,19 @@ class SignageStore(context: Context) {
         buildList {
             for (index in 0 until array.length()) {
                 val item = array.getJSONObject(index)
+                val content = item.optString("content")
                 add(SignageOverlay(
                     id = item.optString("id").ifBlank { UUID.randomUUID().toString() },
                     type = item.optString("type", "TEXT"),
-                    content = item.optString("content"),
+                    content = content,
                     horizontalPosition = item.optString("horizontalPosition", "CENTER"),
                     verticalPosition = item.optString("verticalPosition", "BOTTOM"),
                     textSizeSp = item.optInt("textSizeSp", 28).coerceIn(8, 160),
                     textColor = item.optString("textColor", "#FFFFFFFF"),
                     backgroundColor = item.optString("backgroundColor", "#99000000"),
                     paddingDp = item.optInt("paddingDp", 12).coerceIn(0, 96),
+                    cornerRadiusDp = item.optInt("cornerRadiusDp", 8).coerceIn(0, 64),
+                    fontFamily = TextStylePolicy.fontFamilyForText(item.optString("fontFamily"), content),
                     speedDpPerSecond = item.optInt("speedDpPerSecond", 80).coerceIn(10, 500),
                     enabled = item.optBoolean("enabled", true),
                     zIndex = item.optInt("zIndex", index)
@@ -979,6 +1153,24 @@ class SignageStore(context: Context) {
 
     private fun readWebAccessHistory(db: SQLiteDatabase): List<ExpiringAccessToken> =
         AccessTokenHistory.parse(getMeta(db, KEY_WEB_ACCESS_HISTORY))
+
+    private fun issueQrPairingTokenLocked(now: Long): TemporaryPairingToken {
+        val pairing = TemporaryPairingToken(randomToken(), now + PAIRING_TOKEN_TTL_MS)
+        database.writableDatabase.inTransaction {
+            setMeta(this, KEY_PAIRING_TOKEN, pairing.token)
+            setMeta(this, KEY_PAIRING_EXPIRES, pairing.expiresAt.toString())
+        }
+        return pairing
+    }
+
+    private fun issueAccessCodeTokenLocked(now: Long): TemporaryPairingToken {
+        val pairing = TemporaryPairingToken(randomToken(), now + PAIRING_TOKEN_TTL_MS)
+        database.writableDatabase.inTransaction {
+            setMeta(this, KEY_PAIRING_CODE_TOKEN, pairing.token)
+            setMeta(this, KEY_PAIRING_CODE_EXPIRES, pairing.expiresAt.toString())
+        }
+        return pairing
+    }
 
     private fun randomToken(): String {
         val bytes = ByteArray(32)
@@ -1034,8 +1226,8 @@ class SignageStore(context: Context) {
     private class SignageDatabase(context: Context) : SQLiteOpenHelper(context, DATABASE_NAME, null, DATABASE_VERSION) {
         override fun onConfigure(db: SQLiteDatabase) { db.setForeignKeyConstraintsEnabled(true) }
         override fun onCreate(db: SQLiteDatabase) {
-            db.execSQL("CREATE TABLE resources (id TEXT PRIMARY KEY NOT NULL, name TEXT NOT NULL, mime_type TEXT NOT NULL, path TEXT NOT NULL, hash TEXT NOT NULL UNIQUE, size_bytes INTEGER NOT NULL, created_at INTEGER NOT NULL, kind TEXT NOT NULL DEFAULT 'LOCAL_FILE', source_uri TEXT, content TEXT, refresh_interval_ms INTEGER)")
-            db.execSQL("CREATE TABLE scenes (id TEXT PRIMARY KEY NOT NULL, name TEXT NOT NULL, resource_id TEXT NOT NULL, fit_mode TEXT NOT NULL, crop_gravity TEXT NOT NULL, background_type TEXT NOT NULL, background_color TEXT, volume INTEGER, muted INTEGER NOT NULL, created_at INTEGER NOT NULL, overlays_json TEXT NOT NULL DEFAULT '[]', FOREIGN KEY(resource_id) REFERENCES resources(id))")
+            db.execSQL("CREATE TABLE resources (id TEXT PRIMARY KEY NOT NULL, name TEXT NOT NULL, mime_type TEXT NOT NULL, path TEXT NOT NULL, hash TEXT NOT NULL UNIQUE, size_bytes INTEGER NOT NULL, created_at INTEGER NOT NULL, kind TEXT NOT NULL DEFAULT 'LOCAL_FILE', source_uri TEXT, content TEXT, refresh_interval_ms INTEGER, text_size_sp INTEGER NOT NULL DEFAULT 48, text_color TEXT NOT NULL DEFAULT '#FFFFFFFF', text_background_color TEXT NOT NULL DEFAULT '#FF000000', font_family TEXT NOT NULL DEFAULT 'SYSTEM_SANS', text_speed_dp_per_second INTEGER NOT NULL DEFAULT 90, text_repeat_count INTEGER NOT NULL DEFAULT 0)")
+            db.execSQL("CREATE TABLE scenes (id TEXT PRIMARY KEY NOT NULL, name TEXT NOT NULL, resource_id TEXT NOT NULL, fit_mode TEXT NOT NULL, crop_gravity TEXT NOT NULL, background_type TEXT NOT NULL, background_color TEXT, volume INTEGER, muted INTEGER NOT NULL, created_at INTEGER NOT NULL, overlays_json TEXT NOT NULL DEFAULT '[]', playback_speed REAL NOT NULL DEFAULT 1.0, FOREIGN KEY(resource_id) REFERENCES resources(id))")
             db.execSQL("CREATE TABLE playlists (id TEXT PRIMARY KEY NOT NULL, name TEXT NOT NULL, loop INTEGER NOT NULL, updated_at INTEGER NOT NULL)")
             db.execSQL("CREATE TABLE playlist_items (playlist_id TEXT NOT NULL, position INTEGER NOT NULL, scene_id TEXT NOT NULL, duration_ms INTEGER, enabled INTEGER NOT NULL, PRIMARY KEY(playlist_id, position), FOREIGN KEY(playlist_id) REFERENCES playlists(id) ON DELETE CASCADE, FOREIGN KEY(scene_id) REFERENCES scenes(id))")
             db.execSQL("CREATE TABLE meta (key TEXT PRIMARY KEY NOT NULL, value TEXT NOT NULL)")
@@ -1065,6 +1257,17 @@ class SignageStore(context: Context) {
                 db.execSQL("ALTER TABLE resources ADD COLUMN refresh_interval_ms INTEGER")
                 db.execSQL("ALTER TABLE scenes ADD COLUMN overlays_json TEXT NOT NULL DEFAULT '[]'")
             }
+            if (oldVersion < 7) {
+                db.execSQL("ALTER TABLE resources ADD COLUMN text_size_sp INTEGER NOT NULL DEFAULT 48")
+                db.execSQL("ALTER TABLE resources ADD COLUMN text_color TEXT NOT NULL DEFAULT '#FFFFFFFF'")
+                db.execSQL("ALTER TABLE resources ADD COLUMN text_background_color TEXT NOT NULL DEFAULT '#FF000000'")
+                db.execSQL("ALTER TABLE resources ADD COLUMN font_family TEXT NOT NULL DEFAULT 'SYSTEM_SANS'")
+            }
+            if (oldVersion < 8) {
+                db.execSQL("ALTER TABLE resources ADD COLUMN text_speed_dp_per_second INTEGER NOT NULL DEFAULT 90")
+                db.execSQL("ALTER TABLE resources ADD COLUMN text_repeat_count INTEGER NOT NULL DEFAULT 0")
+                db.execSQL("ALTER TABLE scenes ADD COLUMN playback_speed REAL NOT NULL DEFAULT 1.0")
+            }
         }
     }
 
@@ -1088,7 +1291,7 @@ class SignageStore(context: Context) {
         const val TAG = "SignageStore"
         val SHA256_PATTERN = Regex("[a-f0-9]{64}")
         const val DATABASE_NAME = "signage.db"
-        const val DATABASE_VERSION = 6
+        const val DATABASE_VERSION = 8
         const val LEGACY_PREFERENCES = "local_signage"
         const val KEY_SCHEMA_MIGRATED = "schema_migrated"
         const val KEY_DEVICE_ID = "device_id"
@@ -1099,6 +1302,8 @@ class SignageStore(context: Context) {
         const val KEY_WEB_ACCESS_HISTORY = "web_access_history"
         const val KEY_PAIRING_TOKEN = "pairing_token"
         const val KEY_PAIRING_EXPIRES = "pairing_expires"
+        const val KEY_PAIRING_CODE_TOKEN = "pairing_code_token"
+        const val KEY_PAIRING_CODE_EXPIRES = "pairing_code_expires"
         const val KEY_RESOURCES = "resources"
         const val KEY_CURRENT_RESOURCE = "current_resource"
         const val KEY_CURRENT_SCENE = "current_scene"
@@ -1111,6 +1316,7 @@ class SignageStore(context: Context) {
         const val KEY_POSITION = "position"
         const val KEY_ERROR = "error"
         const val KEY_COMMAND_REVISION = "command_revision"
+        const val KEY_CONTROL_SESSIONS = "control_sessions"
         const val KEY_FALLBACK_SCENE = "fallback_scene"
         const val KEY_KEEP_SCREEN_AWAKE = "keep_screen_awake"
         const val KEY_AUTO_RESUME = "auto_resume"
@@ -1121,9 +1327,10 @@ class SignageStore(context: Context) {
         const val CONTROL_SESSION_TTL_MS = 60_000L
         const val WEB_ACCESS_TOKEN_TTL_MS = 8 * 60 * 60 * 1000L
         const val PAIRING_TOKEN_TTL_MS = 5 * 60 * 1000L
-        const val MAX_WEB_ACCESS_HISTORY = 7
+        const val MAX_WEB_ACCESS_HISTORY = 32
         const val MAX_COMMAND_RESULTS = 256
         const val MAX_CLIENT_NAME_LENGTH = 80
+        const val MAX_CONTROL_SESSIONS = 16
         const val MAX_DEVICE_NAME_LENGTH = 80
         const val MAX_RESOURCE_NAME_LENGTH = 120
         const val MAX_VIRTUAL_CONTENT_LENGTH = 100_000
@@ -1136,8 +1343,10 @@ class SignageStore(context: Context) {
         const val MAX_ERROR_HISTORY = 100
         const val MAX_ERROR_CODE_LENGTH = 120
         const val MAX_ERROR_ACTION_LENGTH = 32
-        val RESOURCE_COLUMNS = arrayOf("id", "name", "mime_type", "path", "hash", "size_bytes", "created_at", "kind", "source_uri", "content", "refresh_interval_ms")
-        val SCENE_COLUMNS = arrayOf("id", "name", "resource_id", "fit_mode", "crop_gravity", "background_type", "background_color", "volume", "muted", "created_at", "overlays_json")
+        val SUPPORTED_FIT_MODES = setOf("FIT", "FILL", "CROP", "STRETCH", "CENTER")
+        val SUPPORTED_CROP_GRAVITIES = setOf("CENTER", "TOP", "BOTTOM", "LEFT", "RIGHT")
+        val RESOURCE_COLUMNS = arrayOf("id", "name", "mime_type", "path", "hash", "size_bytes", "created_at", "kind", "source_uri", "content", "refresh_interval_ms", "text_size_sp", "text_color", "text_background_color", "font_family", "text_speed_dp_per_second", "text_repeat_count")
+        val SCENE_COLUMNS = arrayOf("id", "name", "resource_id", "fit_mode", "crop_gravity", "background_type", "background_color", "volume", "muted", "created_at", "overlays_json", "playback_speed")
         val ERROR_COLUMNS = arrayOf("id", "media_id", "scene_id", "error_code", "action", "attempt", "created_at")
         val PAIRED_DEVICE_COLUMNS = arrayOf("device_id", "device_name", "host", "port", "token", "paired_at")
         val COMMAND_RESULT_COLUMNS = arrayOf("command_id", "fingerprint", "response", "status_code", "created_at")

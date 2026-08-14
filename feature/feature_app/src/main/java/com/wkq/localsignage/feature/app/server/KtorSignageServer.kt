@@ -10,11 +10,14 @@ import com.wkq.localsignage.feature.app.model.SignageScene
 import com.wkq.localsignage.feature.app.model.SignageSettings
 import com.wkq.localsignage.feature.app.model.ResourceKind
 import com.wkq.localsignage.feature.app.model.SignageOverlay
+import com.wkq.localsignage.feature.app.model.TextStylePolicy
+import com.wkq.localsignage.feature.app.model.PlaybackTimingPolicy
 import com.wkq.localsignage.feature.app.model.PairedDevice
 import com.wkq.localsignage.feature.app.device.SignageDeviceFleet
 import com.wkq.localsignage.feature.app.player.SignagePlaybackController
 import com.wkq.localsignage.feature.app.discovery.LocalDeviceDiscovery
 import com.wkq.localsignage.feature.app.runtime.SignageRuntime
+import com.wkq.localsignage.feature.app.security.PairingAttemptLimiter
 import com.wkq.localsignage.feature.app.storage.TemporaryPairingToken
 import com.wkq.localsignage.feature.app.security.CommandRequestFingerprint
 import com.wkq.localsignage.feature.app.R
@@ -64,6 +67,7 @@ class KtorSignageServer(context: Context, private val port: Int) {
     private var broadcastScope: CoroutineScope? = null
     private val webSocketSessions = CopyOnWriteArraySet<WebSocketSession>()
     private val commandMutex = Mutex()
+    private val pairingAttemptLimiter = PairingAttemptLimiter()
     private val stateListener: () -> Unit = { broadcastState() }
 
     fun start() {
@@ -84,6 +88,12 @@ class KtorSignageServer(context: Context, private val port: Int) {
                         .replace("__PAIRING_TOKEN__", quote(pairingToken.orEmpty()))
                     call.respondText(html, ContentType.Text.Html)
                 }
+                get("/fonts/ma-shan-zheng.ttf") { call.respondFont(R.font.ma_shan_zheng) }
+                get("/fonts/zcool-xiaowei.ttf") { call.respondFont(R.font.zcool_xiaowei) }
+                get("/fonts/zcool-kuaile.ttf") { call.respondFont(R.font.zcool_kuaile) }
+                get("/fonts/lato-regular.ttf") { call.respondFont(R.font.lato_regular) }
+                get("/fonts/crimson-text-regular.ttf") { call.respondFont(R.font.crimson_text_regular) }
+                get("/fonts/bebas-neue-regular.ttf") { call.respondFont(R.font.bebas_neue_regular) }
                 webSocket("/ws") {
                     val token = call.request.queryParameters["token"] ?: call.request.headers["X-Local-Signage-Token"]
                     if (!SignageRuntime.hasWebAccessToken(token)) {
@@ -93,6 +103,7 @@ class KtorSignageServer(context: Context, private val port: Int) {
                     webSocketSessions += this
                     try {
                         send(Frame.Text(deviceStatusEventJson()))
+                        send(Frame.Text(controlSessionEventJson()))
                         for (frame in incoming) {
                             if (frame is Frame.Text && frame.readText() == "PING") {
                                 send(Frame.Text("{\"type\":\"PONG\"}"))
@@ -130,11 +141,29 @@ class KtorSignageServer(context: Context, private val port: Int) {
                     call.respondJson("{\"accessToken\":${quote(SignageRuntime.rotateWebAccessToken())},\"expiresInMs\":$WEB_ACCESS_TOKEN_TTL_MS}")
                 }
                 post("/api/access/exchange") {
-                    val pairingToken = runCatching { JSONObject(call.receiveText()).optString("pairingToken") }.getOrDefault("")
-                    if (!SignageRuntime.consumePairingToken(pairingToken)) {
-                        call.respondJson(errorJson("PAIRING_TOKEN_INVALID"), HttpStatusCode.Unauthorized)
+                    val request = runCatching { JSONObject(call.receiveText()) }.getOrNull()
+                    val pairingToken = request?.stringOrNull("pairingToken").orEmpty()
+                    val pairingCode = request?.stringOrNull("pairingCode").orEmpty()
+                    val retryAfterMs = if (pairingCode.isNotBlank()) pairingAttemptLimiter.retryAfterMs() else 0L
+                    if (retryAfterMs > 0L) {
+                        call.response.headers.append(HttpHeaders.RetryAfter, ((retryAfterMs + 999L) / 1_000L).toString())
+                        call.respondJson(errorJson("PAIRING_RATE_LIMITED"), HttpStatusCode.TooManyRequests)
                         return@post
                     }
+                    val valid = when {
+                        pairingToken.isNotBlank() -> SignageRuntime.consumePairingToken(pairingToken)
+                        pairingCode.isNotBlank() -> SignageRuntime.consumePairingCode(pairingCode)
+                        else -> false
+                    }
+                    if (!valid) {
+                        val blocked = pairingCode.isNotBlank() && pairingAttemptLimiter.recordFailure() > 0L
+                        call.respondJson(
+                            errorJson(if (blocked) "PAIRING_RATE_LIMITED" else "PAIRING_TOKEN_INVALID"),
+                            if (blocked) HttpStatusCode.TooManyRequests else HttpStatusCode.Unauthorized
+                        )
+                        return@post
+                    }
+                    if (pairingCode.isNotBlank()) pairingAttemptLimiter.reset()
                     call.response.headers.append(HttpHeaders.CacheControl, "no-store")
                     call.respondJson(
                         "{\"accessToken\":${quote(SignageRuntime.rotateWebAccessToken())}," +
@@ -271,7 +300,10 @@ class KtorSignageServer(context: Context, private val port: Int) {
                     if (session == null) {
                         call.respondJson(controlSessionBusyJson(SignageRuntime.controlSession()), HttpStatusCode.Conflict)
                     }
-                    else call.respondJson(sessionJson(session), HttpStatusCode.Created)
+                    else {
+                        broadcastControlSession()
+                        call.respondJson(sessionJson(session), HttpStatusCode.Created)
+                    }
                 }
                 post("/api/control/session/heartbeat") {
                     if (!call.authorized(requireSession = false)) return@post
@@ -282,6 +314,7 @@ class KtorSignageServer(context: Context, private val port: Int) {
                 post("/api/control/session/release") {
                     if (!call.authorized(requireSession = false)) return@post
                     val released = SignageRuntime.releaseControlSession(call.sessionId().orEmpty())
+                    if (released) broadcastControlSession()
                     call.respondJson("{\"released\":$released}", if (released) HttpStatusCode.OK else HttpStatusCode.Conflict)
                 }
                 get("/media/{id}") {
@@ -297,6 +330,10 @@ class KtorSignageServer(context: Context, private val port: Int) {
                     val existingIds = SignageRuntime.resources().mapTo(mutableSetOf()) { it.id }
                     val createdIds = linkedSetOf<String>()
                     var createdPlaylistId: String? = null
+                    var fitMode = "FIT"
+                    var cropGravity = "CENTER"
+                    var imageDurationMs = PlaybackTimingPolicy.DEFAULT_IMAGE_DURATION_MS
+                    var videoPlaybackSpeed = PlaybackTimingPolicy.DEFAULT_VIDEO_PLAYBACK_SPEED
                     try {
                         val multipart = call.receiveMultipart()
                         val uploadedIds = mutableListOf<String>()
@@ -306,7 +343,7 @@ class KtorSignageServer(context: Context, private val port: Int) {
                             try {
                                 if (part is PartData.FileItem) {
                                     fileCount += 1
-                                    require(fileCount <= MAX_IMAGE_BATCH_SIZE) { "TOO_MANY_FILES" }
+                                    require(fileCount <= MAX_MEDIA_BATCH_SIZE) { "TOO_MANY_FILES" }
                                     val resource = SignageRuntime.saveUpload(
                                         part.originalFileName ?: "resource",
                                         part.contentType?.toString() ?: "application/octet-stream",
@@ -314,6 +351,17 @@ class KtorSignageServer(context: Context, private val port: Int) {
                                     )
                                     uploadedIds += resource.id
                                     if (resource.id !in existingIds) createdIds += resource.id
+                                } else if (part is PartData.FormItem) {
+                                    when (part.name) {
+                                        "fitMode" -> fitMode = part.value
+                                        "cropGravity" -> cropGravity = part.value
+                                        "durationMs" -> imageDurationMs = PlaybackTimingPolicy.normalizeImageDuration(
+                                            part.value.toLongOrNull() ?: throw IllegalArgumentException("IMAGE_DURATION_INVALID")
+                                        )
+                                        "playbackSpeed" -> videoPlaybackSpeed = PlaybackTimingPolicy.normalizeVideoPlaybackSpeed(
+                                            part.value.toFloatOrNull() ?: throw IllegalArgumentException("VIDEO_SPEED_INVALID")
+                                        )
+                                    }
                                 }
                             } finally { part.dispose() }
                         }
@@ -321,11 +369,19 @@ class KtorSignageServer(context: Context, private val port: Int) {
                         else {
                             val resources = uploadedIds.mapNotNull(SignageRuntime::resource)
                             require(resources.size == uploadedIds.size) { "UPLOAD_INCOMPLETE" }
-                            require(resources.all { it.isImage } || resources.size == 1 && resources.single().isVideo) {
+                            require(resources.all { it.isImage } || resources.all { it.isVideo }) {
                                 "UPLOAD_BATCH_TYPE_INVALID"
                             }
-                            val playlist = if (!deviceRequest && resources.size > 1 && resources.all { it.isImage }) {
-                                SignageRuntime.createImageSlideshow("Image slideshow", uploadedIds, DEFAULT_SLIDE_DURATION_MS)
+                            SignageRuntime.updateDefaultSceneFit(uploadedIds, fitMode, cropGravity)
+                            if (resources.all { it.isVideo }) {
+                                SignageRuntime.updateDefaultScenePlaybackSpeed(uploadedIds, videoPlaybackSpeed)
+                            }
+                            val playlist = if (!deviceRequest && resources.size > 1) {
+                                if (resources.all { it.isImage }) {
+                                    SignageRuntime.createImageSlideshow("Image slideshow", uploadedIds, imageDurationMs)
+                                } else {
+                                    SignageRuntime.createMediaPlaylist("Video playlist", uploadedIds)
+                                }
                             } else null
                             createdPlaylistId = playlist?.id
                             if (!deviceRequest) {
@@ -365,24 +421,38 @@ class KtorSignageServer(context: Context, private val port: Int) {
                         }.distinct()
                         require(urls.isNotEmpty()) { "REMOTE_MEDIA_URL_REQUIRED" }
                         require(mediaType == "IMAGE" || mediaType == "VIDEO") { "REMOTE_MEDIA_TYPE_INVALID" }
-                        if (mediaType == "VIDEO") require(urls.size == 1) { "ONE_VIDEO_REQUIRED" }
-                        if (mediaType == "IMAGE") require(urls.size <= MAX_IMAGE_BATCH_SIZE) { "TOO_MANY_IMAGES" }
+                        require(urls.size <= MAX_MEDIA_BATCH_SIZE) { "TOO_MANY_MEDIA_ITEMS" }
                         val baseName = body.optString("name").ifBlank { mediaType.lowercase() }
-                        val resources = withContext(Dispatchers.IO) {
-                            urls.mapIndexed { index, url ->
-                                SignageRuntime.saveRemote(
-                                    url = url,
-                                    name = if (urls.size == 1) baseName else "$baseName ${index + 1}"
-                                ).also { resource ->
-                                    if (resource.id !in existingIds) createdIds += resource.id
-                                }
+                        val fitMode = body.optString("fitMode", "FIT")
+                        val cropGravity = body.optString("cropGravity", "CENTER")
+                        val imageDurationMs = PlaybackTimingPolicy.normalizeImageDuration(
+                            body.optLongOrNull("durationMs")
+                        )
+                        val videoPlaybackSpeed = PlaybackTimingPolicy.normalizeVideoPlaybackSpeed(
+                            body.optDouble("playbackSpeed", 1.0).toFloat()
+                        )
+                        val resources = urls.mapIndexed { index, url ->
+                            SignageRuntime.saveRemoteReference(
+                                name = if (urls.size == 1) baseName else "$baseName ${index + 1}",
+                                url = url,
+                                mediaType = mediaType
+                            ).also { resource ->
+                                if (resource.id !in existingIds) createdIds += resource.id
                             }
                         }
                         require(resources.all { if (mediaType == "IMAGE") it.isImage else it.isVideo }) {
                             "REMOTE_MEDIA_TYPE_MISMATCH"
                         }
+                        SignageRuntime.updateDefaultSceneFit(resources.map { it.id }, fitMode, cropGravity)
+                        if (mediaType == "VIDEO") {
+                            SignageRuntime.updateDefaultScenePlaybackSpeed(resources.map { it.id }, videoPlaybackSpeed)
+                        }
                         val playlist = if (resources.size > 1) {
-                            SignageRuntime.createImageSlideshow(baseName, resources.map { it.id }, DEFAULT_SLIDE_DURATION_MS)
+                            if (mediaType == "IMAGE") {
+                                SignageRuntime.createImageSlideshow(baseName, resources.map { it.id }, imageDurationMs)
+                            } else {
+                                SignageRuntime.createMediaPlaylist(baseName, resources.map { it.id })
+                            }
                         } else null
                         createdPlaylistId = playlist?.id
                         if (playlist != null) SignagePlaybackController.applyCommand("PLAY_PLAYLIST", playlistId = playlist.id)
@@ -425,12 +495,68 @@ class KtorSignageServer(context: Context, private val port: Int) {
                             kind = kind,
                             sourceUri = body.optString("sourceUri").takeIf { it.isNotBlank() },
                             content = body.optString("content").takeIf { it.isNotBlank() },
-                            refreshIntervalMs = body.optLongOrNull("refreshIntervalMs")
+                            refreshIntervalMs = body.optLongOrNull("refreshIntervalMs"),
+                            textSizeSp = body.optIntOrNull("textSizeSp"),
+                            textColor = body.stringOrNull("textColor"),
+                            textBackgroundColor = body.stringOrNull("textBackgroundColor"),
+                            fontFamily = body.stringOrNull("fontFamily"),
+                            textSpeedDpPerSecond = body.optIntOrNull("textSpeedDpPerSecond"),
+                            textRepeatCount = body.optIntOrNull("textRepeatCount")
                         )
                         SignagePlaybackController.applyCommand("PLAY", resourceId = resource.id)
                         call.respondJson(resourceJson(resource), HttpStatusCode.Created)
                     } catch (error: Exception) {
                         call.respondJson(errorJson(error.message ?: "INVALID_VIRTUAL_RESOURCE"), HttpStatusCode.BadRequest)
+                    }
+                }
+                post("/api/resources/text-batch") {
+                    if (!call.authorized()) return@post
+                    val existingIds = SignageRuntime.resources().mapTo(mutableSetOf()) { it.id }
+                    val createdIds = linkedSetOf<String>()
+                    var createdPlaylistId: String? = null
+                    try {
+                        val body = JSONObject(call.receiveText())
+                        val items = body.optJSONArray("items") ?: JSONArray()
+                        val messages = buildList {
+                            for (index in 0 until items.length()) {
+                                items.optString(index).trim().takeIf { it.isNotBlank() }?.let(::add)
+                            }
+                        }
+                        require(messages.isNotEmpty()) { "TEXT_SEQUENCE_REQUIRED" }
+                        require(messages.size <= MAX_TEXT_BATCH_SIZE) { "TOO_MANY_TEXT_ITEMS" }
+                        val baseName = body.optString("name").ifBlank { "Text sequence" }
+                        val resources = messages.mapIndexed { index, content ->
+                            SignageRuntime.saveVirtualResource(
+                                name = if (messages.size == 1) baseName else "$baseName ${index + 1}",
+                                kind = ResourceKind.TEXT,
+                                sourceUri = null,
+                                content = content,
+                                refreshIntervalMs = null,
+                                textSizeSp = body.optIntOrNull("textSizeSp"),
+                                textColor = body.stringOrNull("textColor"),
+                                textBackgroundColor = body.stringOrNull("textBackgroundColor"),
+                                fontFamily = body.stringOrNull("fontFamily"),
+                                textSpeedDpPerSecond = body.optIntOrNull("textSpeedDpPerSecond"),
+                                textRepeatCount = 1
+                            ).also { resource ->
+                                if (resource.id !in existingIds) createdIds += resource.id
+                            }
+                        }
+                        val playlist = SignageRuntime.createMediaPlaylist(baseName, resources.map { it.id })
+                        createdPlaylistId = playlist.id
+                        SignagePlaybackController.applyCommand("PLAY_PLAYLIST", playlistId = playlist.id)
+                        call.respondJson(
+                            "{\"ids\":[${resources.joinToString { quote(it.id) }}],\"playlistId\":${quote(playlist.id)}}",
+                            HttpStatusCode.Created
+                        )
+                    } catch (error: IllegalArgumentException) {
+                        createdPlaylistId?.let(SignageRuntime::deletePlaylist)
+                        createdIds.forEach(SignageRuntime::deleteResource)
+                        call.respondJson(errorJson(error.message ?: "TEXT_SEQUENCE_INVALID"), HttpStatusCode.BadRequest)
+                    } catch (_: Exception) {
+                        createdPlaylistId?.let(SignageRuntime::deletePlaylist)
+                        createdIds.forEach(SignageRuntime::deleteResource)
+                        call.respondJson(errorJson("TEXT_SEQUENCE_FAILED"), HttpStatusCode.InternalServerError)
                     }
                 }
                 post("/api/control") {
@@ -440,7 +566,7 @@ class KtorSignageServer(context: Context, private val port: Int) {
                             val body = call.receiveText()
                             val json = JSONObject(body)
                             val commandId = call.request.headers["X-Command-Id"]?.trim()?.takeIf { it.isNotBlank() }
-                                ?: json.optString("commandId").trim().takeIf { it.isNotBlank() }
+                                ?: json.stringOrNull("commandId")
                             val fingerprint = commandFingerprint(json)
                             if (commandId != null) {
                                 val previous = SignageRuntime.commandResult(commandId, fingerprint)
@@ -493,7 +619,8 @@ class KtorSignageServer(context: Context, private val port: Int) {
                             backgroundColor = jsonString(body, "backgroundColor"),
                             volume = jsonInt(body, "volume"),
                             muted = jsonBoolean(body, "muted") ?: false,
-                            overlays = overlays(JSONObject(body).optJSONArray("overlays"))
+                            overlays = overlays(JSONObject(body).optJSONArray("overlays")),
+                            playbackSpeed = JSONObject(body).optDouble("playbackSpeed", 1.0).toFloat()
                         )
                         call.respondJson(sceneJson(SignageRuntime.saveScene(scene)), HttpStatusCode.Created)
                     } catch (error: Exception) {
@@ -510,7 +637,13 @@ class KtorSignageServer(context: Context, private val port: Int) {
                             kind = kind,
                             sourceUri = body.optString("sourceUri").takeIf { it.isNotBlank() },
                             content = body.optString("content").takeIf { it.isNotBlank() },
-                            refreshIntervalMs = body.optLongOrNull("refreshIntervalMs")
+                            refreshIntervalMs = body.optLongOrNull("refreshIntervalMs"),
+                            textSizeSp = body.optIntOrNull("textSizeSp"),
+                            textColor = body.stringOrNull("textColor"),
+                            textBackgroundColor = body.stringOrNull("textBackgroundColor"),
+                            fontFamily = body.stringOrNull("fontFamily"),
+                            textSpeedDpPerSecond = body.optIntOrNull("textSpeedDpPerSecond"),
+                            textRepeatCount = body.optIntOrNull("textRepeatCount")
                         )
                         call.respondJson(resourceJson(resource), HttpStatusCode.Created)
                     } catch (error: Exception) {
@@ -597,7 +730,8 @@ class KtorSignageServer(context: Context, private val port: Int) {
                             backgroundColor = jsonString(body, "backgroundColor"),
                             volume = jsonInt(body, "volume"),
                             muted = jsonBoolean(body, "muted") ?: false,
-                            overlays = overlays(JSONObject(body).optJSONArray("overlays"))
+                            overlays = overlays(JSONObject(body).optJSONArray("overlays")),
+                            playbackSpeed = JSONObject(body).optDouble("playbackSpeed", 1.0).toFloat()
                         )
                         call.respondJson(sceneJson(SignageRuntime.saveScene(scene)), HttpStatusCode.Created)
                     } catch (error: IllegalArgumentException) {
@@ -663,7 +797,14 @@ class KtorSignageServer(context: Context, private val port: Int) {
     }
 
     private fun broadcastState() {
-        val event = deviceStatusEventJson()
+        broadcastEvent(deviceStatusEventJson())
+    }
+
+    private fun broadcastControlSession() {
+        broadcastEvent(controlSessionEventJson())
+    }
+
+    private fun broadcastEvent(event: String) {
         broadcastScope?.launch {
             webSocketSessions.toList().forEach { session ->
                 runCatching { session.send(Frame.Text(event)) }
@@ -753,16 +894,20 @@ class KtorSignageServer(context: Context, private val port: Int) {
         "\"port\":${SignageRuntime.state().serverPort}" + "}"
 
     private fun pairingJson(pairing: TemporaryPairingToken): String {
+        val accessCode = SignageRuntime.pairingCodeToken()
         val code = com.wkq.localsignage.feature.app.pairing.PairingCodeProvider.create(
             pairing.token,
             pairing.expiresAt,
+            accessCode.token,
+            accessCode.expiresAt,
             SignageRuntime.SERVER_PORT
         )
         val url = code.pairingUrl ?: throw IllegalStateException("LOCAL_NETWORK_UNAVAILABLE")
         val qr = checkNotNull(code.qrBitmap) { "LOCAL_NETWORK_UNAVAILABLE" }
         val qrDataUrl = "data:image/png;base64,${Base64.encodeToString(qrPng(qr), Base64.NO_WRAP)}"
         return "{\"url\":${quote(url)},\"token\":${quote(pairing.token)}," +
-            "\"expiresAt\":${pairing.expiresAt},\"expiresInMs\":${(pairing.expiresAt - System.currentTimeMillis()).coerceAtLeast(0L)}," +
+            "\"accessCode\":${quote(code.accessCode)}," +
+            "\"expiresAt\":${accessCode.expiresAt},\"expiresInMs\":${(accessCode.expiresAt - System.currentTimeMillis()).coerceAtLeast(0L)}," +
             "\"qrDataUrl\":${quote(qrDataUrl)}}"
     }
 
@@ -773,18 +918,18 @@ class KtorSignageServer(context: Context, private val port: Int) {
         }
     }
 
-    private fun devicesJson(): String = LocalDeviceDiscovery.snapshot().joinToString("[", "]") { device ->
+    private fun devicesJson(): String = jsonArray(LocalDeviceDiscovery.snapshot()) { device ->
         "{\"deviceId\":${quote(device.deviceId)},\"deviceName\":${quote(device.deviceName)}," +
             "\"host\":${quote(device.host)},\"port\":${device.port}," +
             "\"serviceName\":${quote(device.serviceName)},\"lastSeenAt\":${device.lastSeenAt}}"
     }
 
-    private fun pairedDevicesJson(): String = SignageRuntime.pairedDevices().joinToString("[", "]", transform = ::pairedDeviceJson)
+    private fun pairedDevicesJson(): String = jsonArray(SignageRuntime.pairedDevices(), ::pairedDeviceJson)
     private fun pairedDeviceJson(device: PairedDevice): String = "{\"deviceId\":${quote(device.deviceId)},\"deviceName\":${quote(device.deviceName)},\"host\":${quote(device.host)},\"port\":${device.port},\"pairedAt\":${device.pairedAt}}"
-    private fun fleetResultsJson(results: List<SignageDeviceFleet.FleetResult>): String = results.joinToString("[", "]") { result ->
+    private fun fleetResultsJson(results: List<SignageDeviceFleet.FleetResult>): String = jsonArray(results) { result ->
         "{\"deviceId\":${quote(result.deviceId)},\"deviceName\":${quote(result.deviceName)},\"success\":${result.success},\"skipped\":${result.skipped},\"code\":${quote(result.code)}}"
     }
-    private fun fleetStatusesJson(statuses: List<SignageDeviceFleet.FleetStatus>): String = statuses.joinToString("[", "]") { status ->
+    private fun fleetStatusesJson(statuses: List<SignageDeviceFleet.FleetStatus>): String = jsonArray(statuses) { status ->
         "{\"deviceId\":${quote(status.deviceId)},\"deviceName\":${quote(status.deviceName)},\"host\":${quote(status.host)},\"port\":${status.port}," +
             "\"state\":${quote(status.state.name)},\"checkedAt\":${status.checkedAt}," +
             "\"currentResourceId\":${status.currentResourceId?.let(::quote) ?: "null"},\"currentSceneId\":${status.currentSceneId?.let(::quote) ?: "null"}," +
@@ -794,16 +939,21 @@ class KtorSignageServer(context: Context, private val port: Int) {
 
     private fun statusJson(): String {
         val state = SignageRuntime.state()
+        val playlist = SignageRuntime.playlist(state.currentPlaylistId)
+        val playlistIndex = playlist?.items?.indexOfFirst { it.sceneId == state.currentSceneId } ?: -1
         return "{" +
             "\"deviceId\":${quote(state.deviceId)},\"deviceName\":${quote(state.deviceName)}," +
             "\"currentResourceId\":${state.currentResourceId?.let(::quote) ?: "null"}," +
             "\"currentSceneId\":${state.currentSceneId?.let(::quote) ?: "null"}," +
             "\"currentPlaylistId\":${state.currentPlaylistId?.let(::quote) ?: "null"}," +
             "\"playing\":${state.playing},\"volume\":${state.volume},\"muted\":${state.muted}," +
+            "\"playlistIndex\":${if (playlistIndex >= 0) playlistIndex else "null"},\"playlistItemCount\":${playlist?.items?.size ?: 0}," +
             "\"positionMs\":${state.positionMs},\"error\":${state.error?.let(::quote) ?: "null"},\"serverPort\":${state.serverPort},\"commandRevision\":${state.commandRevision}" + "}"
     }
 
     private fun deviceStatusEventJson(): String = "{\"type\":\"DEVICE_STATUS\",\"state\":${statusJson()}}"
+    private fun controlSessionEventJson(): String =
+        "{\"type\":\"CONTROL_SESSION\",\"session\":${controlSessionStatusJson(SignageRuntime.controlSession())}}"
 
     private fun settingsJson(): String {
         val settings = SignageRuntime.settings()
@@ -811,7 +961,7 @@ class KtorSignageServer(context: Context, private val port: Int) {
             "\"keepScreenAwake\":${settings.keepScreenAwake},\"autoResume\":${settings.autoResume},\"fullscreen\":${settings.fullscreen}}"
     }
 
-    private fun errorsJson(): String = SignageRuntime.playbackErrors().joinToString("[", "]") { error ->
+    private fun errorsJson(): String = jsonArray(SignageRuntime.playbackErrors()) { error ->
         "{\"id\":${error.id},\"mediaId\":${error.mediaId?.let(::quote) ?: "null"}," +
             "\"sceneId\":${error.sceneId?.let(::quote) ?: "null"},\"errorCode\":${quote(error.errorCode)}," +
             "\"action\":${quote(error.action)},\"attempt\":${error.attempt},\"createdAt\":${error.createdAt}}"
@@ -859,17 +1009,23 @@ class KtorSignageServer(context: Context, private val port: Int) {
         }
     }
 
-    private fun resourcesJson(): String = SignageRuntime.resources().joinToString("[", "]") { resource ->
+    private fun resourcesJson(): String = jsonArray(SignageRuntime.resources()) { resource ->
         resourceJson(resource)
+    }
+    private suspend fun ApplicationCall.respondFont(resourceId: Int) {
+        response.headers.append(HttpHeaders.CacheControl, "public, max-age=86400")
+        respondBytes(applicationContext.resources.openRawResource(resourceId).use { it.readBytes() }, ContentType.parse("font/ttf"))
     }
     private fun resourceJson(resource: com.wkq.localsignage.feature.app.model.SignageResource): String =
         "{\"id\":${quote(resource.id)},\"name\":${quote(resource.name)},\"kind\":${quote(resource.kind)},\"mimeType\":${quote(resource.mimeType)},\"hash\":${quote(resource.hash)},\"sizeBytes\":${resource.sizeBytes}," +
             "\"sourceUri\":${resource.sourceUri?.let(::quote) ?: "null"},\"content\":${resource.content?.let(::quote) ?: "null"},\"refreshIntervalMs\":${resource.refreshIntervalMs ?: "null"}," +
+            "\"textSizeSp\":${resource.textSizeSp},\"textColor\":${quote(resource.textColor)},\"textBackgroundColor\":${quote(resource.textBackgroundColor)},\"fontFamily\":${quote(resource.fontFamily)}," +
+            "\"textSpeedDpPerSecond\":${resource.textSpeedDpPerSecond},\"textRepeatCount\":${resource.textRepeatCount}," +
             "\"url\":${if (resource.isLocalFile) quote("/media/${resource.id}") else "null"}}"
 
-    private fun scenesJson(): String = SignageRuntime.scenes().joinToString("[", "]", transform = ::sceneJson)
-    private fun sceneJson(scene: SignageScene): String = "{\"id\":${quote(scene.id)},\"name\":${quote(scene.name)},\"resourceId\":${quote(scene.resourceId)},\"fitMode\":${quote(scene.fitMode)},\"cropGravity\":${quote(scene.cropGravity)},\"backgroundType\":${quote(scene.backgroundType)},\"backgroundColor\":${scene.backgroundColor?.let(::quote) ?: "null"},\"volume\":${scene.volume ?: "null"},\"muted\":${scene.muted},\"overlays\":${overlaysJson(scene.overlays)}}"
-    private fun playlistsJson(): String = SignageRuntime.playlists().joinToString("[", "]", transform = ::playlistJson)
+    private fun scenesJson(): String = jsonArray(SignageRuntime.scenes(), ::sceneJson)
+    private fun sceneJson(scene: SignageScene): String = "{\"id\":${quote(scene.id)},\"name\":${quote(scene.name)},\"resourceId\":${quote(scene.resourceId)},\"fitMode\":${quote(scene.fitMode)},\"cropGravity\":${quote(scene.cropGravity)},\"backgroundType\":${quote(scene.backgroundType)},\"backgroundColor\":${scene.backgroundColor?.let(::quote) ?: "null"},\"volume\":${scene.volume ?: "null"},\"muted\":${scene.muted},\"playbackSpeed\":${PlaybackTimingPolicy.normalizeVideoPlaybackSpeed(scene.playbackSpeed)},\"overlays\":${overlaysJson(scene.overlays)}}"
+    private fun playlistsJson(): String = jsonArray(SignageRuntime.playlists(), ::playlistJson)
     private fun playlistJson(playlist: SignagePlaylist): String = "{\"id\":${quote(playlist.id)},\"name\":${quote(playlist.name)},\"loop\":${playlist.loop},\"items\":[${playlist.items.joinToString { "{\"sceneId\":${quote(it.sceneId)},\"durationMs\":${it.durationMs ?: "null"},\"enabled\":${it.enabled}}" }}]}"
     private fun sessionJson(session: com.wkq.localsignage.feature.app.model.ControlSession?): String = session?.let { "{\"sessionId\":${quote(it.sessionId)},\"clientName\":${quote(it.clientName)},\"expiresAt\":${it.expiresAt}}" } ?: "null"
     private fun controlSessionStatusJson(session: com.wkq.localsignage.feature.app.model.ControlSession?): String = session?.let {
@@ -884,6 +1040,7 @@ class KtorSignageServer(context: Context, private val port: Int) {
         "CONTROL_SESSION_BUSY" -> "Another control session currently owns write access"
         "CONTROL_SESSION_INVALID" -> "The control session is missing or expired"
         "COMMAND_REJECTED" -> "The command revision was rejected"
+        "PAIRING_RATE_LIMITED" -> "Too many incorrect pairing attempts. Wait before trying again"
         "REMOTE_URL_PROTOCOL_NOT_ALLOWED" -> "Only approved remote URL protocols are supported"
         "REMOTE_HOST_NOT_ALLOWED" -> "The remote host is not allowed"
         "REMOTE_RESOURCE_TOO_LARGE" -> "The remote resource exceeds the size limit"
@@ -897,7 +1054,8 @@ class KtorSignageServer(context: Context, private val port: Int) {
             }
         )
     }
-    private fun jsonString(body: String, key: String): String? = runCatching { JSONObject(body).optString(key).takeIf { it.isNotBlank() } }.getOrNull()
+    private fun jsonString(body: String, key: String): String? =
+        runCatching { JSONObject(body).stringOrNull(key) }.getOrNull()
     private fun jsonInt(body: String, key: String): Int? = runCatching { JSONObject(body).takeIf { it.has(key) && !it.isNull(key) }?.optInt(key) }.getOrNull()
     private fun jsonLong(body: String, key: String): Long? = runCatching { JSONObject(body).takeIf { it.has(key) && !it.isNull(key) }?.optLong(key) }.getOrNull()
     private fun jsonBoolean(body: String, key: String): Boolean? = runCatching { JSONObject(body).takeIf { it.has(key) && !it.isNull(key) }?.optBoolean(key) }.getOrNull()
@@ -906,6 +1064,7 @@ class KtorSignageServer(context: Context, private val port: Int) {
         for (index in 0 until array.length()) array.optString(index).takeIf { it.isNotBlank() }?.let(::add)
     }
     private fun JSONObject.optLongOrNull(key: String): Long? = if (has(key) && !isNull(key)) optLong(key) else null
+    private fun JSONObject.optIntOrNull(key: String): Int? = if (has(key) && !isNull(key)) optInt(key) else null
     private fun overlays(array: JSONArray?): List<SignageOverlay> = buildList {
         if (array == null) return@buildList
         for (index in 0 until array.length()) {
@@ -918,9 +1077,11 @@ class KtorSignageServer(context: Context, private val port: Int) {
                 horizontalPosition = item.optString("horizontalPosition", "CENTER").uppercase(),
                 verticalPosition = item.optString("verticalPosition", "BOTTOM").uppercase(),
                 textSizeSp = item.optInt("textSizeSp", 28).coerceIn(8, 160),
-                textColor = item.optString("textColor", "#FFFFFFFF"),
-                backgroundColor = item.optString("backgroundColor", "#99000000"),
+                textColor = TextStylePolicy.normalizeColor(item.optString("textColor"), TextStylePolicy.DEFAULT_TEXT_COLOR),
+                backgroundColor = TextStylePolicy.normalizeColor(item.optString("backgroundColor"), "#99000000"),
                 paddingDp = item.optInt("paddingDp", 12).coerceIn(0, 96),
+                cornerRadiusDp = item.optInt("cornerRadiusDp", 8).coerceIn(0, 64),
+                fontFamily = TextStylePolicy.fontFamilyForText(item.optString("fontFamily"), content),
                 speedDpPerSecond = item.optInt("speedDpPerSecond", 80).coerceIn(10, 500),
                 enabled = item.optBoolean("enabled", true),
                 zIndex = item.optInt("zIndex", index)
@@ -932,7 +1093,8 @@ class KtorSignageServer(context: Context, private val port: Int) {
             put("id", overlay.id); put("type", overlay.type); put("content", overlay.content)
             put("horizontalPosition", overlay.horizontalPosition); put("verticalPosition", overlay.verticalPosition)
             put("textSizeSp", overlay.textSizeSp); put("textColor", overlay.textColor); put("backgroundColor", overlay.backgroundColor)
-            put("paddingDp", overlay.paddingDp); put("speedDpPerSecond", overlay.speedDpPerSecond)
+            put("paddingDp", overlay.paddingDp); put("cornerRadiusDp", overlay.cornerRadiusDp); put("fontFamily", overlay.fontFamily)
+            put("speedDpPerSecond", overlay.speedDpPerSecond)
             put("enabled", overlay.enabled); put("zIndex", overlay.zIndex)
         }) }
     }.toString()
@@ -940,12 +1102,13 @@ class KtorSignageServer(context: Context, private val port: Int) {
     private companion object {
         val SHA256_PATTERN = Regex("[a-f0-9]{64}")
         const val WEB_CONTENT_SECURITY_POLICY =
-            "default-src 'self'; img-src 'self' data:; connect-src 'self' ws: wss:; " +
+            "default-src 'self'; img-src 'self' data: blob: http: https:; " +
+                "media-src 'self' blob: http: https:; connect-src 'self' ws: wss:; " +
                 "style-src 'self' 'unsafe-inline'; script-src 'self' 'unsafe-inline'; " +
                 "object-src 'none'; base-uri 'none'; frame-ancestors 'none'; form-action 'self'"
         const val WEB_ACCESS_TOKEN_TTL_MS = 8 * 60 * 60 * 1000L
-        const val DEFAULT_SLIDE_DURATION_MS = 8_000L
-        const val MAX_IMAGE_BATCH_SIZE = 20
+        const val MAX_MEDIA_BATCH_SIZE = 20
+        const val MAX_TEXT_BATCH_SIZE = 20
     }
 
     private val webConsoleTemplate: String by lazy {

@@ -4,6 +4,7 @@ import android.graphics.Bitmap
 import android.graphics.Color
 import com.google.zxing.BarcodeFormat
 import com.google.zxing.qrcode.QRCodeWriter
+import com.wkq.localsignage.feature.app.security.PairingAccessCode
 import java.net.Inet4Address
 import java.net.NetworkInterface
 import java.net.URLEncoder
@@ -12,18 +13,32 @@ import java.nio.charset.StandardCharsets
 data class PairingCode(
     val controlAddress: String?,
     val pairingUrl: String?,
+    val accessCode: String,
     val expiresAt: Long,
     val qrBitmap: Bitmap?
 )
 
 object PairingCodeProvider {
-    fun create(token: String, expiresAt: Long, port: Int, sizePx: Int = 512): PairingCode {
+    fun create(
+        pairingToken: String,
+        pairingExpiresAt: Long,
+        accessCodeToken: String,
+        accessCodeExpiresAt: Long,
+        port: Int,
+        sizePx: Int = 512
+    ): PairingCode {
         val host = localIpv4Address()
         val address = host?.let { "http://$it:$port" }
         val url = address?.let {
-            "$it/?pairingToken=${URLEncoder.encode(token, StandardCharsets.UTF_8.name())}"
+            "$it/?pairingToken=${URLEncoder.encode(pairingToken, StandardCharsets.UTF_8.name())}"
         }
-        return PairingCode(address, url, expiresAt, url?.let { createQrBitmap(it, sizePx) })
+        return PairingCode(
+            controlAddress = address,
+            pairingUrl = url,
+            accessCode = PairingAccessCode.create(accessCodeToken),
+            expiresAt = accessCodeExpiresAt,
+            qrBitmap = url?.let { createQrBitmap(it, sizePx) }
+        )
     }
 
     private fun localIpv4Address(): String? = runCatching {

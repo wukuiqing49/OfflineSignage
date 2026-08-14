@@ -113,6 +113,27 @@
                     android:textSize="18sp" />
 
                 <TextView
+                    android:id="@+id/pairing_access_code_label"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="@dimen/app_spacing_large"
+                    android:text="@string/pairing_computer_code"
+                    android:textColor="@color/pairing_text_secondary"
+                    android:textSize="14sp" />
+
+                <TextView
+                    android:id="@+id/pairing_access_code"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:contentDescription="@string/pairing_computer_code_content_description"
+                    android:fontFamily="monospace"
+                    android:maxLines="1"
+                    android:textColor="@color/pairing_text_primary"
+                    android:textIsSelectable="true"
+                    android:textSize="24sp"
+                    android:textStyle="bold" />
+
+                <TextView
                     android:id="@+id/pairing_hint"
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"

@@ -1,6 +1,7 @@
 package com.wkq.localsignage.feature.app.player
 
 import android.graphics.Color
+import android.graphics.Matrix
 import android.view.ViewGroup
 import android.widget.FrameLayout
 import android.widget.ImageView
@@ -28,7 +29,7 @@ internal class ImageSlideshowRenderer(private val pager: ViewPager2) {
         .memoryCachePolicy(CachePolicy.ENABLED)
         .build()
     private val adapter = SlideAdapter(imageLoader)
-    private var slideIds: List<String> = emptyList()
+    private var slideKeys: List<SlideKey> = emptyList()
 
     init {
         pager.adapter = adapter
@@ -37,9 +38,18 @@ internal class ImageSlideshowRenderer(private val pager: ViewPager2) {
     }
 
     fun show(slides: List<ImageSlide>, index: Int) {
-        val ids = slides.map { it.scene.id }
-        if (ids != slideIds) {
-            slideIds = ids
+        val keys = slides.map {
+            SlideKey(
+                sceneId = it.scene.id,
+                fitMode = it.scene.fitMode,
+                cropGravity = it.scene.cropGravity,
+                backgroundColor = it.scene.backgroundColor,
+                resourceId = it.resource.id,
+                sourceUri = it.resource.sourceUri
+            )
+        }
+        if (keys != slideKeys) {
+            slideKeys = keys
             adapter.submit(slides)
         }
         if (slides.isNotEmpty()) {
@@ -51,7 +61,7 @@ internal class ImageSlideshowRenderer(private val pager: ViewPager2) {
     }
 
     fun release() {
-        slideIds = emptyList()
+        slideKeys = emptyList()
         adapter.submit(emptyList())
         pager.adapter = null
         imageLoader.shutdown()
@@ -100,14 +110,41 @@ internal class ImageSlideshowRenderer(private val pager: ViewPager2) {
         fun bind(slide: ImageSlide) {
             image.setBackgroundColor(parseColor(slide.scene.backgroundColor, Color.BLACK))
             image.scaleType = when (slide.scene.fitMode.uppercase()) {
-                "FILL", "STRETCH" -> ImageView.ScaleType.FIT_XY
-                "CROP" -> ImageView.ScaleType.CENTER_CROP
+                "FILL", "CROP" -> ImageView.ScaleType.MATRIX
+                "STRETCH" -> ImageView.ScaleType.FIT_XY
                 "CENTER" -> ImageView.ScaleType.CENTER
                 else -> ImageView.ScaleType.FIT_CENTER
             }
             image.load(slide.data, imageLoader) {
                 memoryCachePolicy(CachePolicy.ENABLED)
                 diskCachePolicy(CachePolicy.ENABLED)
+                listener(onSuccess = { _, _ -> image.post { applyCropMatrix(slide.scene.cropGravity) } })
+            }
+        }
+
+        private fun applyCropMatrix(gravity: String) {
+            if (image.scaleType != ImageView.ScaleType.MATRIX) return
+            val drawable = image.drawable ?: return
+            val sourceWidth = drawable.intrinsicWidth.takeIf { it > 0 } ?: return
+            val sourceHeight = drawable.intrinsicHeight.takeIf { it > 0 } ?: return
+            val targetWidth = image.width.takeIf { it > 0 } ?: return
+            val targetHeight = image.height.takeIf { it > 0 } ?: return
+            val scale = maxOf(targetWidth.toFloat() / sourceWidth, targetHeight.toFloat() / sourceHeight)
+            val overflowX = targetWidth - sourceWidth * scale
+            val overflowY = targetHeight - sourceHeight * scale
+            val offsetX = when (gravity.uppercase()) {
+                "LEFT" -> 0f
+                "RIGHT" -> overflowX
+                else -> overflowX / 2f
+            }
+            val offsetY = when (gravity.uppercase()) {
+                "TOP" -> 0f
+                "BOTTOM" -> overflowY
+                else -> overflowY / 2f
+            }
+            image.imageMatrix = Matrix().apply {
+                setScale(scale, scale)
+                postTranslate(offsetX, offsetY)
             }
         }
 
@@ -118,4 +155,13 @@ internal class ImageSlideshowRenderer(private val pager: ViewPager2) {
         private fun parseColor(value: String?, fallback: Int): Int =
             value?.let { runCatching { Color.parseColor(it) }.getOrNull() } ?: fallback
     }
+
+    private data class SlideKey(
+        val sceneId: String,
+        val fitMode: String,
+        val cropGravity: String,
+        val backgroundColor: String?,
+        val resourceId: String,
+        val sourceUri: String?
+    )
 }

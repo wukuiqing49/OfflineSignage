@@ -172,9 +172,13 @@ class MainActivity : BaseActivity<ActivityMainBinding>(), PlaybackListener {
         binding.pairingDeviceName.text = SignageRuntime.state().deviceName
         binding.pairingAddress.text = code.controlAddress ?: getString(R.string.pairing_waiting_for_network)
         binding.pairingQrCode.setImageBitmap(code.qrBitmap)
-        binding.pairingQrCode.visibility = if (code.qrBitmap == null) View.GONE else View.VISIBLE
+        val pairingAvailable = code.qrBitmap != null
+        binding.pairingQrCode.visibility = if (pairingAvailable) View.VISIBLE else View.GONE
+        binding.pairingAccessCodeLabel.visibility = if (pairingAvailable) View.VISIBLE else View.GONE
+        binding.pairingAccessCode.visibility = if (pairingAvailable) View.VISIBLE else View.GONE
+        binding.pairingAccessCode.text = code.accessCode
         binding.pairingHint.text = getString(
-            if (code.qrBitmap == null) R.string.pairing_network_hint else R.string.pairing_scan_hint
+            if (pairingAvailable) R.string.pairing_scan_hint else R.string.pairing_network_hint
         )
     }
 

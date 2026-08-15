@@ -14,3 +14,4 @@ feature/*/build/
 keystore.properties
 *.jks
 *.keystore
+/.idea/

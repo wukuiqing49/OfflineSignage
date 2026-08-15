@@ -14,9 +14,16 @@
     <string name="control_address">Control address</string>
     <string name="control_hint">Open http://device-ip:8080 in a browser to control playback</string>
     <string name="pairing_ready">Ready</string>
+    <string name="home_brand_label">LOCAL SIGNAGE · DEVICE HUB</string>
+    <string name="home_title">Device control center</string>
+    <string name="home_subtitle">Manage content from a phone or computer while the display keeps playing reliably.</string>
     <string name="pairing_scan_hint">Scan on a phone, or enter the 6-digit code above in a computer browser</string>
     <string name="pairing_network_hint">Connect to a local network to show the pairing code</string>
     <string name="pairing_waiting_for_network">Waiting for a local network</string>
+    <string name="open_hotspot_settings">Open Wi‑Fi hotspot settings</string>
+    <string name="start_local_hotspot">Start device hotspot</string>
+    <string name="stop_local_hotspot">Stop device hotspot</string>
+    <string name="hotspot_credentials">Hotspot: %1$s\nPassword: %2$s</string>
     <string name="pairing_qr_content_description">Control console pairing QR code</string>
     <string name="pairing_computer_code">Computer pairing code</string>
     <string name="pairing_computer_code_content_description">One-time computer browser pairing code</string>

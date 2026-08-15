@@ -42,10 +42,18 @@ object PairingCodeProvider {
     }
 
     private fun localIpv4Address(): String? = runCatching {
-        val interfaces = NetworkInterface.getNetworkInterfaces()
-        while (interfaces.hasMoreElements()) {
-            val networkInterface = interfaces.nextElement()
-            if (!networkInterface.isUp || networkInterface.isLoopback) continue
+        val interfaces = NetworkInterface.getNetworkInterfaces().toList()
+            .filter { it.isUp && !it.isLoopback }
+            // 热点接口名称随厂商变化，按常见 AP/tether 命名优先，但不依赖固定 IP。
+            .sortedByDescending { networkInterface ->
+                val name = networkInterface.name.lowercase()
+                when {
+                    name.contains("ap") || name.contains("tether") || name.contains("hotspot") -> 2
+                    name.contains("wlan") || name.contains("wifi") -> 1
+                    else -> 0
+                }
+            }
+        for (networkInterface in interfaces) {
             val addresses = networkInterface.inetAddresses
             while (addresses.hasMoreElements()) {
                 val address = addresses.nextElement()

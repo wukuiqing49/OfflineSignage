@@ -2,6 +2,9 @@ package com.wkq.localsignage
 
 import android.content.Intent
 import android.content.pm.ActivityInfo
+import android.content.pm.PackageManager
+import android.os.Build
+import android.provider.Settings
 import android.os.Handler
 import android.os.Looper
 import android.view.MotionEvent
@@ -9,6 +12,7 @@ import android.view.View
 import android.view.ViewConfiguration
 import android.view.WindowManager
 import androidx.core.content.ContextCompat
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.core.view.WindowCompat
 import androidx.core.view.WindowInsetsCompat
 import androidx.core.view.WindowInsetsControllerCompat
@@ -24,6 +28,12 @@ class MainActivity : BaseActivity<ActivityMainBinding>(), PlaybackListener {
     private var appliedKeepScreenAwake: Boolean? = null
     private var appliedFullscreen: Boolean? = null
     private var pairingManuallyOpened = false
+    private var hotspotInfo: LocalHotspotController.HotspotInfo? = null
+    private val hotspotPermissionLauncher = registerForActivityResult(
+        ActivityResultContracts.RequestMultiplePermissions()
+    ) { permissions ->
+        if (permissions.values.all { it }) startLocalHotspot() else openHotspotSettings()
+    }
     private var touchDownX = 0f
     private var touchDownY = 0f
     private val touchSlopSquared by lazy {
@@ -63,6 +73,9 @@ class MainActivity : BaseActivity<ActivityMainBinding>(), PlaybackListener {
         }
         binding.showPairingButton.setOnClickListener { openPairingPanel() }
         binding.closePairingButton.setOnClickListener { closePairingPanel() }
+        binding.openHotspotSettingsButton.setOnClickListener { toggleLocalHotspot() }
+        hotspotInfo = LocalHotspotController.currentInfo()
+        updateHotspotUi()
         updateContentMode()
     }
 
@@ -123,6 +136,77 @@ class MainActivity : BaseActivity<ActivityMainBinding>(), PlaybackListener {
         updateContentMode()
     }
 
+    private fun openHotspotSettings() {
+        // 部分 SDK 没有暴露 ACTION_TETHER_SETTINGS 常量，使用系统公开 action 字符串兼容调用。
+        val intent = Intent("android.settings.TETHER_SETTINGS")
+        runCatching { startActivity(intent) }
+            .onFailure {
+                runCatching { startActivity(Intent(Settings.ACTION_WIRELESS_SETTINGS)) }
+                    .onFailure {
+                        runCatching { startActivity(Intent(Settings.ACTION_WIFI_SETTINGS)) }
+                    }
+            }
+    }
+
+    private fun toggleLocalHotspot() {
+        if (LocalHotspotController.isActive()) {
+            LocalHotspotController.stop()
+            hotspotInfo = null
+            updateHotspotUi()
+            return
+        }
+        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.O) {
+            openHotspotSettings()
+            return
+        }
+        val missingPermissions = hotspotPermissions().filter {
+            ContextCompat.checkSelfPermission(this, it) != PackageManager.PERMISSION_GRANTED
+        }
+        if (missingPermissions.isNotEmpty()) {
+            hotspotPermissionLauncher.launch(missingPermissions.toTypedArray())
+        } else {
+            startLocalHotspot()
+        }
+    }
+
+    private fun startLocalHotspot() {
+        LocalHotspotController.start(
+            this,
+            onStarted = { value ->
+                hotspotInfo = value
+                updateHotspotUi()
+                refreshPairingPanel()
+            },
+            onFailed = {
+                openHotspotSettings()
+            }
+        )
+    }
+
+    private fun hotspotPermissions(): List<String> = when {
+        Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU ->
+            listOf("android.permission.NEARBY_WIFI_DEVICES")
+        Build.VERSION.SDK_INT >= Build.VERSION_CODES.O ->
+            listOf("android.permission.ACCESS_FINE_LOCATION")
+        else -> emptyList()
+    }
+
+    private fun updateHotspotUi() {
+        binding.openHotspotSettingsButton.setText(
+            if (LocalHotspotController.isActive()) R.string.stop_local_hotspot
+            else R.string.start_local_hotspot
+        )
+        val current = hotspotInfo
+        binding.pairingHotspotInfo.visibility = if (current == null) View.GONE else View.VISIBLE
+        if (current != null) {
+            binding.pairingHotspotInfo.text = getString(
+                R.string.hotspot_credentials,
+                current.ssid,
+                current.passphrase
+            )
+        }
+    }
+
     override fun dispatchTouchEvent(event: MotionEvent): Boolean {
         when (event.actionMasked) {
             MotionEvent.ACTION_DOWN -> {
@@ -177,6 +261,7 @@ class MainActivity : BaseActivity<ActivityMainBinding>(), PlaybackListener {
         binding.pairingAccessCodeLabel.visibility = if (pairingAvailable) View.VISIBLE else View.GONE
         binding.pairingAccessCode.visibility = if (pairingAvailable) View.VISIBLE else View.GONE
         binding.pairingAccessCode.text = code.accessCode
+        updateHotspotUi()
         binding.pairingHint.text = getString(
             if (pairingAvailable) R.string.pairing_scan_hint else R.string.pairing_network_hint
         )

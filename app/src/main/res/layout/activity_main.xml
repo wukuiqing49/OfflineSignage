@@ -64,8 +64,13 @@
         <LinearLayout
             android:layout_width="match_parent"
             android:layout_height="match_parent"
+            android:background="@drawable/bg_pairing_card"
             android:gravity="center"
             android:orientation="horizontal"
+            android:layout_marginStart="@dimen/pairing_screen_padding"
+            android:layout_marginTop="@dimen/pairing_screen_padding"
+            android:layout_marginEnd="@dimen/pairing_screen_padding"
+            android:layout_marginBottom="@dimen/pairing_screen_padding"
             android:padding="@dimen/pairing_screen_padding">
 
             <ImageView
@@ -84,6 +89,37 @@
                 android:layout_weight="1"
                 android:gravity="start"
                 android:orientation="vertical">
+
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:background="@drawable/bg_welcome_label"
+                    android:paddingStart="12dp"
+                    android:paddingTop="6dp"
+                    android:paddingEnd="12dp"
+                    android:paddingBottom="6dp"
+                    android:text="@string/home_brand_label"
+                    android:textColor="@color/welcome_accent"
+                    android:textSize="12sp"
+                    android:textStyle="bold" />
+
+                <TextView
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="16dp"
+                    android:text="@string/home_title"
+                    android:textColor="@color/pairing_text_primary"
+                    android:textSize="30sp"
+                    android:textStyle="bold" />
+
+                <TextView
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="6dp"
+                    android:maxLines="2"
+                    android:text="@string/home_subtitle"
+                    android:textColor="@color/pairing_text_secondary"
+                    android:textSize="14sp" />
 
                 <TextView
                     android:id="@+id/pairing_device_name"
@@ -111,6 +147,17 @@
                     android:textColor="@color/pairing_text_primary"
                     android:textIsSelectable="true"
                     android:textSize="18sp" />
+
+                <TextView
+                    android:id="@+id/pairing_hotspot_info"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="@dimen/app_spacing_small"
+                    android:maxLines="3"
+                    android:textColor="@color/pairing_text_secondary"
+                    android:textIsSelectable="true"
+                    android:textSize="14sp"
+                    android:visibility="gone" />
 
                 <TextView
                     android:id="@+id/pairing_access_code_label"
@@ -142,6 +189,14 @@
                     android:text="@string/pairing_scan_hint"
                     android:textColor="@color/pairing_text_secondary"
                     android:textSize="14sp" />
+
+                <com.google.android.material.button.MaterialButton
+                    android:id="@+id/open_hotspot_settings_button"
+                    style="@style/Widget.Material3.Button.OutlinedButton"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="@dimen/app_spacing_medium"
+                    android:text="@string/open_hotspot_settings" />
 
                 <com.google.android.material.button.MaterialButton
                     android:id="@+id/close_pairing_button"

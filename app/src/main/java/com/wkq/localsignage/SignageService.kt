@@ -15,6 +15,7 @@ import android.os.Handler
 import android.os.IBinder
 import android.os.Looper
 import androidx.core.app.NotificationCompat
+import androidx.core.content.ContextCompat
 import com.wkq.localsignage.feature.app.runtime.SignageRuntime
 import com.wkq.localsignage.feature.app.discovery.LocalDeviceDiscovery
 import com.wkq.localsignage.feature.app.player.SignagePlaybackController
@@ -54,6 +55,13 @@ class SignageService : Service() {
     }
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int = START_STICKY
+
+    override fun onTaskRemoved(rootIntent: Intent?) {
+        // 从最近任务移除 Activity 时，继续保持广告机服务；部分厂商会同时回收任务关联服务，
+        // 因此主动请求一次前台服务恢复。用户在系统设置中“强行停止”应用时，Android 仍会阻止自动重启。
+        runCatching { ContextCompat.startForegroundService(this, Intent(this, SignageService::class.java)) }
+        super.onTaskRemoved(rootIntent)
+    }
 
     override fun onDestroy() {
         networkHandler.removeCallbacks(restartDiscovery)

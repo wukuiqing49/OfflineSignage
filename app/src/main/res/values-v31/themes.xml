@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <style name="Theme.LocalSignage.Splash" parent="Theme.LocalSignage.Base">
+        <item name="android:windowSplashScreenBackground">@color/welcome_background</item>
+        <item name="android:windowSplashScreenAnimatedIcon">@mipmap/ic_launcher</item>
+        <item name="android:windowSplashScreenIconBackgroundColor">@color/welcome_accent_surface</item>
+    </style>
+</resources>

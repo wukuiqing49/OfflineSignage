@@ -14,9 +14,16 @@
     <string name="control_address">控制地址</string>
     <string name="control_hint">浏览器访问 http://设备IP:8080 上传资源和控制播放</string>
     <string name="pairing_ready">已就绪</string>
+    <string name="home_brand_label">LOCAL SIGNAGE · DEVICE HUB</string>
+    <string name="home_title">设备控制中心</string>
+    <string name="home_subtitle">通过手机或电脑浏览器管理内容，并让屏幕持续稳定播放。</string>
     <string name="pairing_scan_hint">手机扫描二维码，电脑浏览器输入上方 6 位配对码</string>
     <string name="pairing_network_hint">连接局域网后将显示二维码</string>
     <string name="pairing_waiting_for_network">正在等待局域网连接</string>
+    <string name="open_hotspot_settings">打开 Wi‑Fi 热点设置</string>
+    <string name="start_local_hotspot">启动本机热点</string>
+    <string name="stop_local_hotspot">关闭本机热点</string>
+    <string name="hotspot_credentials">热点：%1$s\n密码：%2$s</string>
     <string name="pairing_qr_content_description">控制台配对二维码</string>
     <string name="pairing_computer_code">电脑配对码</string>
     <string name="pairing_computer_code_content_description">电脑浏览器一次性配对码</string>

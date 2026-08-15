@@ -2,6 +2,9 @@
     <color name="primary">#1B5E20</color>
     <color name="on_primary">#FFFFFF</color>
     <color name="pairing_background">#101418</color>
+    <color name="pairing_surface">#17212A</color>
+    <color name="pairing_surface_stroke">#2B3A46</color>
+    <color name="pairing_text_muted">#81909D</color>
     <color name="pairing_qr_background">#FFFFFF</color>
     <color name="pairing_text_primary">#FFFFFF</color>
     <color name="pairing_text_secondary">#B8C2CC</color>

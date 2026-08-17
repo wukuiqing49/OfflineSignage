@@ -14,4 +14,6 @@
     <color name="welcome_text_secondary">#536159</color>
     <color name="welcome_accent">#1B6B3A</color>
     <color name="welcome_accent_surface">#E2F0E7</color>
+    <color name="welcome_surface">#FFFFFF</color>
+    <color name="welcome_surface_stroke">#D8E0DA</color>
 </resources>

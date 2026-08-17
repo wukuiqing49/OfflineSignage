@@ -32,6 +32,7 @@
     <string name="welcome_label">LOCAL-FIRST · NO ACCOUNT</string>
     <string name="welcome_title">Welcome to Local Signage</string>
     <string name="welcome_summary">Turn this device into a signage screen and manage content from a phone or computer on the same local network.</string>
+    <string name="welcome_setup_title">Set up this device in three steps</string>
     <string name="welcome_step_network">1  Connect the display and phone to the same local network</string>
     <string name="welcome_step_pair">2  Scan on a phone, or enter the pairing code on a computer</string>
     <string name="welcome_step_play">3  Add content and start full-screen playback</string>

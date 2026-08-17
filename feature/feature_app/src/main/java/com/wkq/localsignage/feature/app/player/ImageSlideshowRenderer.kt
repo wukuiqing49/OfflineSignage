@@ -11,6 +11,7 @@ import coil.ImageLoader
 import coil.load
 import coil.request.CachePolicy
 import coil.request.ImageRequest
+import coil.size.Precision
 import com.wkq.localsignage.feature.app.model.SignageResource
 import com.wkq.localsignage.feature.app.model.SignageScene
 import com.wkq.localsignage.feature.app.runtime.SignageRuntime
@@ -30,6 +31,8 @@ internal class ImageSlideshowRenderer(private val pager: ViewPager2) {
         .build()
     private val adapter = SlideAdapter(imageLoader)
     private var slideKeys: List<SlideKey> = emptyList()
+    private var renderGeneration = 0L
+    private var released = false
 
     init {
         pager.adapter = adapter
@@ -38,7 +41,8 @@ internal class ImageSlideshowRenderer(private val pager: ViewPager2) {
     }
 
     fun show(slides: List<ImageSlide>, index: Int) {
-        val keys = slides.map {
+        val nextSlides = slides.toList()
+        val keys = nextSlides.map {
             SlideKey(
                 sceneId = it.scene.id,
                 fitMode = it.scene.fitMode,
@@ -48,29 +52,41 @@ internal class ImageSlideshowRenderer(private val pager: ViewPager2) {
                 sourceUri = it.resource.sourceUri
             )
         }
-        if (keys != slideKeys) {
-            slideKeys = keys
-            adapter.submit(slides)
-        }
-        if (slides.isNotEmpty()) {
-            val target = index.coerceIn(0, slides.lastIndex)
-            // 广告屏切图不能露出 ViewPager2 横向滚动过程中的空白区域。
-            pager.setCurrentItem(target, false)
-            prefetch(slides[(target + 1) % slides.size])
+        val generation = ++renderGeneration
+        pager.post {
+            if (released || generation != renderGeneration) return@post
+            if (keys != slideKeys) {
+                slideKeys = keys
+                adapter.submit(nextSlides)
+            }
+            if (nextSlides.isNotEmpty()) {
+                val target = index.coerceIn(0, nextSlides.lastIndex)
+                // 广告屏切图不能露出 ViewPager2 横向滚动过程中的空白区域。
+                pager.setCurrentItem(target, false)
+                if (nextSlides.size > 1) {
+                    prefetch(nextSlides[(target + 1) % nextSlides.size])
+                }
+            }
         }
     }
 
     fun release() {
+        released = true
+        renderGeneration += 1
         slideKeys = emptyList()
-        adapter.submit(emptyList())
         pager.adapter = null
         imageLoader.shutdown()
     }
 
     private fun prefetch(slide: ImageSlide) {
+        val targetWidth = pager.width
+        val targetHeight = pager.height
+        if (targetWidth <= 0 || targetHeight <= 0) return
         imageLoader.enqueue(
             ImageRequest.Builder(pager.context)
                 .data(slide.data)
+                .size(targetWidth, targetHeight)
+                .precision(Precision.INEXACT)
                 .memoryCachePolicy(CachePolicy.ENABLED)
                 .diskCachePolicy(CachePolicy.ENABLED)
                 .build()

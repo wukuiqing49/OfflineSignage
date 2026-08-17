@@ -32,6 +32,7 @@
     <string name="welcome_label">本地优先 · 无需账号</string>
     <string name="welcome_title">欢迎使用 Local Signage</string>
     <string name="welcome_summary">将这台设备设为广告播放屏，并通过同一局域网中的手机或电脑完成内容管理。</string>
+    <string name="welcome_setup_title">三步完成设备初始化</string>
     <string name="welcome_step_network">1　将广告屏和手机连接到同一局域网</string>
     <string name="welcome_step_pair">2　手机扫描二维码，或电脑输入配对码</string>
     <string name="welcome_step_play">3　上传内容并开始全屏播放</string>

@@ -13,6 +13,7 @@ import com.wkq.localsignage.feature.app.model.SignageOverlay
 import com.wkq.localsignage.feature.app.model.TextStylePolicy
 import com.wkq.localsignage.feature.app.model.PlaybackTimingPolicy
 import com.wkq.localsignage.feature.app.model.PairedDevice
+import com.wkq.localsignage.feature.app.model.DeviceAssignment
 import com.wkq.localsignage.feature.app.device.SignageDeviceFleet
 import com.wkq.localsignage.feature.app.player.SignagePlaybackController
 import com.wkq.localsignage.feature.app.discovery.LocalDeviceDiscovery
@@ -33,12 +34,15 @@ import io.ktor.server.engine.embeddedServer
 import io.ktor.server.websocket.WebSockets
 import io.ktor.server.request.receiveMultipart
 import io.ktor.server.request.receiveText
+import io.ktor.server.request.httpMethod
+import io.ktor.server.request.path
 import io.ktor.server.response.respondFile
 import io.ktor.server.response.respondBytes
 import io.ktor.server.response.respondText
 import io.ktor.server.routing.delete
 import io.ktor.server.routing.get
 import io.ktor.server.routing.post
+import io.ktor.server.routing.put
 import io.ktor.server.routing.routing
 import io.ktor.server.websocket.webSocket
 import io.ktor.websocket.CloseReason
@@ -48,9 +52,14 @@ import io.ktor.websocket.close
 import io.ktor.websocket.readText
 import io.ktor.utils.io.jvm.javaio.toInputStream
 import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.async
 import kotlinx.coroutines.cancel
+import kotlinx.coroutines.awaitAll
+import kotlinx.coroutines.coroutineScope
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import kotlinx.coroutines.sync.Mutex
@@ -59,6 +68,7 @@ import org.json.JSONArray
 import org.json.JSONObject
 import java.io.ByteArrayOutputStream
 import java.security.MessageDigest
+import java.util.concurrent.ConcurrentHashMap
 import java.util.concurrent.CopyOnWriteArraySet
 
 class KtorSignageServer(context: Context, private val port: Int) {
@@ -67,6 +77,7 @@ class KtorSignageServer(context: Context, private val port: Int) {
     private var broadcastScope: CoroutineScope? = null
     private val webSocketSessions = CopyOnWriteArraySet<WebSocketSession>()
     private val commandMutex = Mutex()
+    private val assignmentMutexes = ConcurrentHashMap<String, Mutex>()
     private val pairingAttemptLimiter = PairingAttemptLimiter()
     private val stateListener: () -> Unit = { broadcastState() }
 
@@ -183,6 +194,41 @@ class KtorSignageServer(context: Context, private val port: Int) {
                     if (!call.authorized(requireSession = false)) return@get
                     call.respondJson(pairedDevicesJson())
                 }
+                get("/api/device-assignments") {
+                    if (!call.authorized(requireSession = false)) return@get
+                    call.respondJson(jsonArray(SignageRuntime.deviceAssignments(), ::deviceAssignmentJson))
+                }
+                put("/api/devices/{id}/assignment") {
+                    if (!call.authorized()) return@put
+                    try {
+                        val deviceId = call.parameters["id"].orEmpty()
+                        val body = JSONObject(call.receiveText())
+                        val playlistId = body.optString("playlistId").takeIf { it.isNotBlank() }
+                            ?: throw IllegalArgumentException("PLAYLIST_REQUIRED")
+                        require(SignageRuntime.pairedDevice(deviceId) != null) { "DEVICE_NOT_PAIRED" }
+                        require(SignageRuntime.playlist(playlistId) != null) { "PLAYLIST_NOT_FOUND" }
+                        val assignment = SignageRuntime.saveDeviceAssignment(
+                            deviceId = deviceId,
+                            playlistId = playlistId,
+                            desiredPlaying = body.optBoolean("play", true)
+                        )
+                        deployAssignment(assignment)
+                        call.respondJson(
+                            deviceAssignmentJson(SignageRuntime.deviceAssignment(deviceId) ?: assignment),
+                            HttpStatusCode.OK
+                        )
+                    } catch (error: IllegalArgumentException) {
+                        call.respondJson(errorJson(error.message ?: "INVALID_ASSIGNMENT"), HttpStatusCode.BadRequest)
+                    } catch (_: Exception) {
+                        call.respondJson(errorJson("ASSIGNMENT_DEPLOY_FAILED"), HttpStatusCode.InternalServerError)
+                    }
+                }
+                delete("/api/devices/{id}/assignment") {
+                    if (!call.authorized()) return@delete
+                    val deviceId = call.parameters["id"].orEmpty()
+                    val deleted = SignageRuntime.deleteDeviceAssignment(deviceId)
+                    call.respondJson("{\"deleted\":$deleted}", if (deleted) HttpStatusCode.OK else HttpStatusCode.NotFound)
+                }
                 get("/api/devices/status") {
                     if (!call.authorized(requireSession = false)) return@get
                     val targets = SignageRuntime.pairedDevices()
@@ -269,6 +315,11 @@ class KtorSignageServer(context: Context, private val port: Int) {
                     if (!call.authorized()) return@get
                     call.respondJson(errorsJson())
                 }
+                get("/api/operations") {
+                    if (!call.authorized(requireSession = false)) return@get
+                    val limit = call.request.queryParameters["limit"]?.toIntOrNull() ?: 100
+                    call.respondJson(operationRecordsJson(limit))
+                }
                 get("/api/diagnostics") {
                     if (!call.authorized(requireSession = false)) return@get
                     call.respondJson(diagnosticsJson())
@@ -284,6 +335,11 @@ class KtorSignageServer(context: Context, private val port: Int) {
                 delete("/api/errors") {
                     if (!call.authorized()) return@delete
                     SignageRuntime.clearPlaybackErrors()
+                    call.respondJson("{\"cleared\":true}")
+                }
+                delete("/api/operations") {
+                    if (!call.authorized()) return@delete
+                    SignageRuntime.clearOperationRecords()
                     call.respondJson("{\"cleared\":true}")
                 }
                 get("/api/control/session") {
@@ -785,6 +841,7 @@ class KtorSignageServer(context: Context, private val port: Int) {
         }
         server.start(wait = false)
         engine = server.engine
+        broadcastScope?.launch { retryDeviceAssignments() }
     }
 
     fun stop() {
@@ -850,6 +907,68 @@ class KtorSignageServer(context: Context, private val port: Int) {
         }
     }
 
+    private suspend fun deployAssignment(assignment: DeviceAssignment) {
+        assignmentMutexes.computeIfAbsent(assignment.deviceId) { Mutex() }.withLock {
+            val current = SignageRuntime.deviceAssignment(assignment.deviceId) ?: return@withLock
+            if (current.desiredRevision != assignment.desiredRevision || current.state == "APPLIED") return@withLock
+            deployCurrentAssignment(current)
+        }
+    }
+
+    private suspend fun deployCurrentAssignment(assignment: DeviceAssignment) {
+        val target = SignageRuntime.pairedDevice(assignment.deviceId)
+        val playlist = SignageRuntime.playlist(assignment.playlistId)
+        if (target == null || playlist == null) {
+            SignageRuntime.updateDeviceAssignmentResult(
+                assignment.deviceId,
+                assignment.desiredRevision,
+                success = false,
+                error = if (target == null) "DEVICE_NOT_PAIRED" else "PLAYLIST_NOT_FOUND"
+            )
+            return
+        }
+        try {
+            val scenes = playlist.items.mapNotNull { SignageRuntime.scene(it.sceneId) }.distinctBy { it.id }
+            val resources = scenes.mapNotNull { SignageRuntime.resource(it.resourceId) }.associateBy { it.id }
+            val files = resources.values.filter { it.isLocalFile }.associate { it.id to SignageRuntime.fileFor(it) }
+            val syncResult = withContext(Dispatchers.IO) {
+                SignageDeviceFleet.syncPlaylist(playlist, scenes, resources, files, listOf(target)).single()
+            }
+            require(syncResult.success) { syncResult.code }
+            val command = if (assignment.desiredPlaying) {
+                withContext(Dispatchers.IO) {
+                    SignageDeviceFleet.command("PLAY_PLAYLIST", null, playlist, null, listOf(target)).single()
+                }
+            } else {
+                withContext(Dispatchers.IO) {
+                    SignageDeviceFleet.command("PAUSE", null, null, null, listOf(target)).single()
+                }
+            }
+            require(command.success) { command.code }
+            SignageRuntime.updateDeviceAssignmentResult(assignment.deviceId, assignment.desiredRevision, true)
+        } catch (error: CancellationException) {
+            throw error
+        } catch (error: Exception) {
+            SignageRuntime.updateDeviceAssignmentResult(
+                assignment.deviceId,
+                assignment.desiredRevision,
+                success = false,
+                error = error.message ?: "ASSIGNMENT_DEPLOY_FAILED"
+            )
+        }
+    }
+
+    private suspend fun retryDeviceAssignments() {
+        while (true) {
+            val assignments = SignageRuntime.deviceAssignments()
+                .filter { it.state == "PENDING" || it.state == "FAILED" }
+            coroutineScope {
+                assignments.map { assignment -> async { deployAssignment(assignment) } }.awaitAll()
+            }
+            delay(ASSIGNMENT_RETRY_INTERVAL_MS)
+        }
+    }
+
     private suspend fun ApplicationCall.respondFleetPlaylistCommand() {
         if (!authorized()) return
         try {
@@ -873,8 +992,46 @@ class KtorSignageServer(context: Context, private val port: Int) {
     private fun ApplicationCall.sessionId(): String? =
         request.headers["X-Local-Signage-Session"] ?: request.headers["X-Control-Session"]
 
-    private suspend fun ApplicationCall.respondJson(body: String, status: HttpStatusCode = HttpStatusCode.OK) =
+    private suspend fun ApplicationCall.respondJson(body: String, status: HttpStatusCode = HttpStatusCode.OK) {
+        auditMutation(status)
         respondText(body, ContentType.Application.Json, status)
+    }
+
+    private fun ApplicationCall.auditMutation(status: HttpStatusCode) {
+        val method = request.httpMethod.value.uppercase()
+        if (method !in setOf("POST", "PUT", "DELETE")) return
+        val path = request.path()
+        val action = auditAction(method, path) ?: return
+        val activeSession = SignageRuntime.controlSession() ?: return
+        if (sessionId() != activeSession.sessionId) return
+        runCatching {
+            SignageRuntime.recordOperation(
+                clientName = activeSession.clientName,
+                deviceId = SignageRuntime.state().deviceId,
+                action = action,
+                result = if (status.value < 400) "SUCCESS" else "FAILED",
+                statusCode = status.value
+            )
+        }
+    }
+
+    private fun auditAction(method: String, path: String): String? = when {
+        path == "/api/control" -> "PLAYBACK_CONTROL"
+        path == "/api/resources/upload" -> "SEND_MEDIA"
+        path == "/api/resources/link" -> "SEND_REMOTE_MEDIA"
+        path == "/api/resources/remote" -> "SEND_REMOTE_MEDIA"
+        path == "/api/resources/virtual" -> "SEND_CONTENT"
+        path == "/api/resources/text-batch" -> "SEND_TEXT_SEQUENCE"
+        path == "/api/settings" -> "UPDATE_DEVICE_SETTINGS"
+        path == "/api/operations" -> null
+        path == "/api/errors" -> "CLEAR_PLAYBACK_ERRORS"
+        path.startsWith("/api/devices/") || path == "/api/devices/pair" -> "MANAGE_DEVICES"
+        path.startsWith("/api/resources/") && method == "DELETE" -> "DELETE_CONTENT"
+        path.startsWith("/api/playlists") -> "MANAGE_PLAYLIST"
+        path.startsWith("/api/scenes") -> "MANAGE_DISPLAY"
+        path.startsWith("/api/access/") || path.startsWith("/api/pairing/") || path.startsWith("/api/control/session") -> null
+        else -> null
+    }
 
     private suspend fun ApplicationCall.respondPairing(pairing: TemporaryPairingToken) {
         try {
@@ -925,6 +1082,11 @@ class KtorSignageServer(context: Context, private val port: Int) {
     }
 
     private fun pairedDevicesJson(): String = jsonArray(SignageRuntime.pairedDevices(), ::pairedDeviceJson)
+    private fun deviceAssignmentJson(assignment: com.wkq.localsignage.feature.app.model.DeviceAssignment): String =
+        "{\"deviceId\":${quote(assignment.deviceId)},\"playlistId\":${quote(assignment.playlistId)}," +
+            "\"desiredRevision\":${assignment.desiredRevision},\"desiredPlaying\":${assignment.desiredPlaying}," +
+            "\"state\":${quote(assignment.state)},\"appliedRevision\":${assignment.appliedRevision ?: "null"}," +
+            "\"lastSyncAt\":${assignment.lastSyncAt ?: "null"},\"lastError\":${assignment.lastError?.let(::quote) ?: "null"}}"
     private fun pairedDeviceJson(device: PairedDevice): String = "{\"deviceId\":${quote(device.deviceId)},\"deviceName\":${quote(device.deviceName)},\"host\":${quote(device.host)},\"port\":${device.port},\"pairedAt\":${device.pairedAt}}"
     private fun fleetResultsJson(results: List<SignageDeviceFleet.FleetResult>): String = jsonArray(results) { result ->
         "{\"deviceId\":${quote(result.deviceId)},\"deviceName\":${quote(result.deviceName)},\"success\":${result.success},\"skipped\":${result.skipped},\"code\":${quote(result.code)}}"
@@ -965,6 +1127,11 @@ class KtorSignageServer(context: Context, private val port: Int) {
         "{\"id\":${error.id},\"mediaId\":${error.mediaId?.let(::quote) ?: "null"}," +
             "\"sceneId\":${error.sceneId?.let(::quote) ?: "null"},\"errorCode\":${quote(error.errorCode)}," +
             "\"action\":${quote(error.action)},\"attempt\":${error.attempt},\"createdAt\":${error.createdAt}}"
+    }
+    private fun operationRecordsJson(limit: Int): String = jsonArray(SignageRuntime.operationRecords(limit)) { record ->
+        "{\"id\":${record.id},\"createdAt\":${record.createdAt},\"clientName\":${quote(record.clientName)}," +
+            "\"deviceId\":${quote(record.deviceId)},\"action\":${quote(record.action)}," +
+            "\"result\":${quote(record.result)},\"statusCode\":${record.statusCode}}"
     }
 
     private fun diagnosticsJson(): String {
@@ -1069,10 +1236,12 @@ class KtorSignageServer(context: Context, private val port: Int) {
         if (array == null) return@buildList
         for (index in 0 until array.length()) {
             val item = array.optJSONObject(index) ?: continue
+            val type = item.optString("type", "TEXT").uppercase()
             val content = item.optString("content").takeIf { it.isNotBlank() } ?: continue
+            if (type == "HTML") validateHtmlOverlay(content)
             add(SignageOverlay(
                 id = item.optString("id").ifBlank { java.util.UUID.randomUUID().toString() },
-                type = item.optString("type", "TEXT").uppercase(),
+                type = type,
                 content = content,
                 horizontalPosition = item.optString("horizontalPosition", "CENTER").uppercase(),
                 verticalPosition = item.optString("verticalPosition", "BOTTOM").uppercase(),
@@ -1084,9 +1253,21 @@ class KtorSignageServer(context: Context, private val port: Int) {
                 fontFamily = TextStylePolicy.fontFamilyForText(item.optString("fontFamily"), content),
                 speedDpPerSecond = item.optInt("speedDpPerSecond", 80).coerceIn(10, 500),
                 enabled = item.optBoolean("enabled", true),
-                zIndex = item.optInt("zIndex", index)
+                zIndex = item.optInt("zIndex", index),
+                widthPercent = item.optInt("widthPercent", 42).coerceIn(10, 95),
+                heightPercent = item.optInt("heightPercent", 24).coerceIn(8, 90)
             ))
         }
+    }
+
+    private fun validateHtmlOverlay(content: String) {
+        require(content.toByteArray(Charsets.UTF_8).size <= 100_000) { "HTML_OVERLAY_TOO_LARGE" }
+        val blocked = Regex(
+            "<\\s*(script|iframe|object|embed|form|base)|" +
+                "\\bon[a-z]+\\s*=|javascript:|data:text/html|(?:https?:|file:|content:)//|url\\s*\\(",
+            RegexOption.IGNORE_CASE
+        )
+        require(!blocked.containsMatchIn(content)) { "HTML_OVERLAY_NOT_ALLOWED" }
     }
     private fun overlaysJson(overlays: List<SignageOverlay>): String = JSONArray().apply {
         overlays.forEach { overlay -> put(JSONObject().apply {
@@ -1096,6 +1277,7 @@ class KtorSignageServer(context: Context, private val port: Int) {
             put("paddingDp", overlay.paddingDp); put("cornerRadiusDp", overlay.cornerRadiusDp); put("fontFamily", overlay.fontFamily)
             put("speedDpPerSecond", overlay.speedDpPerSecond)
             put("enabled", overlay.enabled); put("zIndex", overlay.zIndex)
+            put("widthPercent", overlay.widthPercent); put("heightPercent", overlay.heightPercent)
         }) }
     }.toString()
 
@@ -1109,6 +1291,7 @@ class KtorSignageServer(context: Context, private val port: Int) {
         const val WEB_ACCESS_TOKEN_TTL_MS = 8 * 60 * 60 * 1000L
         const val MAX_MEDIA_BATCH_SIZE = 20
         const val MAX_TEXT_BATCH_SIZE = 20
+        const val ASSIGNMENT_RETRY_INTERVAL_MS = 30_000L
     }
 
     private val webConsoleTemplate: String by lazy {

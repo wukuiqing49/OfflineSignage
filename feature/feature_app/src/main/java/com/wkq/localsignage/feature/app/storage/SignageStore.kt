@@ -15,8 +15,10 @@ import com.wkq.localsignage.feature.app.model.SignageScene
 import com.wkq.localsignage.feature.app.model.SignageState
 import com.wkq.localsignage.feature.app.model.ControlSession
 import com.wkq.localsignage.feature.app.model.PlaybackErrorRecord
+import com.wkq.localsignage.feature.app.model.OperationRecord
 import com.wkq.localsignage.feature.app.model.SignageSettings
 import com.wkq.localsignage.feature.app.model.PairedDevice
+import com.wkq.localsignage.feature.app.model.DeviceAssignment
 import com.wkq.localsignage.feature.app.model.PlaybackTimingPolicy
 import com.wkq.localsignage.feature.app.model.PlaylistPolicy
 import com.wkq.localsignage.feature.app.model.ResourceKind
@@ -295,7 +297,66 @@ class SignageStore(context: Context) {
     }
 
     fun deletePairedDevice(deviceId: String): Boolean = synchronized(lock) {
-        database.writableDatabase.delete("paired_devices", "device_id = ?", arrayOf(deviceId)) > 0
+        database.writableDatabase.inTransaction {
+            delete("device_assignments", "device_id = ?", arrayOf(deviceId))
+            delete("paired_devices", "device_id = ?", arrayOf(deviceId)) > 0
+        }
+    }
+
+    fun deviceAssignments(): List<DeviceAssignment> = synchronized(lock) {
+        readDeviceAssignments(database.readableDatabase)
+    }
+
+    fun deviceAssignment(deviceId: String): DeviceAssignment? = synchronized(lock) {
+        readDeviceAssignments(database.readableDatabase).firstOrNull { it.deviceId == deviceId }
+    }
+
+    fun saveDeviceAssignment(
+        deviceId: String,
+        playlistId: String,
+        desiredPlaying: Boolean
+    ): DeviceAssignment = synchronized(lock) {
+        database.writableDatabase.inTransaction {
+            require(readPairedDevices(this).any { it.deviceId == deviceId }) { "DEVICE_NOT_PAIRED" }
+            val previous = readDeviceAssignments(this).firstOrNull { it.deviceId == deviceId }
+            val assignment = DeviceAssignment(
+                deviceId = deviceId,
+                playlistId = playlistId,
+                desiredRevision = (previous?.desiredRevision ?: 0L) + 1L,
+                desiredPlaying = desiredPlaying,
+                state = "PENDING",
+                appliedRevision = previous?.appliedRevision,
+                lastSyncAt = previous?.lastSyncAt,
+                lastError = null
+            )
+            insertDeviceAssignment(this, assignment)
+            assignment
+        }
+    }
+
+    fun updateDeviceAssignmentResult(
+        deviceId: String,
+        revision: Long,
+        success: Boolean,
+        error: String? = null
+    ): DeviceAssignment? = synchronized(lock) {
+        database.writableDatabase.inTransaction {
+            val current = readDeviceAssignments(this).firstOrNull { it.deviceId == deviceId }
+                ?: return@inTransaction null
+            if (current.desiredRevision != revision) return@inTransaction current
+            val updated = current.copy(
+                state = if (success) "APPLIED" else "FAILED",
+                appliedRevision = if (success) revision else current.appliedRevision,
+                lastSyncAt = System.currentTimeMillis(),
+                lastError = error
+            )
+            insertDeviceAssignment(this, updated)
+            updated
+        }
+    }
+
+    fun deleteDeviceAssignment(deviceId: String): Boolean = synchronized(lock) {
+        database.writableDatabase.delete("device_assignments", "device_id = ?", arrayOf(deviceId)) > 0
     }
 
     fun controlSession(sessionId: String? = null): ControlSession? = synchronized(lock) {
@@ -306,16 +367,15 @@ class SignageStore(context: Context) {
         }
     }
 
-    fun acquireControlSession(clientName: String, takeover: Boolean): ControlSession = synchronized(lock) {
+    fun acquireControlSession(clientName: String, takeover: Boolean): ControlSession? = synchronized(lock) {
         database.writableDatabase.inTransaction {
-            val existing = controlSessionsLocked(this).toMutableList()
+            if (controlSessionsLocked(this).isNotEmpty() && !takeover) return@inTransaction null
             val session = ControlSession(
                 UUID.randomUUID().toString(),
                 clientName.trim().take(MAX_CLIENT_NAME_LENGTH).ifBlank { "Browser" },
                 System.currentTimeMillis() + CONTROL_SESSION_TTL_MS
             )
-            existing += session
-            writeControlSessions(this, existing.takeLast(MAX_CONTROL_SESSIONS))
+            writeControlSessions(this, listOf(session))
             clearLegacySession(this)
             session
         }
@@ -841,6 +901,53 @@ class SignageStore(context: Context) {
         database.writableDatabase.delete("playback_errors", null, null)
     }
 
+    fun recordOperation(clientName: String, deviceId: String, action: String, result: String, statusCode: Int) = synchronized(lock) {
+        val db = database.writableDatabase
+        db.insert("operation_records", null, ContentValues().apply {
+            put("created_at", System.currentTimeMillis())
+            put("client_name", clientName.take(MAX_CLIENT_NAME_LENGTH))
+            put("device_id", deviceId.take(MAX_DEVICE_ID_LENGTH))
+            put("action", action.take(MAX_OPERATION_ACTION_LENGTH))
+            put("result", result.take(MAX_OPERATION_RESULT_LENGTH))
+            put("status_code", statusCode)
+        })
+        db.execSQL(
+            "DELETE FROM operation_records WHERE id NOT IN (SELECT id FROM operation_records ORDER BY id DESC LIMIT ?)",
+            arrayOf(MAX_OPERATION_HISTORY.toString())
+        )
+    }
+
+    fun operationRecords(limit: Int = MAX_OPERATION_HISTORY): List<OperationRecord> = synchronized(lock) {
+        buildList {
+            database.readableDatabase.query(
+                "operation_records",
+                OPERATION_COLUMNS,
+                null,
+                null,
+                null,
+                null,
+                "id DESC",
+                limit.coerceIn(1, MAX_OPERATION_HISTORY).toString()
+            ).use { cursor ->
+                while (cursor.moveToNext()) {
+                    add(OperationRecord(
+                        id = cursor.getLong(0),
+                        createdAt = cursor.getLong(1),
+                        clientName = cursor.getString(2),
+                        deviceId = cursor.getString(3),
+                        action = cursor.getString(4),
+                        result = cursor.getString(5),
+                        statusCode = cursor.getInt(6)
+                    ))
+                }
+            }
+        }
+    }
+
+    fun clearOperationRecords() = synchronized(lock) {
+        database.writableDatabase.delete("operation_records", null, null)
+    }
+
     private fun controlSessionsLocked(db: SQLiteDatabase): List<ControlSession> {
         val now = System.currentTimeMillis()
         val stored = runCatching {
@@ -856,7 +963,7 @@ class SignageStore(context: Context) {
                 }
             }
         }.getOrDefault(emptyList())
-        if (stored.isNotEmpty()) return stored
+        if (stored.isNotEmpty()) return listOf(stored.first())
         val legacyId = getMeta(db, KEY_SESSION_ID) ?: return emptyList()
         val legacyExpiry = getMeta(db, KEY_SESSION_EXPIRES)?.toLongOrNull() ?: return emptyList()
         return if (legacyExpiry > now) {
@@ -943,6 +1050,31 @@ class SignageStore(context: Context) {
         }
     }
 
+    private fun readDeviceAssignments(db: SQLiteDatabase): List<DeviceAssignment> = buildList {
+        db.query(
+            "device_assignments",
+            DEVICE_ASSIGNMENT_COLUMNS,
+            null,
+            null,
+            null,
+            null,
+            "device_id ASC"
+        ).use { cursor ->
+            while (cursor.moveToNext()) add(
+                DeviceAssignment(
+                    deviceId = cursor.getString(0),
+                    playlistId = cursor.getString(1),
+                    desiredRevision = cursor.getLong(2),
+                    desiredPlaying = cursor.getInt(3) != 0,
+                    state = cursor.getString(4),
+                    appliedRevision = cursor.getLongOrNull(5),
+                    lastSyncAt = cursor.getLongOrNull(6),
+                    lastError = cursor.getStringOrNull(7)
+                )
+            )
+        }
+    }
+
     private fun recoverEncryptedCredentials(cause: Exception): String {
         Log.e(TAG, "Encrypted device credentials are unavailable; rotating credentials and requiring re-pairing", cause)
         LocalSecretCipher.resetKey()
@@ -1017,6 +1149,19 @@ class SignageStore(context: Context) {
         }, SQLiteDatabase.CONFLICT_REPLACE)
     }
 
+    private fun insertDeviceAssignment(db: SQLiteDatabase, assignment: DeviceAssignment) {
+        db.insertWithOnConflict("device_assignments", null, ContentValues().apply {
+            put("device_id", assignment.deviceId)
+            put("playlist_id", assignment.playlistId)
+            put("desired_revision", assignment.desiredRevision)
+            put("desired_playing", if (assignment.desiredPlaying) 1 else 0)
+            put("state", assignment.state)
+            put("applied_revision", assignment.appliedRevision)
+            put("last_sync_at", assignment.lastSyncAt)
+            put("last_error", assignment.lastError)
+        }, SQLiteDatabase.CONFLICT_REPLACE)
+    }
+
     private fun insertScene(db: SQLiteDatabase, scene: SignageScene) {
         val values = ContentValues().apply {
             put("id", scene.id)
@@ -1080,6 +1225,7 @@ class SignageStore(context: Context) {
                 put("backgroundColor", overlay.backgroundColor); put("paddingDp", overlay.paddingDp)
                 put("cornerRadiusDp", overlay.cornerRadiusDp); put("fontFamily", overlay.fontFamily)
                 put("speedDpPerSecond", overlay.speedDpPerSecond); put("enabled", overlay.enabled); put("zIndex", overlay.zIndex)
+                put("widthPercent", overlay.widthPercent); put("heightPercent", overlay.heightPercent)
             })
         }
     }.toString()
@@ -1104,7 +1250,9 @@ class SignageStore(context: Context) {
                     fontFamily = TextStylePolicy.fontFamilyForText(item.optString("fontFamily"), content),
                     speedDpPerSecond = item.optInt("speedDpPerSecond", 80).coerceIn(10, 500),
                     enabled = item.optBoolean("enabled", true),
-                    zIndex = item.optInt("zIndex", index)
+                    zIndex = item.optInt("zIndex", index),
+                    widthPercent = item.optInt("widthPercent", 42).coerceIn(10, 95),
+                    heightPercent = item.optInt("heightPercent", 24).coerceIn(8, 90)
                 ))
             }
         }
@@ -1233,10 +1381,13 @@ class SignageStore(context: Context) {
             db.execSQL("CREATE TABLE meta (key TEXT PRIMARY KEY NOT NULL, value TEXT NOT NULL)")
             db.execSQL("CREATE TABLE playback_errors (id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, media_id TEXT, scene_id TEXT, error_code TEXT NOT NULL, action TEXT NOT NULL, attempt INTEGER NOT NULL, created_at INTEGER NOT NULL)")
             db.execSQL("CREATE TABLE paired_devices (device_id TEXT PRIMARY KEY NOT NULL, device_name TEXT NOT NULL, host TEXT NOT NULL, port INTEGER NOT NULL, token TEXT NOT NULL, paired_at INTEGER NOT NULL)")
+            db.execSQL("CREATE TABLE device_assignments (device_id TEXT PRIMARY KEY NOT NULL, playlist_id TEXT NOT NULL, desired_revision INTEGER NOT NULL, desired_playing INTEGER NOT NULL, state TEXT NOT NULL, applied_revision INTEGER, last_sync_at INTEGER, last_error TEXT, FOREIGN KEY(device_id) REFERENCES paired_devices(device_id) ON DELETE CASCADE)")
             db.execSQL("CREATE TABLE command_results (command_id TEXT PRIMARY KEY NOT NULL, fingerprint TEXT NOT NULL, response TEXT NOT NULL, status_code INTEGER NOT NULL, created_at INTEGER NOT NULL)")
+            db.execSQL("CREATE TABLE operation_records (id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, created_at INTEGER NOT NULL, client_name TEXT NOT NULL, device_id TEXT NOT NULL, action TEXT NOT NULL, result TEXT NOT NULL, status_code INTEGER NOT NULL)")
             db.execSQL("CREATE INDEX scenes_resource_idx ON scenes(resource_id)")
             db.execSQL("CREATE INDEX playlist_items_scene_idx ON playlist_items(scene_id)")
             db.execSQL("CREATE INDEX playback_errors_created_idx ON playback_errors(created_at DESC)")
+            db.execSQL("CREATE INDEX operation_records_created_idx ON operation_records(created_at DESC)")
         }
         override fun onUpgrade(db: SQLiteDatabase, oldVersion: Int, newVersion: Int) {
             if (oldVersion < 2) db.execSQL("CREATE INDEX IF NOT EXISTS resources_hash_idx ON resources(hash)")
@@ -1268,6 +1419,33 @@ class SignageStore(context: Context) {
                 db.execSQL("ALTER TABLE resources ADD COLUMN text_repeat_count INTEGER NOT NULL DEFAULT 0")
                 db.execSQL("ALTER TABLE scenes ADD COLUMN playback_speed REAL NOT NULL DEFAULT 1.0")
             }
+            if (oldVersion < 9) {
+                db.execSQL("CREATE TABLE IF NOT EXISTS device_assignments (device_id TEXT PRIMARY KEY NOT NULL, playlist_id TEXT NOT NULL, desired_revision INTEGER NOT NULL, desired_playing INTEGER NOT NULL, state TEXT NOT NULL, applied_revision INTEGER, last_sync_at INTEGER, last_error TEXT, FOREIGN KEY(device_id) REFERENCES paired_devices(device_id) ON DELETE CASCADE)")
+            }
+            if (oldVersion < 10) {
+                db.execSQL("CREATE TABLE IF NOT EXISTS operation_records (id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, created_at INTEGER NOT NULL, client_name TEXT NOT NULL, device_id TEXT NOT NULL, action TEXT NOT NULL, result TEXT NOT NULL, status_code INTEGER NOT NULL)")
+                db.execSQL("CREATE INDEX IF NOT EXISTS operation_records_created_idx ON operation_records(created_at DESC)")
+            }
+            if (oldVersion < 11) removeLegacyHtmlOverlays(db)
+        }
+
+        private fun removeLegacyHtmlOverlays(db: SQLiteDatabase) {
+            db.query("scenes", arrayOf("id", "overlays_json"), null, null, null, null, null).use { cursor ->
+                while (cursor.moveToNext()) {
+                    val sceneId = cursor.getString(0)
+                    val source = runCatching { JSONArray(cursor.getString(1)) }.getOrNull() ?: continue
+                    val retained = JSONArray()
+                    for (index in 0 until source.length()) {
+                        val overlay = source.optJSONObject(index) ?: continue
+                        if (!overlay.optString("type").equals("HTML", ignoreCase = true)) retained.put(overlay)
+                    }
+                    if (retained.length() != source.length()) {
+                        db.update("scenes", ContentValues().apply {
+                            put("overlays_json", retained.toString())
+                        }, "id = ?", arrayOf(sceneId))
+                    }
+                }
+            }
         }
     }
 
@@ -1291,7 +1469,7 @@ class SignageStore(context: Context) {
         const val TAG = "SignageStore"
         val SHA256_PATTERN = Regex("[a-f0-9]{64}")
         const val DATABASE_NAME = "signage.db"
-        const val DATABASE_VERSION = 8
+        const val DATABASE_VERSION = 11
         const val LEGACY_PREFERENCES = "local_signage"
         const val KEY_SCHEMA_MIGRATED = "schema_migrated"
         const val KEY_DEVICE_ID = "device_id"
@@ -1330,7 +1508,6 @@ class SignageStore(context: Context) {
         const val MAX_WEB_ACCESS_HISTORY = 32
         const val MAX_COMMAND_RESULTS = 256
         const val MAX_CLIENT_NAME_LENGTH = 80
-        const val MAX_CONTROL_SESSIONS = 16
         const val MAX_DEVICE_NAME_LENGTH = 80
         const val MAX_RESOURCE_NAME_LENGTH = 120
         const val MAX_VIRTUAL_CONTENT_LENGTH = 100_000
@@ -1343,12 +1520,18 @@ class SignageStore(context: Context) {
         const val MAX_ERROR_HISTORY = 100
         const val MAX_ERROR_CODE_LENGTH = 120
         const val MAX_ERROR_ACTION_LENGTH = 32
+        const val MAX_OPERATION_HISTORY = 500
+        const val MAX_DEVICE_ID_LENGTH = 120
+        const val MAX_OPERATION_ACTION_LENGTH = 160
+        const val MAX_OPERATION_RESULT_LENGTH = 32
         val SUPPORTED_FIT_MODES = setOf("FIT", "FILL", "CROP", "STRETCH", "CENTER")
         val SUPPORTED_CROP_GRAVITIES = setOf("CENTER", "TOP", "BOTTOM", "LEFT", "RIGHT")
         val RESOURCE_COLUMNS = arrayOf("id", "name", "mime_type", "path", "hash", "size_bytes", "created_at", "kind", "source_uri", "content", "refresh_interval_ms", "text_size_sp", "text_color", "text_background_color", "font_family", "text_speed_dp_per_second", "text_repeat_count")
         val SCENE_COLUMNS = arrayOf("id", "name", "resource_id", "fit_mode", "crop_gravity", "background_type", "background_color", "volume", "muted", "created_at", "overlays_json", "playback_speed")
         val ERROR_COLUMNS = arrayOf("id", "media_id", "scene_id", "error_code", "action", "attempt", "created_at")
+        val OPERATION_COLUMNS = arrayOf("id", "created_at", "client_name", "device_id", "action", "result", "status_code")
         val PAIRED_DEVICE_COLUMNS = arrayOf("device_id", "device_name", "host", "port", "token", "paired_at")
+        val DEVICE_ASSIGNMENT_COLUMNS = arrayOf("device_id", "playlist_id", "desired_revision", "desired_playing", "state", "applied_revision", "last_sync_at", "last_error")
         val COMMAND_RESULT_COLUMNS = arrayOf("command_id", "fingerprint", "response", "status_code", "created_at")
     }
 }

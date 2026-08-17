@@ -69,6 +69,7 @@ object SignagePlaybackController {
     private val retryAttempts = mutableMapOf<String, Int>()
     private val failedSceneIds = mutableSetOf<String>()
     private val tickerAnimators = mutableListOf<ObjectAnimator>()
+    private val htmlOverlayViews = mutableListOf<WebView>()
     private var textAnimator: ObjectAnimator? = null
     private var blurBitmap: Bitmap? = null
 
@@ -345,6 +346,8 @@ object SignagePlaybackController {
         cancelSceneCallbacks()
         textAnimator?.cancel()
         textAnimator = null
+        // Remove the previous scene's overlays before the new primary content is attached.
+        views?.overlayContainer?.let(::clearOverlays)
         val scene = currentScene() ?: return clearPlayback("NO_PLAYABLE_SCENE")
         val resource = SignageRuntime.resource(scene.resourceId) ?: return handleSceneFailure("RESOURCE_MISSING")
         SignageRuntime.selectPlaybackScene(scene.id, activePlaylistId)
@@ -675,8 +678,20 @@ object SignagePlaybackController {
 
     private fun renderOverlays(scene: SignageScene) {
         val container = views?.overlayContainer ?: return
+        if (container.width <= 0 || container.height <= 0) {
+            container.post {
+                if (views?.overlayContainer === container && currentScene()?.id == scene.id) renderOverlays(scene)
+            }
+            return
+        }
         clearOverlays(container)
         scene.overlays.filter { it.enabled }.sortedBy { it.zIndex }.forEach { overlay ->
+            if (overlay.type.equals("HTML", true)) {
+                val webView = createHtmlOverlay(container, overlay)
+                htmlOverlayViews += webView
+                container.addView(webView, overlayLayoutParams(container, overlay))
+                return@forEach
+            }
             val text = TextView(container.context).apply {
                 this.text = overlay.content
                 textSize = overlay.textSizeSp.coerceIn(8, 160).toFloat()
@@ -689,10 +704,50 @@ object SignagePlaybackController {
                 setPadding(dp(container, overlay.paddingDp.coerceIn(0, 64)))
                 maxLines = if (overlay.type.equals("TICKER", true)) 1 else Int.MAX_VALUE
             }
-            container.addView(text, overlayLayoutParams(overlay))
+            container.addView(text, overlayLayoutParams(container, overlay))
             if (overlay.type.equals("TICKER", true)) startTicker(container, text, overlay)
         }
     }
+
+    @SuppressLint("SetJavaScriptEnabled")
+    private fun createHtmlOverlay(container: FrameLayout, overlay: SignageOverlay): WebView = WebView(container.context).apply {
+        setBackgroundColor(Color.TRANSPARENT)
+        isVerticalScrollBarEnabled = false
+        isHorizontalScrollBarEnabled = false
+        overScrollMode = View.OVER_SCROLL_NEVER
+        settings.apply {
+            javaScriptEnabled = false
+            domStorageEnabled = false
+            allowFileAccess = false
+            allowContentAccess = false
+            allowFileAccessFromFileURLs = false
+            allowUniversalAccessFromFileURLs = false
+            mixedContentMode = WebSettings.MIXED_CONTENT_NEVER_ALLOW
+            setGeolocationEnabled(false)
+            databaseEnabled = false
+            setSupportZoom(false)
+        }
+        webChromeClient = null
+        webViewClient = object : WebViewClient() {
+            @Suppress("DEPRECATION")
+            override fun shouldOverrideUrlLoading(view: WebView, url: String): Boolean = true
+
+            override fun shouldOverrideUrlLoading(view: WebView, request: WebResourceRequest): Boolean = true
+        }
+        loadDataWithBaseURL(LOCAL_HTML_BASE_URL, htmlOverlayDocument(overlay), "text/html", "UTF-8", null)
+    }
+
+    private fun htmlOverlayDocument(overlay: SignageOverlay): String = """
+        <!doctype html>
+        <html><head><meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no">
+        <style>
+          html,body{width:100%;height:100%;margin:0;padding:0;overflow:hidden;background:transparent}
+          body{color:#fff;font-family:system-ui,-apple-system,"Segoe UI","Microsoft YaHei",sans-serif;padding:${dpCss(overlay.paddingDp)};border-radius:${dpCss(overlay.cornerRadiusDp)};background:${overlay.backgroundColor}}
+          *{box-sizing:border-box}
+        </style></head><body>${overlay.content}</body></html>
+    """.trimIndent()
+
+    private fun dpCss(value: Int): String = "${value.coerceIn(0, 96)}px"
 
     private fun startTicker(container: FrameLayout, text: TextView, overlay: SignageOverlay) {
         text.post {
@@ -713,10 +768,20 @@ object SignagePlaybackController {
     private fun clearOverlays(container: FrameLayout) {
         tickerAnimators.forEach { it.cancel() }
         tickerAnimators.clear()
+        htmlOverlayViews.forEach { webView ->
+            webView.onPause()
+            webView.stopLoading()
+            webView.loadUrl("about:blank")
+            webView.webViewClient = WebViewClient()
+            webView.webChromeClient = null
+            webView.removeAllViews()
+            webView.destroy()
+        }
+        htmlOverlayViews.clear()
         container.removeAllViews()
     }
 
-    private fun overlayLayoutParams(overlay: SignageOverlay): FrameLayout.LayoutParams {
+    private fun overlayLayoutParams(container: FrameLayout, overlay: SignageOverlay): FrameLayout.LayoutParams {
         val horizontal = when (overlay.horizontalPosition.uppercase()) {
             "LEFT", "START" -> Gravity.START
             "RIGHT", "END" -> Gravity.END
@@ -727,11 +792,14 @@ object SignagePlaybackController {
             "CENTER" -> Gravity.CENTER_VERTICAL
             else -> Gravity.BOTTOM
         }
-        return FrameLayout.LayoutParams(
-            if (overlay.type.equals("TICKER", true)) ViewGroup.LayoutParams.WRAP_CONTENT else ViewGroup.LayoutParams.WRAP_CONTENT,
-            ViewGroup.LayoutParams.WRAP_CONTENT,
-            horizontal or vertical
-        )
+        if (overlay.type.equals("HTML", true)) {
+            return FrameLayout.LayoutParams(
+                (container.width * overlay.widthPercent.coerceIn(10, 95) / 100).coerceAtLeast(dp(container, 120)),
+                (container.height * overlay.heightPercent.coerceIn(8, 90) / 100).coerceAtLeast(dp(container, 72)),
+                horizontal or vertical
+            )
+        }
+        return FrameLayout.LayoutParams(ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT, horizontal or vertical)
     }
 
     private fun applyDisplayState(scene: SignageScene) {

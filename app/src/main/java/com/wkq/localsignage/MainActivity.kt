@@ -10,9 +10,12 @@ import android.os.Looper
 import android.view.MotionEvent
 import android.view.View
 import android.view.ViewConfiguration
+import android.view.ViewGroup
 import android.view.WindowManager
+import android.widget.LinearLayout
 import androidx.core.content.ContextCompat
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.core.view.doOnLayout
 import androidx.core.view.WindowCompat
 import androidx.core.view.WindowInsetsCompat
 import androidx.core.view.WindowInsetsControllerCompat
@@ -74,12 +77,45 @@ class MainActivity : BaseActivity<ActivityMainBinding>(), PlaybackListener {
         binding.showPairingButton.setOnClickListener { openPairingPanel() }
         binding.closePairingButton.setOnClickListener { closePairingPanel() }
         binding.openHotspotSettingsButton.setOnClickListener { toggleLocalHotspot() }
+        binding.pairingPanel.doOnLayout { configurePairingLayout(it.width) }
         hotspotInfo = LocalHotspotController.currentInfo()
         updateHotspotUi()
         updateContentMode()
     }
 
     override fun initData() = Unit
+
+    private fun configurePairingLayout(availableWidth: Int) {
+        val compact = availableWidth < resources.getDimensionPixelSize(R.dimen.pairing_compact_breakpoint)
+        val padding = resources.getDimensionPixelSize(
+            if (compact) R.dimen.pairing_compact_screen_padding else R.dimen.pairing_screen_padding
+        )
+        val gap = resources.getDimensionPixelSize(
+            if (compact) R.dimen.pairing_compact_content_gap else R.dimen.pairing_content_gap
+        )
+        val qrSize = resources.getDimensionPixelSize(
+            if (compact) R.dimen.pairing_compact_qr_size else R.dimen.pairing_qr_size
+        )
+        binding.pairingContentCard.apply {
+            orientation = if (compact) LinearLayout.VERTICAL else LinearLayout.HORIZONTAL
+            setPadding(padding, padding, padding, padding)
+            (layoutParams as ViewGroup.MarginLayoutParams).setMargins(padding, padding, padding, padding)
+        }
+        binding.pairingQrCode.layoutParams =
+            (binding.pairingQrCode.layoutParams as LinearLayout.LayoutParams).apply {
+                width = qrSize
+                height = qrSize
+                marginEnd = 0
+            }
+        binding.pairingDetails.layoutParams =
+            (binding.pairingDetails.layoutParams as LinearLayout.LayoutParams).apply {
+                width = if (compact) ViewGroup.LayoutParams.MATCH_PARENT else 0
+                height = ViewGroup.LayoutParams.WRAP_CONTENT
+                weight = if (compact) 0f else 1f
+                marginStart = if (compact) 0 else gap
+                topMargin = if (compact) gap else 0
+            }
+    }
 
     override fun onStateChanged(state: SignageState) {
         runOnUiThread {

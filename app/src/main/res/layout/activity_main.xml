@@ -62,8 +62,9 @@
         android:scrollbars="none">
 
         <LinearLayout
+            android:id="@+id/pairing_content_card"
             android:layout_width="match_parent"
-            android:layout_height="match_parent"
+            android:layout_height="wrap_content"
             android:background="@drawable/bg_pairing_card"
             android:gravity="center"
             android:orientation="horizontal"
@@ -83,6 +84,7 @@
                 android:scaleType="fitCenter" />
 
             <LinearLayout
+                android:id="@+id/pairing_details"
                 android:layout_width="0dp"
                 android:layout_height="wrap_content"
                 android:layout_marginStart="@dimen/pairing_content_gap"

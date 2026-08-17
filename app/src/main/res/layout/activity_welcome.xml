@@ -10,94 +10,121 @@
     android:scrollbars="none">
 
     <LinearLayout
+        android:id="@+id/welcome_content"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:gravity="center_horizontal"
-        android:minHeight="640dp"
-        android:orientation="vertical"
-        android:paddingStart="32dp"
-        android:paddingTop="56dp"
-        android:paddingEnd="32dp"
-        android:paddingBottom="32dp">
-
-        <TextView
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:background="@drawable/bg_welcome_label"
-            android:paddingStart="12dp"
-            android:paddingTop="6dp"
-            android:paddingEnd="12dp"
-            android:paddingBottom="6dp"
-            android:text="@string/welcome_label"
-            android:textColor="@color/welcome_accent"
-            android:textSize="12sp"
-            android:textStyle="bold" />
-
-        <TextView
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:layout_marginTop="28dp"
-            android:gravity="center"
-            android:maxLines="2"
-            android:text="@string/welcome_title"
-            android:textColor="@color/welcome_text_primary"
-            android:textSize="34sp"
-            android:textStyle="bold" />
-
-        <TextView
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:layout_marginTop="12dp"
-            android:gravity="center"
-            android:maxLines="4"
-            android:text="@string/welcome_summary"
-            android:textColor="@color/welcome_text_secondary"
-            android:textSize="17sp" />
+        android:gravity="center_vertical"
+        android:orientation="horizontal"
+        android:padding="@dimen/welcome_screen_padding">
 
         <LinearLayout
-            android:layout_width="match_parent"
+            android:id="@+id/welcome_intro"
+            android:layout_width="0dp"
             android:layout_height="wrap_content"
-            android:layout_marginTop="40dp"
+            android:layout_weight="1"
             android:orientation="vertical">
 
             <TextView
-                style="@style/TextAppearance.LocalSignage.WelcomeStep"
-                android:text="@string/welcome_step_network" />
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:background="@drawable/bg_welcome_label"
+                android:paddingStart="12dp"
+                android:paddingTop="6dp"
+                android:paddingEnd="12dp"
+                android:paddingBottom="6dp"
+                android:text="@string/welcome_label"
+                android:textColor="@color/welcome_accent"
+                android:textSize="12sp"
+                android:textStyle="bold" />
 
             <TextView
-                style="@style/TextAppearance.LocalSignage.WelcomeStep"
-                android:layout_marginTop="12dp"
-                android:text="@string/welcome_step_pair" />
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="28dp"
+                android:maxLines="3"
+                android:text="@string/welcome_title"
+                android:textColor="@color/welcome_text_primary"
+                android:textSize="36sp"
+                android:textStyle="bold" />
 
             <TextView
-                style="@style/TextAppearance.LocalSignage.WelcomeStep"
-                android:layout_marginTop="12dp"
-                android:text="@string/welcome_step_play" />
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="14dp"
+                android:maxLines="5"
+                android:text="@string/welcome_summary"
+                android:textColor="@color/welcome_text_secondary"
+                android:textSize="17sp" />
+
+            <TextView
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="28dp"
+                android:text="@string/welcome_offline_note"
+                android:textColor="@color/welcome_accent"
+                android:textSize="14sp"
+                android:textStyle="bold" />
         </LinearLayout>
 
-        <Space
-            android:layout_width="1dp"
-            android:layout_height="0dp"
-            android:layout_weight="1" />
-
-        <com.google.android.material.button.MaterialButton
-            android:id="@+id/start_button"
-            android:layout_width="match_parent"
-            android:layout_height="56dp"
-            android:layout_marginTop="40dp"
-            android:text="@string/welcome_start"
-            android:textAllCaps="false"
-            android:textSize="16sp"
-            app:cornerRadius="6dp" />
-
-        <TextView
-            android:layout_width="match_parent"
+        <LinearLayout
+            android:id="@+id/welcome_setup"
+            android:layout_width="0dp"
             android:layout_height="wrap_content"
-            android:layout_marginTop="12dp"
-            android:gravity="center"
-            android:maxLines="2"
-            android:text="@string/welcome_offline_note"
-            android:textColor="@color/welcome_text_secondary"
-            android:textSize="13sp" />
+            android:layout_marginStart="@dimen/welcome_content_gap"
+            android:layout_weight="1"
+            android:orientation="vertical">
+
+            <TextView
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:text="@string/welcome_setup_title"
+                android:textColor="@color/welcome_text_primary"
+                android:textSize="22sp"
+                android:textStyle="bold" />
+
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="18dp"
+                android:background="@drawable/bg_welcome_steps"
+                android:orientation="vertical">
+
+                <TextView
+                    style="@style/TextAppearance.LocalSignage.WelcomeStep"
+                    android:text="@string/welcome_step_network" />
+
+                <View
+                    android:layout_width="match_parent"
+                    android:layout_height="1dp"
+                    android:layout_marginStart="16dp"
+                    android:layout_marginEnd="16dp"
+                    android:background="@color/welcome_surface_stroke" />
+
+                <TextView
+                    style="@style/TextAppearance.LocalSignage.WelcomeStep"
+                    android:text="@string/welcome_step_pair" />
+
+                <View
+                    android:layout_width="match_parent"
+                    android:layout_height="1dp"
+                    android:layout_marginStart="16dp"
+                    android:layout_marginEnd="16dp"
+                    android:background="@color/welcome_surface_stroke" />
+
+                <TextView
+                    style="@style/TextAppearance.LocalSignage.WelcomeStep"
+                    android:text="@string/welcome_step_play" />
+            </LinearLayout>
+
+            <com.google.android.material.button.MaterialButton
+                android:id="@+id/start_button"
+                android:layout_width="match_parent"
+                android:layout_height="56dp"
+                android:layout_marginTop="24dp"
+                android:text="@string/welcome_start"
+                android:textAllCaps="false"
+                android:textSize="16sp"
+                app:cornerRadius="6dp" />
+        </LinearLayout>
     </LinearLayout>
 </ScrollView>

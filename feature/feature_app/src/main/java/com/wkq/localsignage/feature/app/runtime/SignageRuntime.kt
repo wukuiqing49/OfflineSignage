@@ -10,8 +10,10 @@ import com.wkq.localsignage.feature.app.model.SignageResource
 import com.wkq.localsignage.feature.app.model.SignageScene
 import com.wkq.localsignage.feature.app.model.SignageState
 import com.wkq.localsignage.feature.app.model.PlaybackErrorRecord
+import com.wkq.localsignage.feature.app.model.OperationRecord
 import com.wkq.localsignage.feature.app.model.SignageSettings
 import com.wkq.localsignage.feature.app.model.PairedDevice
+import com.wkq.localsignage.feature.app.model.DeviceAssignment
 import com.wkq.localsignage.feature.app.model.PlaybackTimingPolicy
 import com.wkq.localsignage.feature.app.model.ResourceKind
 import com.wkq.localsignage.feature.app.pairing.PairingCode
@@ -84,6 +86,13 @@ object SignageRuntime {
     fun commandResult(commandId: String, fingerprint: String): StoredCommandResult? = requireStore().commandResult(commandId, fingerprint)
     fun saveCommandResult(result: StoredCommandResult) = requireStore().saveCommandResult(result)
     fun pairedDevices(): List<PairedDevice> = requireStore().pairedDevices()
+    fun deviceAssignments(): List<DeviceAssignment> = requireStore().deviceAssignments()
+    fun deviceAssignment(deviceId: String): DeviceAssignment? = requireStore().deviceAssignment(deviceId)
+    fun saveDeviceAssignment(deviceId: String, playlistId: String, desiredPlaying: Boolean): DeviceAssignment =
+        requireStore().saveDeviceAssignment(deviceId, playlistId, desiredPlaying)
+    fun updateDeviceAssignmentResult(deviceId: String, revision: Long, success: Boolean, error: String? = null): DeviceAssignment? =
+        requireStore().updateDeviceAssignmentResult(deviceId, revision, success, error)
+    fun deleteDeviceAssignment(deviceId: String): Boolean = requireStore().deleteDeviceAssignment(deviceId)
     fun resourceStorageSummary(): ResourceStorageSummary = requireStore().resourceStorageSummary()
     fun pairedDevice(deviceId: String): PairedDevice? = requireStore().pairedDevice(deviceId)
     fun savePairedDevice(device: PairedDevice): PairedDevice = requireStore().savePairedDevice(device)
@@ -102,6 +111,11 @@ object SignageRuntime {
     fun clearPlaybackErrors() = requireStore().clearPlaybackErrors()
     fun recordPlaybackError(mediaId: String?, sceneId: String?, errorCode: String, action: String, attempt: Int) {
         requireStore().recordPlaybackError(mediaId, sceneId, errorCode, action, attempt)
+    }
+    fun operationRecords(limit: Int = 100): List<OperationRecord> = requireStore().operationRecords(limit)
+    fun clearOperationRecords() = requireStore().clearOperationRecords()
+    fun recordOperation(clientName: String, deviceId: String, action: String, result: String, statusCode: Int) {
+        requireStore().recordOperation(clientName, deviceId, action, result, statusCode)
     }
 
     fun importResource(context: Context, uri: Uri, name: String, mimeType: String): SignageResource =

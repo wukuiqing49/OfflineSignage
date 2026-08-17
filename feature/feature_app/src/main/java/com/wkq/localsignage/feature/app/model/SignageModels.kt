@@ -44,7 +44,9 @@ data class SignageOverlay(
     val fontFamily: String = TextStylePolicy.DEFAULT_FONT_FAMILY,
     val speedDpPerSecond: Int = 80,
     val enabled: Boolean = true,
-    val zIndex: Int = 0
+    val zIndex: Int = 0,
+    val widthPercent: Int = 42,
+    val heightPercent: Int = 24
 )
 
 data class SignageScene(
@@ -108,6 +110,16 @@ data class PlaybackErrorRecord(
     val createdAt: Long
 )
 
+data class OperationRecord(
+    val id: Long,
+    val createdAt: Long,
+    val clientName: String,
+    val deviceId: String,
+    val action: String,
+    val result: String,
+    val statusCode: Int
+)
+
 data class ControlSession(
     val sessionId: String,
     val clientName: String,
@@ -121,6 +133,17 @@ data class PairedDevice(
     val port: Int,
     val token: String,
     val pairedAt: Long
+)
+
+data class DeviceAssignment(
+    val deviceId: String,
+    val playlistId: String,
+    val desiredRevision: Long,
+    val desiredPlaying: Boolean,
+    val state: String,
+    val appliedRevision: Long? = null,
+    val lastSyncAt: Long? = null,
+    val lastError: String? = null
 )
 
 interface PlaybackListener {

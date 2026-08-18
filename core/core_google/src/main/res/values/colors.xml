@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <color name="google_surface">#FFFFFF</color>
+    <color name="google_page_bg">#F6F8FB</color>
+    <color name="google_surface_soft">#EEF4FB</color>
+    <color name="google_card_stroke">#EDF1F5</color>
+    <color name="google_input_stroke">#A3ADBA</color>
+    <color name="google_text_primary">#1D2939</color>
+    <color name="google_text_secondary">#667085</color>
+    <color name="google_action_primary">#1F6FEB</color>
+    <color name="google_action_primary_text">#FFFFFF</color>
+    <color name="google_action_secondary">#E8F1FF</color>
+    <color name="google_action_secondary_text">#1558C9</color>
+</resources>

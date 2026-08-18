@@ -18,6 +18,15 @@ ktor = "3.3.1"
 media3 = "1.8.0"
 zxing = "3.5.3"
 junit4 = "4.13.2"
+coroutines = "1.10.2"
+credentials = "1.5.0"
+googleid = "1.1.1"
+gson = "2.13.2"
+playBilling = "9.0.0"
+playServicesAds = "24.8.0"
+playReview = "2.0.2"
+firebaseBom = "34.13.0"
+googleServices = "4.4.4"
 wkq-core-base = "v1.3.0"
 wkq-core-utils = "v1.1.1"
 
@@ -44,6 +53,16 @@ media3-exoplayer-rtsp = { module = "androidx.media3:media3-exoplayer-rtsp", vers
 media3-ui = { module = "androidx.media3:media3-ui", version.ref = "media3" }
 zxing-core = { module = "com.google.zxing:core", version.ref = "zxing" }
 junit4 = { module = "junit:junit", version.ref = "junit4" }
+androidx-credentials = { module = "androidx.credentials:credentials", version.ref = "credentials" }
+androidx-credentials-play-services-auth = { module = "androidx.credentials:credentials-play-services-auth", version.ref = "credentials" }
+googleid = { module = "com.google.android.libraries.identity.googleid:googleid", version.ref = "googleid" }
+gson = { module = "com.google.code.gson:gson", version.ref = "gson" }
+kotlinx-coroutines-android = { module = "org.jetbrains.kotlinx:kotlinx-coroutines-android", version.ref = "coroutines" }
+google-play-billing = { module = "com.android.billingclient:billing-ktx", version.ref = "playBilling" }
+google-play-services-ads = { module = "com.google.android.gms:play-services-ads", version.ref = "playServicesAds" }
+google-play-review-ktx = { module = "com.google.android.play:review-ktx", version.ref = "playReview" }
+firebase-bom = { module = "com.google.firebase:firebase-bom", version.ref = "firebaseBom" }
+firebase-analytics = { module = "com.google.firebase:firebase-analytics" }
 wkq-core-base = { module = "com.github.wukuiqing49:AndroidCoreBase", version.ref = "wkq-core-base" }
 wkq-core-utils = { module = "com.github.wukuiqing49:AndroidCoreUtils", version.ref = "wkq-core-utils" }
 
@@ -51,3 +70,4 @@ wkq-core-utils = { module = "com.github.wukuiqing49:AndroidCoreUtils", version.r
 android-application = { id = "com.android.application", version.ref = "agp" }
 android-library = { id = "com.android.library", version.ref = "agp" }
 kotlin-android = { id = "org.jetbrains.kotlin.android", version.ref = "kotlin" }
+google-services = { id = "com.google.gms.google-services", version.ref = "googleServices" }

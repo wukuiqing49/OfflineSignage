@@ -11,6 +11,17 @@
 - 购买、退款和订阅状态由 Google Play 管理。
 - 未购买用户可以完整体验，正式部署需要去除试用标识。
 - 不让计费逻辑侵入播放器、局域网 Server 和内容模型。
+- 付费购买仅面向带有认证 Google Play Store 的设备；非 GMS 设备不承诺付费解锁。
+
+第一版商业规则已经确定：
+
+```text
+授权主体：购买所使用的 Google 账号
+试用方式：首次成功启动后 7 天完整体验；到期后继续播放并显示“试用已结束”标识
+订阅方式：年度自动续订，需要周期性连接 Google Play
+永久方式：一次性购买，适合长期离线使用
+设备范围：已通过 Google Play 认证且能正常完成应用内购买的 Android 设备
+```
 
 ## 2. 已确定的产品方案
 
@@ -18,11 +29,12 @@
 
 | 状态 | 获取方式 | 使用期限 | 功能 | 播放画面 |
 | --- | --- | --- | --- | --- |
-| 试用版 | 免费安装后默认进入 | 不限时 | 可体验全部内容类型和控制流程 | 显示“试用版”标识 |
-| 订阅版 | Google Play 年度订阅 | 订阅有效期内 | 完整功能 | 不显示试用标识 |
-| 永久版 | Google Play 一次性购买 | 永久 | 完整功能 | 不显示试用标识 |
+| 试用期 | 免费安装后首次成功启动 | 7×24 小时 | 可体验全部内容类型和控制流程 | 不显示试用标识 |
+| 试用结束 | 本地试用时间到期且没有有效购买 | 持续可用 | 不停止播放、不删除内容 | 显示“试用已结束”标识 |
+| 订阅版 | Google Play 年度订阅 | 订阅有效期及允许的离线宽限期 | 完整功能 | 不显示试用标识 |
+| 永久版 | Google Play 一次性购买 | 永久 | 完整功能及正常版本更新 | 不显示试用标识 |
 
-第一版不限制试用版的图片、视频、直播、网页、HTML 标签和文字能力，也不设置本地倒计时。试用限制只有明确、持续的播放水印。
+第一版不限制图片、视频、直播、网页、HTML 标签和文字能力。7 天试用期内不显示播放标识；试用到期后继续允许播放和控制，只增加明确、持续的“试用已结束”播放标识。
 
 这样可以避免纯离线倒计时被修改系统时间、清除数据或重装绕过，也能让客户完整验证目标硬件。
 
@@ -32,7 +44,8 @@ Google Play 只发布一个应用：
 
 ```text
 Local Signage
-├─ 未购买：试用权益
+├─ 未购买且 7 天内：试用权益
+├─ 未购买且试用到期：试用结束权益
 ├─ 有有效订阅：Pro 权益
 └─ 已购买永久版：Lifetime 权益
 ```
@@ -62,20 +75,26 @@ Local Signage
 永久版价格 = 年度订阅价格的 3 至 4 倍
 ```
 
-具体价格在 Play Console 按地区配置。永久版和订阅版第一版功能相同，区别只是付款方式和使用期限。
+具体价格在 Play Console 按地区配置。永久版和订阅版第一版功能相同，区别是付款方式、使用期限和联网校验要求：
+
+- 年度订阅初始价格较低，有效期内获得完整功能和正常版本更新。
+- 永久版一次性价格较高，永久解锁应用功能，并获得应用正常发布的后续更新。
+- 永久版不承诺单独定制、现场支持或未来独立产品，这些服务另行约定。
+- 商品按 Google 账号授权，价格不能按“单台设备价格”宣传。
 
 ## 3. “试用版”与 Play 免费试用的区别
 
-本方案中的“试用版”是应用自身的免费体验状态：
+本方案中的“7 天试用”是应用自身的免费体验状态：
 
 - 不要求绑定银行卡。
 - 不会自动续费。
-- 不限使用天数。
-- 始终显示试用标识。
+- 从首次成功启动开始计算 7×24 小时。
+- 试用期内不显示播放标识。
+- 到期后不会自动扣费，也不会停止播放，只显示“试用已结束”标识。
 
 Google Play Subscription Offer 还可以配置“7 天免费试用”，但这属于订阅促销：用户需要发起订阅，试用结束后会自动续费。
 
-第一版建议不配置订阅免费试用，避免同时出现两种“试用”造成理解混乱。后续有明确转化需求时，可以增加 Play 免费试用 Offer，应用必须展示 Play 返回的真实优惠阶段，不自行计算日期。
+第一版不配置订阅免费试用，避免应用本地 7 天试用与 Play 自动续费 Offer 混淆。后续有明确转化需求时，可以增加 Play 免费试用 Offer，应用必须展示 Play 返回的真实优惠阶段，不自行计算日期。
 
 ## 4. 授权范围
 
@@ -83,14 +102,14 @@ Google Play Subscription Offer 还可以配置“7 天免费试用”，但这�
 
 没有自建后台时，Google Play 购买权益属于购买所使用的 Google 账号，不是严格的单设备授权。
 
-同一 Google 账号在其他兼容设备安装应用后，可以恢复购买。第一版接受这个行为，不实现以下能力：
+同一 Google 账号在其他兼容设备安装应用后，可以恢复购买。设备数量和恢复行为受 Google Play 账号及商店规则约束，Local Signage 不额外设置设备数量。第一版接受这个行为，不实现以下能力：
 
 - 按 Android 设备收费。
 - 限制最多激活几台播放设备。
 - 企业客户设备席位管理。
 - 设备解绑和授权迁移后台。
 
-因此商品页面不能宣传“仅授权一台设备”。如果未来必须按设备数收费，需要增加自己的设备授权服务或企业交付方案，不能只依赖 Play Billing。
+因此商品页面必须使用“Google 账号授权”，不能宣传“仅授权一台设备”或“购买一台设备席位”。如果未来必须按设备数收费，需要增加自己的设备授权服务或企业交付方案，不能只依赖 Play Billing。
 
 ### 4.2 多设备控制
 
@@ -101,14 +120,30 @@ Google Play Subscription Offer 还可以配置“7 天免费试用”，但这�
 - Web 控制端免费，不单独购买。
 - Web 控制端不得假设所有被控设备具有相同权益。
 
+### 4.3 设备与商店范围
+
+Google Play Billing 只能在 Google Play 服务、Play Store、购买账号和目标地区均可用时完成购买。
+
+第一版设备规则：
+
+- 已通过 Google Play 认证的手机、平板、Android TV 和电视盒子可以进入购买流程。
+- 没有 Play Store、Play 服务异常或未登录 Google 账号时，按本地已确认权益继续运行；无已确认付费权益时按 7 天试用或试用结束状态展示。
+- 廉价电视盒子、国产行业屏和非 GMS 工控设备不能假定支持购买，采购或交付前必须实机验证。
+- 用户可以在无网络时播放本地内容，但首次购买、恢复购买和订阅周期校验必须能够连接 Google Play。
+- Google 账号只用于 Play 购买，应用不读取账号密码，也不建设自己的登录体系。
+
+如果非 GMS 设备成为主要商业硬件，需要单独设计企业离线授权方案；该方案不属于本文件第一版范围。
+
 ## 5. 权益模型
 
 应用内部不得让播放器直接判断 Google Play 商品 ID。统一转换为领域权益：
 
 ```kotlin
 enum class EntitlementType {
-    TRIAL,
+    TRIAL_ACTIVE,
+    TRIAL_EXPIRED,
     SUBSCRIPTION,
+    SUBSCRIPTION_GRACE,
     LIFETIME
 }
 ```
@@ -118,21 +153,26 @@ enum class EntitlementType {
 ```kotlin
 data class EntitlementState(
     val type: EntitlementType,
-    val isPro: Boolean,
-    val source: EntitlementSource,
-    val lastVerifiedAt: Long?,
+    val lastVerifiedAtEpochMillis: Long?,
     val billingAvailable: Boolean,
-    val purchasePending: Boolean
-)
+    val pendingProductIds: Set<String>
+) {
+    val isPro: Boolean
+        get() = type == EntitlementType.SUBSCRIPTION ||
+            type == EntitlementType.SUBSCRIPTION_GRACE ||
+            type == EntitlementType.LIFETIME
+}
 ```
 
 权益优先级：
 
 ```text
-有效永久购买 > 有效订阅 > 本地缓存宽限状态 > 试用版
+有效永久购买 > 有效订阅 > 订阅离线宽限 > 7 天试用 > 试用结束
 ```
 
 用户先订阅、后购买永久版时，以永久版为准。应用不能自动取消原订阅，应提供“管理订阅”入口并提醒用户自行确认是否取消。
+
+`isPro` 必须由 `type` 计算，不能作为独立可写字段保存，避免权益类型和功能开关不一致。时间计算必须通过可注入的 `Clock` 完成，便于测试系统时间回拨、时区变化和离线宽限。
 
 ## 6. 离线行为
 
@@ -149,21 +189,25 @@ Google Play Billing 负责购买，但播放器必须保持离线可运行。
 
 ### 6.2 永久版
 
-永久购买完成并确认后，可以长期缓存 `LIFETIME` 权益。重新安装或清除数据后，需要连接 Google Play 恢复购买。
+永久购买完成、完成基础验证并被 Google Play 确认后，可以长期缓存 `LIFETIME` 权益。重新安装、清除数据或切换系统账号后，需要使用原购买账号连接 Google Play 恢复购买。
 
 ### 6.3 订阅版
 
 订阅会过期、取消或退款，因此不能永久相信一次本地结果。
 
-第一版建议：
+第一版规则：
 
 - 每次应用启动和购买页恢复时查询 Play。
-- 上次成功确认订阅后，允许最多 30 天离线宽限。
-- 宽限期内继续作为订阅版播放。
-- 超过宽限期且仍无法确认时，降为试用版并显示水印，但不停止播放、不删除内容。
-- Play 返回订阅已失效时立即降为试用版。
+- Google Play 成功返回有效订阅时，记录最后一次有效确认时间。
+- 上次成功确认订阅后，允许最多 30 天本地离线宽限。
+- 宽限期内使用 `SUBSCRIPTION_GRACE`，继续提供完整功能。
+- 超过宽限期且仍无法确认时，进入试用结束状态并显示“试用已结束”标签，但不停止播放、不删除内容。
+- Play 返回订阅已失效时，立即按本地试用时间计算为试用中或试用结束状态。
+- 检测到系统时间明显回拨时，不得借此延长宽限；应优先重新连接 Play，无法确认时按宽限已耗尽处理。
 
-30 天是产品参数，应由权益策略集中定义，不能散落在 Activity 或播放器代码中。
+30 天是商业宽容策略，不是 Google Play 提供的准确订阅到期时间。没有后台时，本地客户端无法实时获知所有退款、撤销和到期变化，也无法完全防止设备时间或应用数据被篡改。
+
+宽限参数、时钟回拨判断和降级规则必须由 `EntitlementPolicy` 集中管理，不能散落在 Activity、播放器或 Web Server 中。所有时间相关测试使用注入时钟，不直接依赖 `System.currentTimeMillis()`。
 
 这个策略意味着订阅用户需要偶尔连接 Google Play。要求长期完全断网的客户应购买永久版。
 
@@ -185,7 +229,7 @@ Web 控制台可以展示授权状态，但不能直接调用 Google Play 购买
 
 ```text
 版本与购买
-├─ 当前状态：试用版 / 年度订阅 / 永久版
+├─ 当前状态：试用中 / 试用已结束 / 年度订阅 / 永久版
 ├─ 年度订阅：Play 返回的本地化价格 + 订阅按钮
 ├─ 永久版：Play 返回的本地化价格 + 永久购买按钮
 ├─ 恢复购买
@@ -200,12 +244,24 @@ Web 控制台可以展示授权状态，但不能直接调用 Google Play 购买
 购买更新回调中必须：
 
 1. 检查购买状态为 `PURCHASED`。
-2. 确认商品 ID 属于应用已知商品。
-3. 对尚未确认的购买调用 acknowledge。
-4. 重新查询购买并计算权益。
-5. 更新页面和试用标识。
+2. 确认包名、商品 ID 和商品类型属于当前应用的已知配置。
+3. 使用 Play Console 提供的许可公钥完成客户端购买签名基础验证。
+4. 验证通过后才发放对应权益。
+5. 对尚未确认的购买调用 acknowledge。
+6. 重新查询订阅和一次性购买并计算最终权益。
+7. 更新页面和试用标识。
 
 未及时 acknowledge 的购买可能被 Google Play 自动退款，因此不能省略。
+
+客户端实现还必须满足：
+
+- 初始化 BillingClient 时启用 Pending Purchases 支持。
+- 订阅与一次性商品分别查询，不能只查询一种 Product Type。
+- 发起订阅购买时使用 Play 返回的目标年度 Base Plan/Offer Token，不自行构造价格阶段。
+- 永久商品为非消耗型商品，禁止调用 consume。
+- 收到 `ITEM_ALREADY_OWNED` 时触发恢复查询，不重复创建权益。
+- Purchase Token、签名和原始购买数据不得写入普通日志、Web API 或诊断导出。
+- 客户端验签只能提供基础防护，不能等同于服务端购买验证。
 
 ### 7.4 Pending 购买
 
@@ -234,11 +290,12 @@ Web 控制台可以展示授权状态，但不能直接调用 Google Play 购买
 - 位于所有图片、视频、直播、网页、HTML 和文字渲染器上方。
 - 不写入用户内容，不修改 Scene，不产生历史内容重叠。
 - 默认放在画面右上角，并避开系统安全区。
-- 使用小尺寸、高对比度样式，文案为“试用版”。
+- 使用小尺寸、高对比度样式，文案为“试用已结束”。
+- 长时间播放时可在预设安全角之间低频切换位置，降低 OLED 烧屏风险；切换不能产生动画或遮挡主要操作区。
 - 永久版或有效订阅确认后立即隐藏。
 - 权益查询失败但仍处于离线宽限时不显示。
 
-不能通过 JavaScript 注入 WebView 水印，否则不同内容类型会出现行为不一致。
+不能通过 JavaScript 向 WebView 注入试用结束标签，否则不同内容类型会出现行为不一致。
 
 ## 9. 建议代码归属
 
@@ -247,11 +304,15 @@ Web 控制台可以展示授权状态，但不能直接调用 Google Play 购买
 ```text
 core/core_billing
 ├─ model/EntitlementState.kt
-├─ model/BillingProduct.kt
 ├─ EntitlementPolicy.kt
 ├─ EntitlementStore.kt
-├─ BillingRepository.kt
-└─ GooglePlayBillingRepository.kt
+└─ EntitlementProvider.kt
+
+app/billing
+├─ model/BillingProduct.kt
+├─ GooglePlayBillingClient.kt
+├─ PlayPurchaseCoordinator.kt
+└─ BillingViewModel.kt
 ```
 
 依赖方向：
@@ -259,30 +320,26 @@ core/core_billing
 ```text
 app --------------------> core_billing
 feature/feature_app ----> core_billing（仅在需要向 Web API 暴露状态时）
-core_billing -----------> Google Play Billing Library
+app --------------------> Google Play Billing Library
 ```
 
 职责划分：
 
-- `core_billing`：连接 Billing、查询商品、处理购买结果、缓存和计算权益。
-- `app`：购买 Activity、按钮点击、Google Play 流程启动、试用水印绑定。
+- `core_billing`：只保存领域权益、离线缓存、时钟与权益计算策略，不依赖 Play Billing 类型和 Activity。
+- `app/billing`：连接 Billing、查询商品、验证购买、处理回调和启动 Google Play 购买流程。
+- `app`：购买 Activity、购买 ViewModel、Google Play 流程启动和试用结束标签绑定。
 - `feature_app`：播放器和 Server 只读取领域权益，不依赖 Play Billing 类型。
 - `LocalSignageApplication`：初始化应用级 Billing 实例。
 
-`BillingRepository` 建议暴露：
+`EntitlementProvider` 建议暴露：
 
 ```kotlin
 val entitlement: StateFlow<EntitlementState>
-val products: StateFlow<List<BillingProduct>>
-
-fun connect()
-fun refreshPurchases()
-fun launchSubscription(activity: Activity)
-fun launchLifetimePurchase(activity: Activity)
-fun close()
 ```
 
-对外不能暴露 `ProductDetails`、`Purchase` 等 Play Billing 类型，避免第三方依赖扩散到播放器和 Web Server。
+`PlayPurchaseCoordinator` 仅供 `app` 购买页面使用，负责接收 Activity 并调用 Billing Flow。`Activity`、`ProductDetails`、`Purchase` 等 Android/Play Billing 类型不得进入 `core_billing`，也不得扩散到播放器和 Web Server。
+
+购买页面使用独立 Activity。当前播放器 Activity 固定横屏，购买 Activity 不继承该方向限制，并分别处理手机竖屏、平板横屏和 Android TV 焦点。
 
 ## 10. 本地存储
 
@@ -291,7 +348,8 @@ fun close()
 - 最后一次已确认权益类型。
 - 最后一次成功向 Play 确认的时间。
 - 对应商品 ID。
-- 是否存在待处理购买。
+- 必要的已签名购买证据或其安全摘要。
+- 待处理购买对应的商品 ID。
 
 不得保存：
 
@@ -299,14 +357,15 @@ fun close()
 - Google 账号密码。
 - 自行生成的明文“永久版=true”作为唯一判断依据。
 - Play Console 凭据或任何服务账号密钥。
+- 未脱敏的 Purchase Token、订单信息或购买原文日志。
 
-缓存只用于离线启动和宽限，Play 查询结果是可连接状态下的事实来源。
+缓存只用于离线启动和宽限，Play 查询结果是可连接状态下的事实来源。本地存储可以使用 Android Keystore 支持的加密封装降低直接修改风险，但不能宣称客户端缓存不可破解。
 
 ## 11. Google Play Console 配置
 
 实现前需要在 Play Console 完成：
 
-1. 创建应用并确认最终 `applicationId`。
+1. 在 Play 创建应用前确认最终 `applicationId`；当前开发包名不能在首次发布后更换。
 2. 配置 Play App Signing。
 3. 创建 `local_signage_pro` 订阅商品和年度 Base Plan。
 4. 创建并激活 `local_signage_lifetime` 一次性商品。
@@ -314,6 +373,7 @@ fun close()
 6. 添加 License Testing 测试账号。
 7. 上传使用正式包名和签名的 AAB 到内部测试轨道。
 8. 补齐隐私政策、数据安全表单、服务条款和订阅说明。
+9. 确认目标 Android TV/电视盒子通过 Play Protect 认证并可以展示、购买目标商品。
 
 本地直接安装的 Debug APK 可能无法获得真实商品信息。购买联调以 Google Play 内部测试轨道安装的版本为准。
 
@@ -322,6 +382,8 @@ fun close()
 - Play 版本中的数字功能购买使用 Google Play Billing。
 - 应用内不放微信、支付宝、网页付款或绕过 Play 的购买入口，除非目标市场和开发者计划明确允许。
 - 订阅页面明确展示价格、计费周期、自动续订和取消方式。
+- 商店说明明确标注付费权益按 Google 账号恢复，不宣称严格单设备授权。
+- 商店说明明确标注订阅需要周期性连接 Google Play，永久版适合长期离线。
 - “永久版”使用一次性非消耗型商品，不得消费后允许重复购买。
 - 商品价格必须展示 Play 返回的本地化文本，不能自行拼接币种。
 - 提供隐私政策和服务条款入口。
@@ -338,6 +400,8 @@ fun close()
 - 退款、撤销和订阅变化只能在设备再次连接 Play 后获知。
 - Root、破解或修改 APK 的防护能力有限。
 - 无法提供跨账号的企业授权迁移。
+- 本地 30 天订阅宽限可能晚于真实订阅到期时间结束。
+- 无法为没有认证 Google Play 的硬件提供付费解锁。
 
 这些限制不阻塞第一版发布。后续只有在真实订单证明有必要时，再增加服务端校验和企业授权，不提前建设复杂平台。
 
@@ -350,10 +414,14 @@ fun close()
 | 商品信息加载失败 | 显示重试，不显示伪造价格 |
 | 用户取消购买弹窗 | 保持原权益，不显示错误告警 |
 | 付款 Pending | 显示处理中，不提前解锁 |
-| 订阅到期或退款 | 下次确认后降为试用并显示水印 |
+| 订阅到期或退款 | 下次确认后按试用时间进入试用中或试用结束状态；到期时显示标签 |
 | 永久购买后重装 | 登录购买账号并恢复购买 |
 | 已订阅后购买永久版 | 永久版优先，提醒检查原订阅 |
 | Billing 连接断开 | 自动按退避策略重连，不高频循环 |
+| 同一设备切换 Google 账号 | 重新查询权益；无有效购买时按宽限或试用处理 |
+| 系统时间明显回拨 | 不延长订阅宽限，要求重新连接 Play 确认 |
+| 非 GMS 或未认证电视盒子 | 显示当前设备不支持 Play 购买，保留试用播放 |
+| `ITEM_ALREADY_OWNED` | 查询并恢复已有购买，不重复收费 |
 
 ## 15. 测试计划
 
@@ -366,6 +434,9 @@ fun close()
 - 订阅超过宽限后降为试用。
 - Play 明确返回无有效购买时降为试用。
 - Billing 不可用不影响永久版本地恢复。
+- `isPro` 始终由权益类型计算。
+- 系统时间回拨不会延长订阅宽限。
+- Play 明确返回失效时不会继续使用旧缓存覆盖结果。
 
 ### 15.2 Google Play 测试
 
@@ -377,12 +448,15 @@ fun close()
 - 退款或撤销后权益变化。
 - 先订阅再永久购买。
 - Play 未登录、无网络、Play Store 停用。
+- Google 账号切换及同一购买账号在第二台设备恢复。
+- `ITEM_ALREADY_OWNED` 和 Billing 服务重连。
 
 ### 15.3 设备与 UI
 
 - 手机竖屏和横屏。
 - 平板。
 - Android TV/电视盒子和遥控器焦点。
+- 认证 Play 设备与无 Play/非认证盒子的差异。
 - 字体放大、长价格文本和不同币种。
 - 图片、视频、直播、网页、HTML、文字均正确显示或隐藏试用标识。
 - Billing 失败、超时或重连期间播放不中断。
@@ -400,7 +474,7 @@ fun close()
 
 - 接入当前受支持的 Billing Library。
 - 查询订阅和永久商品。
-- 实现购买、acknowledge、恢复和 Pending。
+- 实现客户端基础验证、购买、acknowledge、恢复和 Pending。
 - 完成订阅离线宽限策略。
 
 ### 阶段三：购买页面与 Web 状态
@@ -432,9 +506,9 @@ fun close()
 
 满足以下条件后才可认为商业化能力可发布：
 
-- 免费安装后稳定进入试用状态并显示统一水印。
-- 年度订阅购买成功后立即去除水印。
-- 永久购买成功后立即去除水印。
+- 免费安装后稳定进入 7 天完整试用且不显示标签，试用到期后统一显示“试用已结束”。
+- 年度订阅购买成功后立即去除试用结束标签。
+- 永久购买成功后立即去除试用结束标签。
 - 重启和短期断网后权益正确恢复。
 - 订阅超过宽限或 Play 明确返回失效后回到试用状态。
 - 重新安装后能够通过 Google Play 恢复购买。
@@ -442,4 +516,6 @@ fun close()
 - Pending、失败、取消和 Billing 不可用均不会导致崩溃或中断播放。
 - 手机、平板、电视/盒子的购买页面均可操作且文字不溢出。
 - Release AAB 通过内部测试轨道真实购买验证。
-
+- 同一 Google 账号在第二台兼容设备上的恢复行为与商店说明一致。
+- 无 Play Store 或非认证设备会明确显示购买不可用，不进入崩溃或无限重试。
+- 系统时间回拨不能延长订阅宽限。

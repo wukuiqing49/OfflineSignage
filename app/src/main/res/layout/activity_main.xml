@@ -53,6 +53,25 @@
         android:clipChildren="true"
         android:clipToPadding="true" />
 
+    <com.google.android.material.button.MaterialButton
+        android:id="@+id/trial_expired_badge"
+        style="@style/Widget.Material3.Button.TextButton"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_gravity="top|start"
+        android:layout_margin="@dimen/app_spacing_medium"
+        android:backgroundTint="#CC7A1F1F"
+        android:insetTop="0dp"
+        android:insetBottom="0dp"
+        android:minHeight="40dp"
+        android:minWidth="0dp"
+        android:text="@string/trial_expired_badge"
+        android:textColor="@android:color/white"
+        android:textSize="13sp"
+        android:textStyle="bold"
+        android:visibility="gone"
+        app:cornerRadius="6dp" />
+
     <ScrollView
         android:id="@+id/pairing_panel"
         android:layout_width="match_parent"
@@ -64,151 +83,288 @@
         <LinearLayout
             android:id="@+id/pairing_content_card"
             android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:background="@drawable/bg_pairing_card"
-            android:gravity="center"
-            android:orientation="horizontal"
+            android:layout_height="match_parent"
+            android:layout_gravity="center_horizontal"
             android:layout_marginStart="@dimen/pairing_screen_padding"
             android:layout_marginTop="@dimen/pairing_screen_padding"
             android:layout_marginEnd="@dimen/pairing_screen_padding"
             android:layout_marginBottom="@dimen/pairing_screen_padding"
-            android:padding="@dimen/pairing_screen_padding">
-
-            <ImageView
-                android:id="@+id/pairing_qr_code"
-                android:layout_width="@dimen/pairing_qr_size"
-                android:layout_height="@dimen/pairing_qr_size"
-                android:background="@color/pairing_qr_background"
-                android:contentDescription="@string/pairing_qr_content_description"
-                android:padding="@dimen/app_spacing_small"
-                android:scaleType="fitCenter" />
+            android:orientation="vertical">
 
             <LinearLayout
-                android:id="@+id/pairing_details"
-                android:layout_width="0dp"
-                android:layout_height="wrap_content"
-                android:layout_marginStart="@dimen/pairing_content_gap"
-                android:layout_weight="1"
-                android:gravity="start"
-                android:orientation="vertical">
+                android:id="@+id/pairing_header"
+                android:layout_width="match_parent"
+                android:layout_height="56dp"
+                android:gravity="center_vertical"
+                android:orientation="horizontal"
+                android:paddingStart="@dimen/app_spacing_medium"
+                android:paddingEnd="@dimen/app_spacing_small">
 
-                <TextView
-                    android:layout_width="wrap_content"
+                <LinearLayout
+                    android:layout_width="0dp"
                     android:layout_height="wrap_content"
-                    android:background="@drawable/bg_welcome_label"
-                    android:paddingStart="12dp"
-                    android:paddingTop="6dp"
-                    android:paddingEnd="12dp"
-                    android:paddingBottom="6dp"
-                    android:text="@string/home_brand_label"
-                    android:textColor="@color/welcome_accent"
-                    android:textSize="12sp"
-                    android:textStyle="bold" />
+                    android:layout_weight="1"
+                    android:gravity="center_vertical"
+                    android:orientation="horizontal">
 
-                <TextView
-                    android:layout_width="match_parent"
-                    android:layout_height="wrap_content"
-                    android:layout_marginTop="16dp"
-                    android:text="@string/home_title"
-                    android:textColor="@color/pairing_text_primary"
-                    android:textSize="30sp"
-                    android:textStyle="bold" />
+                    <View
+                        android:layout_width="8dp"
+                        android:layout_height="8dp"
+                        android:background="@drawable/bg_pairing_status_dot" />
 
-                <TextView
-                    android:layout_width="match_parent"
-                    android:layout_height="wrap_content"
-                    android:layout_marginTop="6dp"
-                    android:maxLines="2"
-                    android:text="@string/home_subtitle"
-                    android:textColor="@color/pairing_text_secondary"
-                    android:textSize="14sp" />
-
-                <TextView
-                    android:id="@+id/pairing_device_name"
-                    android:layout_width="match_parent"
-                    android:layout_height="wrap_content"
-                    android:maxLines="2"
-                    android:textColor="@color/pairing_text_primary"
-                    android:textSize="28sp"
-                    android:textStyle="bold" />
-
-                <TextView
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:layout_marginTop="@dimen/app_spacing_small"
-                    android:text="@string/pairing_ready"
-                    android:textColor="@color/pairing_accent"
-                    android:textSize="15sp" />
-
-                <TextView
-                    android:id="@+id/pairing_address"
-                    android:layout_width="match_parent"
-                    android:layout_height="wrap_content"
-                    android:layout_marginTop="@dimen/app_spacing_large"
-                    android:maxLines="2"
-                    android:textColor="@color/pairing_text_primary"
-                    android:textIsSelectable="true"
-                    android:textSize="18sp" />
-
-                <TextView
-                    android:id="@+id/pairing_hotspot_info"
-                    android:layout_width="match_parent"
-                    android:layout_height="wrap_content"
-                    android:layout_marginTop="@dimen/app_spacing_small"
-                    android:maxLines="3"
-                    android:textColor="@color/pairing_text_secondary"
-                    android:textIsSelectable="true"
-                    android:textSize="14sp"
-                    android:visibility="gone" />
-
-                <TextView
-                    android:id="@+id/pairing_access_code_label"
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:layout_marginTop="@dimen/app_spacing_large"
-                    android:text="@string/pairing_computer_code"
-                    android:textColor="@color/pairing_text_secondary"
-                    android:textSize="14sp" />
-
-                <TextView
-                    android:id="@+id/pairing_access_code"
-                    android:layout_width="match_parent"
-                    android:layout_height="wrap_content"
-                    android:contentDescription="@string/pairing_computer_code_content_description"
-                    android:fontFamily="monospace"
-                    android:maxLines="1"
-                    android:textColor="@color/pairing_text_primary"
-                    android:textIsSelectable="true"
-                    android:textSize="24sp"
-                    android:textStyle="bold" />
-
-                <TextView
-                    android:id="@+id/pairing_hint"
-                    android:layout_width="match_parent"
-                    android:layout_height="wrap_content"
-                    android:layout_marginTop="@dimen/app_spacing_small"
-                    android:maxLines="3"
-                    android:text="@string/pairing_scan_hint"
-                    android:textColor="@color/pairing_text_secondary"
-                    android:textSize="14sp" />
+                    <TextView
+                        android:id="@+id/pairing_device_name"
+                        android:layout_width="0dp"
+                        android:layout_height="wrap_content"
+                        android:layout_marginStart="8dp"
+                        android:layout_weight="1"
+                        android:ellipsize="end"
+                        android:maxLines="1"
+                        android:textColor="@color/pairing_text_primary"
+                        android:textSize="17sp"
+                        android:textStyle="bold" />
+                </LinearLayout>
 
                 <com.google.android.material.button.MaterialButton
-                    android:id="@+id/open_hotspot_settings_button"
-                    style="@style/Widget.Material3.Button.OutlinedButton"
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:layout_marginTop="@dimen/app_spacing_medium"
-                    android:text="@string/open_hotspot_settings" />
+                    android:id="@+id/open_help_button"
+                    style="@style/Widget.Material3.Button.IconButton"
+                    android:layout_width="48dp"
+                    android:layout_height="48dp"
+                    android:contentDescription="@string/help_title"
+                    android:minWidth="0dp"
+                    android:text=""
+                    app:icon="@drawable/ic_help_24"
+                    app:iconTint="@color/pairing_text_secondary" />
 
                 <com.google.android.material.button.MaterialButton
                     android:id="@+id/close_pairing_button"
-                    style="@style/Widget.Material3.Button.OutlinedButton"
+                    style="@style/Widget.Material3.Button.TextButton"
                     android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:layout_marginTop="@dimen/app_spacing_large"
+                    android:layout_height="48dp"
+                    android:layout_marginStart="4dp"
+                    android:minWidth="0dp"
                     android:text="@string/return_to_playback"
-                    android:visibility="gone" />
+                    android:textColor="@color/pairing_text_primary"
+                    android:visibility="gone"
+                    app:icon="@drawable/ic_arrow_back_24"
+                    app:iconTint="@color/pairing_text_primary" />
             </LinearLayout>
+
+            <View
+                android:layout_width="match_parent"
+                android:layout_height="1dp"
+                android:background="@color/pairing_divider" />
+
+            <LinearLayout
+                android:id="@+id/pairing_content"
+                android:layout_width="match_parent"
+                android:layout_height="0dp"
+                android:layout_weight="1"
+                android:gravity="center_vertical"
+                android:orientation="horizontal"
+                android:padding="@dimen/pairing_screen_padding">
+
+                <LinearLayout
+                    android:id="@+id/pairing_qr_section"
+                    android:layout_width="@dimen/pairing_qr_size"
+                    android:layout_height="wrap_content"
+                    android:gravity="center_horizontal"
+                    android:orientation="vertical">
+
+                    <LinearLayout
+                        android:id="@+id/open_billing_row"
+                        android:layout_width="match_parent"
+                        android:layout_height="48dp"
+                        android:clickable="true"
+                        android:focusable="true"
+                        android:foreground="?attr/selectableItemBackground"
+                        android:gravity="center_vertical"
+                        android:orientation="horizontal"
+                        android:paddingStart="4dp"
+                        android:paddingEnd="2dp">
+
+                        <ImageView
+                            android:id="@+id/entitlement_icon"
+                            android:layout_width="18dp"
+                            android:layout_height="18dp"
+                            android:contentDescription="@null"
+                            android:src="@drawable/ic_license_24"
+                            android:tint="@color/pairing_accent" />
+
+                        <TextView
+                            android:id="@+id/entitlement_status"
+                            android:layout_width="0dp"
+                            android:layout_height="wrap_content"
+                            android:layout_marginStart="8dp"
+                            android:layout_weight="1"
+                            android:ellipsize="end"
+                            android:importantForAccessibility="no"
+                            android:maxLines="1"
+                            android:textColor="@color/pairing_text_primary"
+                            android:textSize="13sp"
+                            android:textStyle="bold" />
+
+                        <ImageView
+                            android:layout_width="18dp"
+                            android:layout_height="18dp"
+                            android:contentDescription="@null"
+                            android:src="@drawable/ic_chevron_right_24"
+                            android:tint="@color/pairing_text_secondary" />
+                    </LinearLayout>
+
+                    <FrameLayout
+                        android:id="@+id/pairing_qr_frame"
+                        android:layout_width="match_parent"
+                        android:layout_height="@dimen/pairing_qr_size"
+                        android:layout_marginTop="4dp">
+
+                        <ImageView
+                            android:id="@+id/pairing_qr_code"
+                            android:layout_width="match_parent"
+                            android:layout_height="match_parent"
+                            android:background="@color/pairing_qr_background"
+                            android:contentDescription="@string/pairing_qr_content_description"
+                            android:padding="@dimen/app_spacing_small"
+                            android:scaleType="fitCenter" />
+
+                        <TextView
+                            android:id="@+id/pairing_qr_unavailable"
+                            android:layout_width="match_parent"
+                            android:layout_height="match_parent"
+                            android:background="@drawable/bg_pairing_qr_placeholder"
+                            android:gravity="center"
+                            android:maxLines="3"
+                            android:padding="@dimen/app_spacing_medium"
+                            android:text="@string/pairing_network_hint"
+                            android:textAlignment="center"
+                            android:textColor="@color/pairing_text_secondary"
+                            android:textSize="14sp"
+                            android:visibility="gone" />
+                    </FrameLayout>
+
+                    <TextView
+                        android:id="@+id/pairing_qr_caption"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:layout_marginTop="8dp"
+                        android:gravity="center"
+                        android:maxLines="1"
+                        android:text="@string/pairing_scan_phone"
+                        android:textColor="@color/pairing_text_secondary"
+                        android:textSize="13sp" />
+                </LinearLayout>
+
+                <LinearLayout
+                    android:id="@+id/pairing_details"
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_marginStart="@dimen/pairing_content_gap"
+                    android:layout_weight="1"
+                    android:gravity="start"
+                    android:orientation="vertical">
+
+                    <TextView
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:maxLines="1"
+                        android:text="@string/pairing_connect_title"
+                        android:textColor="@color/pairing_text_primary"
+                        android:textSize="24sp"
+                        android:textStyle="bold" />
+
+                    <TextView
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:layout_marginTop="@dimen/app_spacing_medium"
+                        android:text="@string/control_address"
+                        android:textColor="@color/pairing_text_muted"
+                        android:textSize="12sp" />
+
+                    <TextView
+                        android:id="@+id/pairing_address"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:layout_marginTop="2dp"
+                        android:ellipsize="end"
+                        android:fontFamily="monospace"
+                        android:maxLines="1"
+                        android:textColor="@color/pairing_text_primary"
+                        android:textIsSelectable="true"
+                        android:textSize="17sp" />
+
+                    <TextView
+                        android:id="@+id/pairing_access_code_label"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:layout_marginTop="@dimen/app_spacing_medium"
+                        android:text="@string/pairing_computer_code"
+                        android:textColor="@color/pairing_text_muted"
+                        android:textSize="12sp" />
+
+                    <TextView
+                        android:id="@+id/pairing_access_code"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:layout_marginTop="2dp"
+                        android:contentDescription="@string/pairing_computer_code_content_description"
+                        android:fontFamily="monospace"
+                        android:maxLines="1"
+                        android:textColor="@color/pairing_text_primary"
+                        android:textIsSelectable="true"
+                        android:textSize="30sp"
+                        android:textStyle="bold" />
+
+                    <TextView
+                        android:id="@+id/pairing_hint"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:layout_marginTop="2dp"
+                        android:maxLines="2"
+                        android:text="@string/pairing_scan_hint"
+                        android:textColor="@color/pairing_text_secondary"
+                        android:textSize="13sp" />
+
+                    <View
+                        android:layout_width="match_parent"
+                        android:layout_height="1dp"
+                        android:layout_marginTop="@dimen/app_spacing_medium"
+                        android:background="@color/pairing_divider" />
+
+                    <TextView
+                        android:id="@+id/pairing_network_status"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:layout_marginTop="12dp"
+                        android:maxLines="1"
+                        android:text="@string/pairing_network_connected"
+                        android:textColor="@color/pairing_accent"
+                        android:textSize="14sp"
+                        android:textStyle="bold" />
+
+                    <TextView
+                        android:id="@+id/pairing_hotspot_info"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:layout_marginTop="4dp"
+                        android:maxLines="2"
+                        android:textColor="@color/pairing_text_secondary"
+                        android:textIsSelectable="true"
+                        android:textSize="13sp"
+                        android:visibility="gone" />
+
+                    <com.google.android.material.button.MaterialButton
+                        android:id="@+id/open_hotspot_settings_button"
+                        style="@style/Widget.Material3.Button.OutlinedButton"
+                        android:layout_width="wrap_content"
+                        android:layout_height="48dp"
+                        android:layout_marginTop="8dp"
+                        android:minWidth="0dp"
+                        android:text="@string/open_hotspot_settings"
+                        android:textColor="@color/pairing_text_primary"
+                        app:strokeColor="@color/pairing_surface_stroke" />
+                </LinearLayout>
+            </LinearLayout>
+
         </LinearLayout>
     </ScrollView>
 

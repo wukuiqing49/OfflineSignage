@@ -28,17 +28,21 @@ android {
 
 dependencies {
     implementation project(':core:core_base')
+    implementation project(':core:core_google')
     implementation project(':core:core_utils')
     implementation project(':feature:feature_res')
     implementation libs.androidx.core.ktx
+    implementation libs.androidx.activity.ktx
     implementation libs.androidx.constraintlayout
     implementation libs.androidx.fragment.ktx
     implementation libs.androidx.lifecycle.runtime.ktx
     implementation libs.androidx.lifecycle.viewmodel.ktx
     implementation libs.androidx.lifecycle.livedata.ktx
     implementation libs.androidx.recyclerview
+    implementation libs.material
     api libs.androidx.viewpager2
     implementation libs.coil
+    implementation libs.gson
     implementation libs.ktor.server.core
     implementation libs.ktor.server.cio
     implementation libs.ktor.server.websockets

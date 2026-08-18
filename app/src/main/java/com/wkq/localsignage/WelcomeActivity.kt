@@ -13,6 +13,7 @@ import androidx.core.view.updatePadding
 import com.wkq.base.activity.BaseActivity
 import com.wkq.localsignage.databinding.ActivityWelcomeBinding
 import com.wkq.localsignage.feature.app.runtime.SignageRuntime
+import com.wkq.localsignage.feature.app.R as FeatureAppR
 
 class WelcomeActivity : BaseActivity<ActivityWelcomeBinding>() {
 
@@ -45,12 +46,12 @@ class WelcomeActivity : BaseActivity<ActivityWelcomeBinding>() {
     override fun initData() = Unit
 
     private fun configureWelcomeLayout(availableWidth: Int) {
-        val compact = availableWidth < resources.getDimensionPixelSize(R.dimen.pairing_compact_breakpoint)
+        val compact = availableWidth < resources.getDimensionPixelSize(FeatureAppR.dimen.pairing_compact_breakpoint)
         val padding = resources.getDimensionPixelSize(
-            if (compact) R.dimen.welcome_compact_screen_padding else R.dimen.welcome_screen_padding
+            if (compact) FeatureAppR.dimen.welcome_compact_screen_padding else FeatureAppR.dimen.welcome_screen_padding
         )
         val gap = resources.getDimensionPixelSize(
-            if (compact) R.dimen.welcome_compact_content_gap else R.dimen.welcome_content_gap
+            if (compact) FeatureAppR.dimen.welcome_compact_content_gap else FeatureAppR.dimen.welcome_content_gap
         )
         binding.welcomeContent.apply {
             orientation = if (compact) LinearLayout.VERTICAL else LinearLayout.HORIZONTAL

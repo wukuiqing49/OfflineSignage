@@ -1,0 +1,23 @@
+<resources>
+    <dimen name="app_spacing_small">8dp</dimen>
+    <dimen name="app_spacing_medium">16dp</dimen>
+    <dimen name="app_spacing_large">24dp</dimen>
+    <dimen name="pairing_screen_padding">24dp</dimen>
+    <dimen name="pairing_qr_size">240dp</dimen>
+    <dimen name="pairing_qr_pixels">512px</dimen>
+    <dimen name="pairing_content_gap">48dp</dimen>
+    <dimen name="pairing_content_max_width">1040dp</dimen>
+    <dimen name="pairing_compact_breakpoint">720dp</dimen>
+    <dimen name="pairing_compact_height_breakpoint">520dp</dimen>
+    <dimen name="pairing_compact_screen_padding">8dp</dimen>
+    <dimen name="pairing_compact_qr_size">144dp</dimen>
+    <dimen name="pairing_compact_content_gap">20dp</dimen>
+    <dimen name="welcome_screen_padding">48dp</dimen>
+    <dimen name="welcome_compact_screen_padding">24dp</dimen>
+    <dimen name="welcome_content_gap">56dp</dimen>
+    <dimen name="welcome_compact_content_gap">28dp</dimen>
+    <dimen name="billing_screen_padding">24dp</dimen>
+    <dimen name="billing_compact_breakpoint">720dp</dimen>
+    <dimen name="billing_content_max_width">1120dp</dimen>
+    <dimen name="document_content_max_width">840dp</dimen>
+</resources>

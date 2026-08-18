@@ -1,6 +1,7 @@
 plugins {
     alias(libs.plugins.android.application)
     alias(libs.plugins.kotlin.android)
+    alias(libs.plugins.google.services)
 }
 
 apply from: rootProject.file('gradle/app-conventions.gradle')
@@ -13,7 +14,7 @@ android {
         targetSdk = libs.versions.targetSdk.get().toInteger()
 
         ndk {
-            abiFilters 'arm64-v8a', 'x86_64'
+            abiFilters 'armeabi-v7a', 'arm64-v8a'
         }
     }
 
@@ -39,7 +40,12 @@ dependencies {
     implementation libs.androidx.core.ktx
     implementation libs.androidx.activity.ktx
     implementation libs.androidx.appcompat
+    implementation libs.androidx.lifecycle.runtime.ktx
+    implementation libs.androidx.lifecycle.viewmodel.ktx
     implementation libs.material
+    implementation libs.gson
     implementation libs.androidx.constraintlayout
     implementation libs.media3.ui
+    implementation libs.kotlinx.coroutines.android
+    testImplementation libs.junit4
 }

@@ -36,6 +36,8 @@ if (signingPropertiesFile.isFile()) {
 def signingValue = { String propertyName, String environmentName ->
     providers.environmentVariable(environmentName).orNull ?: signingProperties.getProperty(propertyName)
 }
+def playLicensePublicKey = signingValue('playLicensePublicKey', 'PLAY_LICENSE_PUBLIC_KEY') ?: ''
+def escapedPlayLicensePublicKey = playLicensePublicKey.replace('\\', '\\\\').replace('"', '\\"')
 def appStoreFile = signingValue('storeFile', 'ANDROID_KEYSTORE_FILE')
 def appStorePassword = signingValue('storePassword', 'ANDROID_KEYSTORE_PASSWORD')
 def appKeyAlias = signingValue('keyAlias', 'ANDROID_KEY_ALIAS')
@@ -52,6 +54,7 @@ if (configuredSigningValueCount == appSigningValues.size() && !appStorePath.isFi
 }
 def appSigningReady = configuredSigningValueCount == appSigningValues.size() && signingConfigurationError == null
 def requireReleaseSigning = appConfig.getProperty('requireReleaseSigning', 'false').toBoolean()
+def requireUnifiedSigning = appConfig.getProperty('requireUnifiedSigning', 'false').toBoolean()
 
 android {
     namespace = appNamespace
@@ -60,6 +63,7 @@ android {
         applicationId = appApplicationId
         versionCode = calculatedVersionCode.toInteger()
         versionName = appVersionName
+        buildConfigField 'String', 'PLAY_LICENSE_PUBLIC_KEY', "\"${escapedPlayLicensePublicKey}\""
     }
 
     signingConfigs {
@@ -82,12 +86,14 @@ android {
             if (appSigningReady) {
                 signingConfig = signingConfigs.sharedApp
             }
+            manifestPlaceholders.firebaseAnalyticsCollectionEnabled = false
             minifyEnabled = false
         }
         release {
             if (appSigningReady) {
                 signingConfig = signingConfigs.sharedApp
             }
+            manifestPlaceholders.firebaseAnalyticsCollectionEnabled = true
             minifyEnabled = true
             shrinkResources = true
             proguardFiles getDefaultProguardFile('proguard-android-optimize.txt'), 'proguard-rules.pro'
@@ -99,10 +105,25 @@ if (signingConfigurationError) {
     throw new GradleException(signingConfigurationError)
 }
 gradle.taskGraph.whenReady { graph ->
+    def signedAppTaskRequested = graph.allTasks.any { task ->
+        if (task.project != project) return false
+        def taskName = task.name.toLowerCase()
+        return taskName == 'signingreport' ||
+                taskName.startsWith('assemble') ||
+                taskName.startsWith('bundle') ||
+                taskName.startsWith('install') ||
+                taskName.startsWith('package')
+    }
     def releaseTaskRequested = graph.allTasks.any { task ->
         task.name.toLowerCase().contains('release')
     }
+    if (requireUnifiedSigning && signedAppTaskRequested && !appSigningReady) {
+        throw new GradleException('测试版和正式版必须使用同一签名，请配置 keystore.properties 或签名环境变量')
+    }
     if (requireReleaseSigning && releaseTaskRequested && !appSigningReady) {
         throw new GradleException('正式发布要求签名，请配置 keystore.properties 或签名环境变量')
+    }
+    if (releaseTaskRequested && !playLicensePublicKey) {
+        throw new GradleException('正式发布要求 Play 许可公钥，请配置 playLicensePublicKey 或 PLAY_LICENSE_PUBLIC_KEY')
     }
 }

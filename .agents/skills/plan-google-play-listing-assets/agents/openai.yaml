@@ -1,0 +1,4 @@
+interface:
+  display_name: "Google Play 素材与提示词策划"
+  short_description: "分析当前 Android 项目，生成关键词、封面、截图与视频策划提示词"
+  default_prompt: "使用 $plan-google-play-listing-assets 分析当前 Android 项目并生成 Google Play 封面、截图和视频策划及独立 Prompt；缺少关键词工具数据时先只输出 10 个英文 Seed Keywords。"

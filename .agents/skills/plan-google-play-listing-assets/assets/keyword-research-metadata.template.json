@@ -1,0 +1,9 @@
+{
+  "tool_name": "[Keyword Planner or ASO tool name]",
+  "target_market": "[Country or region used by the export]",
+  "locale": "en-US",
+  "exported_at": "[YYYY-MM-DD]",
+  "metric_definitions": {
+    "[exact metric column name]": "[definition and unit from the source tool]"
+  }
+}

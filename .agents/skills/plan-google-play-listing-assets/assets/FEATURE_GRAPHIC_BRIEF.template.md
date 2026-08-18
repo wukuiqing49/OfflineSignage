@@ -64,5 +64,5 @@
 ## 12. Final Image Prompt
 
 ```text
-[Self-contained prompt. CONCEPT uses real project resources without device frames or App UI. PRODUCTION may use immutable real UI Asset IDs. Never generate or redraw App UI.]
+[Self-contained prompt. CONCEPT generates background geometry only, reserves text/logo safe areas, and specifies deterministic text/logo compositing plus exact output size and format. PRODUCTION may use immutable real UI Asset IDs. Never generate or redraw App UI.]
 ```

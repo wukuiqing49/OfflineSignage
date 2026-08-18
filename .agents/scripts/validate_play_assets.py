@@ -4,6 +4,7 @@
 from __future__ import annotations
 
 import argparse
+import re
 import struct
 import sys
 import zlib
@@ -40,6 +41,17 @@ def parse_args() -> argparse.Namespace:
         default=[],
         metavar="TYPE=PATH",
         help="Asset type and path. TYPE: icon, screenshot, feature-graphic. Repeat as needed.",
+    )
+    parser.add_argument(
+        "--screenshot-orientation",
+        choices=("any", "portrait", "landscape"),
+        default="any",
+        help="Expected screenshot orientation. Default: any.",
+    )
+    parser.add_argument(
+        "--screenshot-size",
+        metavar="WIDTHxHEIGHT",
+        help="Require an exact screenshot size, for example 1920x1080.",
     )
     return parser.parse_args()
 
@@ -162,7 +174,21 @@ def read_image_info(path: Path) -> ImageInfo:
     raise ValueError("only PNG and JPEG are supported")
 
 
-def validate_asset(kind: str, path: Path) -> ValidationResult:
+def parse_size(raw: str | None) -> tuple[int, int] | None:
+    if not raw:
+        return None
+    match = re.fullmatch(r"(\d+)x(\d+)", raw.strip().lower())
+    if not match:
+        raise ValueError(f"size must use WIDTHxHEIGHT: {raw}")
+    return int(match.group(1)), int(match.group(2))
+
+
+def validate_asset(
+    kind: str,
+    path: Path,
+    screenshot_orientation: str = "any",
+    screenshot_size: tuple[int, int] | None = None,
+) -> ValidationResult:
     errors: list[str] = []
     warnings: list[str] = []
     normalized = kind.strip().lower().replace("_", "-")
@@ -185,14 +211,15 @@ def validate_asset(kind: str, path: Path) -> ValidationResult:
     elif normalized == "feature-graphic" and (info.width, info.height) != (1024, 500):
         errors.append(f"{path}: feature graphic must be 1024x500, got {info.width}x{info.height}")
     elif normalized == "screenshot":
-        if info.width >= info.height:
+        if screenshot_orientation == "portrait" and info.width >= info.height:
             errors.append(f"{path}: expected a portrait screenshot, got {info.width}x{info.height}")
-        preferred_ratio = 9 / 16
-        actual_ratio = info.width / info.height
-        if abs(actual_ratio - preferred_ratio) > 0.02:
-            warnings.append(f"{path}: screenshot is not close to 9:16 ({info.width}x{info.height})")
-        if (info.width, info.height) != (1240, 2208):
-            warnings.append(f"{path}: preferred screenshot size is 1240x2208")
+        elif screenshot_orientation == "landscape" and info.width <= info.height:
+            errors.append(f"{path}: expected a landscape screenshot, got {info.width}x{info.height}")
+        if screenshot_size and (info.width, info.height) != screenshot_size:
+            errors.append(
+                f"{path}: screenshot must be {screenshot_size[0]}x{screenshot_size[1]}, "
+                f"got {info.width}x{info.height}"
+            )
 
     if info.has_transparency is True:
         errors.append(f"{path}: transparent pixels are not allowed")
@@ -219,13 +246,18 @@ def main() -> int:
 
     errors: list[str] = []
     warnings: list[str] = []
+    try:
+        screenshot_size = parse_size(args.screenshot_size)
+    except ValueError as error:
+        print(f"ERROR: {error}")
+        return 2
     for raw in args.asset:
         try:
             kind, path = parse_asset_arg(raw)
         except ValueError as error:
             errors.append(str(error))
             continue
-        result = validate_asset(kind, path)
+        result = validate_asset(kind, path, args.screenshot_orientation, screenshot_size)
         errors.extend(result.errors)
         warnings.extend(result.warnings)
 

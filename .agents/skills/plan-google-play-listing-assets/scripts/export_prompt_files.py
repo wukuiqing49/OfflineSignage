@@ -31,6 +31,9 @@ UI_PROHIBITION_RE = re.compile(
     re.IGNORECASE,
 )
 GENERATED_MARKER = "- Generation: Derived from the validated project brief"
+DEVICE_VARIANT_RE = re.compile(r"([A-Za-z][A-Za-z0-9 -]*?)\s*=\s*(\d+x\d+)")
+CANVAS_DECLARATION_RE = re.compile(r"(\bCanvas:\s+exactly\s+)\d+x\d+(\s+pixels\b)", re.IGNORECASE)
+SUPPORTED_OUTPUT_FORMAT_RE = re.compile(r"\b(?:PNG|JPEG)\b", re.IGNORECASE)
 
 
 @dataclass(frozen=True)
@@ -91,6 +94,48 @@ def prompt_content(section: str) -> str:
 def field(text: str, name: str) -> str:
     match = re.search(rf"^-\s+{re.escape(name)}:[ \t]*(.*?)[ \t]*$", text, re.MULTILINE)
     return match.group(1).strip() if match else ""
+
+
+def slug(value: str) -> str:
+    return re.sub(r"[^a-z0-9]+", "-", value.casefold()).strip("-")
+
+
+def device_variants(summary: str, fallback_device: str) -> list[tuple[str, str | None]]:
+    raw = field(summary, "Device Sets")
+    if raw:
+        variants = [(match.group(1).strip(), match.group(2)) for match in DEVICE_VARIANT_RE.finditer(raw)]
+        remainder = DEVICE_VARIANT_RE.sub("", raw).strip(" ,;|")
+        if not variants or remainder:
+            raise ValueError(
+                "Device Sets must use comma-separated NAME=WIDTHxHEIGHT entries, "
+                f"got: {raw}"
+            )
+        seen_names: set[str] = set()
+        seen_paths: set[str] = set()
+        for name, size in variants:
+            width, height = (int(value) for value in size.split("x"))
+            if width <= 0 or height <= 0:
+                raise ValueError(f"Device Sets contains an invalid size: {name}={size}")
+            path_slug = slug(name)
+            if not path_slug or path_slug in seen_names or path_slug in seen_paths:
+                raise ValueError(f"Device Sets contains duplicate device names: {name}")
+            seen_names.add(path_slug)
+            seen_paths.add(path_slug)
+        return variants
+    return [(fallback_device or "Phone", None)]
+
+
+def screenshot_output_format(summary: str) -> str:
+    raw = field(summary, "Output Format")
+    if not raw:
+        return "opaque PNG or JPEG"
+    if "opaque" not in raw.casefold() or not SUPPORTED_OUTPUT_FORMAT_RE.search(raw):
+        raise ValueError("Output Format must describe an opaque PNG or JPEG output")
+    return raw
+
+
+def replace_canvas_size(prompt: str, canvas_size: str) -> str:
+    return CANVAS_DECLARATION_RE.sub(rf"\g<1>{canvas_size}\g<2>", prompt)
 
 
 def require_prompt_values(prompt: str, label: str, values: dict[str, str]) -> list[str]:
@@ -176,32 +221,67 @@ def collect_screenshots(path: Path, output_root: Path, errors: list[str]) -> lis
     if not matches:
         errors.append("screenshots brief has no Screenshot entries")
         return []
+    summary = numbered_section(text, "Executive Summary")
+    default_device = field(summary, "Device Type")
+    try:
+        variants = device_variants(summary, default_device)
+        output_format = screenshot_output_format(summary)
+    except ValueError as error:
+        errors.append(f"screenshots brief: {error}")
+        return []
+    multi_device = len(variants) > 1 or bool(field(summary, "Device Sets"))
     artifacts: list[PromptArtifact] = []
     for index, match in enumerate(matches):
         number = int(match.group(1))
         end = matches[index + 1].start() if index + 1 < len(matches) else len(screenshots)
-        prompt = prompt_content(subsection(screenshots[match.end():end], "Final Image Prompt"))
-        label = f"Screenshot {number:02d} Final Image Prompt"
-        errors.extend(validate_prompt(prompt, label))
         body = screenshots[match.end():end]
-        errors.extend(require_prompt_values(
-            prompt,
-            label,
-            {
-                "Device Type": field(body, "Device Type"),
-                "Orientation": field(body, "Orientation"),
-                "Headline": field(body, "Headline"),
-                "Supporting Text": field(body, "Supporting Text"),
-                "Source Screenshot ID": field(body, "Source Screenshot ID"),
-            },
-        ))
-        artifacts.append(PromptArtifact(
-            output_path=output_root / "screenshots" / "prompts" / f"SCREENSHOT_{number:02d}_PROMPT.md",
-            source_brief=path,
-            title=f"SCREENSHOT_{number:02d}_PROMPT",
-            asset_type=f"Screenshot {number:02d}",
-            prompt=prompt,
-        ))
+        locale = field(body, "Locale")
+        orientation = field(body, "Orientation") or field(summary, "Orientation")
+        base_prompt = prompt_content(subsection(body, "Final Image Prompt"))
+        for device_type, canvas_size in variants:
+            prompt = re.sub(r"^Device Type:[^\r\n]+\r?\n\r?\n", "", base_prompt)
+            if canvas_size:
+                prompt = replace_canvas_size(prompt, canvas_size)
+                width, height = (int(value) for value in canvas_size.split("x"))
+                if orientation.casefold() == "landscape" and width <= height:
+                    errors.append(
+                        f"{device_type} Screenshot {number:02d} has landscape orientation but canvas is {canvas_size}"
+                    )
+                elif orientation.casefold() == "portrait" and width >= height:
+                    errors.append(
+                        f"{device_type} Screenshot {number:02d} has portrait orientation but canvas is {canvas_size}"
+                    )
+            prompt = (
+                f"Device Type: {device_type}. Locale: {locale or 'en-US'}."
+                + (f" Canvas: {canvas_size}." if canvas_size else "")
+                + (f" Orientation: {orientation}." if orientation else "")
+                + f" Output: {output_format}."
+                + f"\n\n{prompt}"
+            )
+            label = f"{device_type} Screenshot {number:02d} Final Image Prompt"
+            errors.extend(validate_prompt(prompt, label))
+            errors.extend(require_prompt_values(
+                prompt,
+                label,
+                {
+                    "Device Type": device_type,
+                    "Orientation": field(body, "Orientation"),
+                    "Headline": field(body, "Headline"),
+                    "Supporting Text": field(body, "Supporting Text"),
+                    "Source Screenshot ID": field(body, "Source Screenshot ID"),
+                    "Canvas": canvas_size or "",
+                    "Output Format": output_format,
+                },
+            ))
+            suffix = f"/{slug(device_type)}" if multi_device else ""
+            title_prefix = f"{slug(device_type).upper()}_" if multi_device else ""
+            artifacts.append(PromptArtifact(
+                output_path=output_root / "screenshots" / "prompts" / suffix.strip("/") / f"SCREENSHOT_{number:02d}_PROMPT.md",
+                source_brief=path,
+                title=f"{title_prefix}SCREENSHOT_{number:02d}_PROMPT",
+                asset_type=f"{device_type} Screenshot {number:02d}" if multi_device else f"Screenshot {number:02d}",
+                prompt=prompt,
+            ))
     return artifacts
 
 
@@ -321,7 +401,7 @@ def stale_screenshot_prompts(artifacts: list[PromptArtifact], output_root: Path)
         return []
     expected = {artifact.output_path.resolve() for artifact in artifacts}
     return sorted(
-        path for path in prompt_dir.glob("SCREENSHOT_*_PROMPT.md")
+        path for path in prompt_dir.rglob("SCREENSHOT_*_PROMPT.md")
         if path.resolve() not in expected
     )
 

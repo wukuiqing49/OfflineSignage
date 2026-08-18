@@ -107,7 +107,7 @@ PRODUCTION 调用时增加 `--require-metadata --require-data`，仅当报告为
 - `.ai-work/play-assets/output/screenshots/SCREENSHOT_BRIEF.md`
 - `.ai-work/play-assets/output/video/VIDEO_BRIEF.md`
 - `.ai-work/play-assets/output/feature-graphic/FEATURE_GRAPHIC_PROMPT.md`
-- `.ai-work/play-assets/output/screenshots/prompts/SCREENSHOT_01_PROMPT.md`（每张截图一份）
+- `.ai-work/play-assets/output/screenshots/prompts/{device}/SCREENSHOT_01_PROMPT.md`（每个设备集合、每张截图一份）
 - `.ai-work/play-assets/output/video/VIDEO_PROMPT.md`
 
 只生成用户请求的分支。完整素材包必须生成四份策划文档、一个封面 Prompt、与截图数量一致的截图 Prompt，以及一个视频 Prompt。独立 Prompt 必须由 Brief 导出，引用真实 Asset ID，并禁止生成、重绘、翻译或改写 App UI。
@@ -141,6 +141,18 @@ python .agents/skills/plan-google-play-listing-assets/scripts/export_prompt_file
   --project-root . `
   --check
 ```
+
+## Concept Prompt Rules
+
+CONCEPT prompt files are production layout specifications, not a request for an image model to draw final typography or logos.
+
+- Ask the image step to generate background geometry and media motifs only.
+- Reserve a named text-safe region and keep exact copy outside the image-generation step.
+- Add headlines, supporting text, endpoint labels, and `BRAND-ICON-01` later with a deterministic compositor using a real system font and the original icon file.
+- State exact canvas size, orientation, opaque output, and post-composition checks in every Feature Graphic and Screenshot prompt.
+- Do not call a CONCEPT panel a real App screenshot. Switch to `PRODUCTION` only after real device captures are available.
+
+The validator accepts both portrait and landscape screenshots by default. Pass `--screenshot-orientation` and `--screenshot-size` when a branch has a fixed production contract.
 
 完整素材包默认导出三个分支。单分支任务传入 `--asset-types feature-graphic`、`--asset-types screenshots` 或 `--asset-types video`；导出后用相同参数加 `--check` 验证文件与 Brief 完全一致。
 

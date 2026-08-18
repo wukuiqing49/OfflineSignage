@@ -57,13 +57,26 @@ class ValidatePlayAssetsTest(unittest.TestCase):
             result = MODULE.validate_asset("feature-graphic", path)
             self.assertTrue(any("transparent pixels" in error for error in result.errors))
 
-    def test_warns_for_nonpreferred_portrait_screenshot(self) -> None:
+    def test_accepts_landscape_screenshot_when_requested(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            path = Path(directory) / "screenshot.png"
+            write_png(path, 1920, 1080)
+            result = MODULE.validate_asset("screenshot", path, "landscape", (1920, 1080))
+            self.assertEqual([], result.errors)
+
+    def test_rejects_landscape_screenshot_when_portrait_is_requested(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            path = Path(directory) / "screenshot.png"
+            write_png(path, 1920, 1080)
+            result = MODULE.validate_asset("screenshot", path, "portrait")
+            self.assertTrue(any("expected a portrait" in error for error in result.errors))
+
+    def test_accepts_portrait_screenshot_without_hardcoded_orientation(self) -> None:
         with tempfile.TemporaryDirectory() as directory:
             path = Path(directory) / "screenshot.png"
             write_png(path, 1080, 1920)
             result = MODULE.validate_asset("screenshot", path)
             self.assertEqual([], result.errors)
-            self.assertTrue(any("1240x2208" in warning for warning in result.warnings))
 
 
 if __name__ == "__main__":

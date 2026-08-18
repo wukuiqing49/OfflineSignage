@@ -193,22 +193,31 @@ def screenshots_text(
     count: int = 1,
     source_screenshot_id: str = "SHOT-01",
     product_evidence: str = "PF-01",
+    device_sets: str | None = None,
+    output_format: str | None = None,
+    orientation: str = "portrait",
 ) -> str:
     blocks = ["# SCREENSHOT_BRIEF"]
     for index, name in enumerate(validate_listing_briefs.SCREENSHOT_SECTIONS, start=1):
         blocks.append(f"## {index}. {name}")
         if name == "Executive Summary":
-            blocks.append(
+            summary = (
                 "- Status: READY_FOR_PRODUCTION\n"
                 "- Strategy Reference: PLAY_ASSET_STRATEGY.md\n"
-                f"- Screenshot Count: {count}"
+                f"- Screenshot Count: {count}\n"
+                f"- Orientation: {orientation}"
             )
+            if device_sets:
+                summary += f"\n- Device Sets: {device_sets}"
+            if output_format:
+                summary += f"\n- Output Format: {output_format}"
+            blocks.append(summary)
         elif name == "Screenshots":
             fields = {
                 "Purpose": "Show batch processing",
                 "Device Type": "phone",
                 "Locale": "en-US",
-                "Orientation": "portrait",
+                "Orientation": orientation,
                 "Real App Screen": "Batch queue",
                 "Starting State": "Three files selected",
                 "Demo Data": "Licensed sample photos",
@@ -900,6 +909,55 @@ class PromptExportTest(unittest.TestCase):
                 feature,
                 screenshots,
                 video,
+                output,
+                check=True,
+                strategy_brief=strategy,
+                project_root=root,
+            )
+            self.assertEqual([], check_errors)
+            self.assertEqual([], check_warnings)
+            self.assertEqual([], check_written)
+
+    def test_exports_phone_and_tablet_prompt_sets_with_exact_contracts(self) -> None:
+        with tempfile.TemporaryDirectory() as temp:
+            root = Path(temp)
+            strategy, feature, screenshots, video = self.write_prompt_briefs(root)
+            screenshots.write_text(
+                screenshots_text(
+                    device_sets="Phone=1920x1080, Tablet=2560x1600",
+                    output_format="opaque PNG or JPEG",
+                    orientation="landscape",
+                ),
+                encoding="utf-8",
+            )
+            output = root / "output"
+            errors, warnings, written = export_prompt_files.process(
+                None,
+                screenshots,
+                None,
+                output,
+                strategy_brief=strategy,
+                project_root=root,
+            )
+
+            self.assertEqual([], errors)
+            self.assertEqual([], warnings)
+            self.assertEqual(2, len(written))
+            phone_prompt = (output / "screenshots/prompts/phone/SCREENSHOT_01_PROMPT.md").read_text(encoding="utf-8")
+            tablet_prompt = (output / "screenshots/prompts/tablet/SCREENSHOT_01_PROMPT.md").read_text(encoding="utf-8")
+            self.assertIn("Canvas: 1920x1080", phone_prompt)
+            self.assertIn("Orientation: landscape", phone_prompt)
+            self.assertIn("Output: opaque PNG or JPEG", phone_prompt)
+            self.assertNotIn("2560x1600", phone_prompt)
+            self.assertIn("Canvas: 2560x1600", tablet_prompt)
+            self.assertIn("Orientation: landscape", tablet_prompt)
+            self.assertIn("Output: opaque PNG or JPEG", tablet_prompt)
+            self.assertNotIn("1920x1080", tablet_prompt)
+
+            check_errors, check_warnings, check_written = export_prompt_files.process(
+                None,
+                screenshots,
+                None,
                 output,
                 check=True,
                 strategy_brief=strategy,

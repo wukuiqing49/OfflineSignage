@@ -9,8 +9,10 @@
 - Target Locale:
 - Device Type:
 - Screenshot Count:
+- Device Sets: Phone=1920x1080, Tablet=2560x1600
+- Output Format: opaque PNG or JPEG
 - Orientation:
-- Prompt Output Directory: prompts/
+- Prompt Output Directory: prompts/{device}/
 - Blocking Issues:
 
 ## 2. Screenshot Sequence Strategy
@@ -43,7 +45,7 @@
 #### Final Image Prompt
 
 ```text
-[CONCEPT: create a feature-led marketing panel from verified claims and real project resources; use no device frame and show no App UI. PRODUCTION: use SHOT-01 as immutable App UI. Never generate, redraw, translate, or modify App UI.]
+[CONCEPT: generate only a feature-led background, reserve text/logo safe areas, and specify deterministic text/logo compositing with exact dimensions and format; use no device frame and show no App UI. PRODUCTION: use SHOT-01 as immutable App UI. Never generate, redraw, translate, or modify App UI.]
 ```
 
 ## 5. Localization

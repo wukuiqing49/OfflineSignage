@@ -1,5 +1,5 @@
 <resources>
     <style name="Theme.LocalSignage" parent="Theme.LocalSignage.Base">
-        <item name="android:windowLightNavigationBar">true</item>
+        <item name="android:windowLightNavigationBar">@bool/is_light_theme</item>
     </style>
 </resources>

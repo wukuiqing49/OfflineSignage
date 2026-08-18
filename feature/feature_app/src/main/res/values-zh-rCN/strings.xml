@@ -92,6 +92,7 @@
   <string name="billing_purchase_unavailable">暂时无法发起购买，请稍后重试。</string>
   <string name="billing_manage_unavailable">无法打开 Google Play 订阅管理页面。</string>
   <string name="billing_legal_note">价格和结算币种以 Google Play 显示为准</string>
+  <string name="billing_play_account_note">无需注册 Local Signage 账号，购买与恢复使用此设备当前登录的 Google Play 账号。</string>
   <string name="legal_center_title">法律与隐私</string>
   <string name="legal_center_intro">Local Signage 不创建应用账号。这里集中提供购买条款、隐私说明和本机数据清理方式。</string>
   <string name="legal_privacy_title">隐私政策</string>

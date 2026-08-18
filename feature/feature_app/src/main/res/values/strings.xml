@@ -92,6 +92,7 @@
   <string name="billing_purchase_unavailable">The purchase cannot be started right now. Try again later.</string>
   <string name="billing_manage_unavailable">The Google Play subscription page could not be opened.</string>
   <string name="billing_legal_note">Google Play shows the final price and billing currency</string>
+  <string name="billing_play_account_note">No Local Signage account is required. Google Play uses the account currently active on this device.</string>
   <string name="legal_center_title">Legal and privacy</string>
   <string name="legal_center_intro">Local Signage does not create an app account. Purchase terms, privacy information, and local data removal instructions are collected here.</string>
   <string name="legal_privacy_title">Privacy Policy</string>

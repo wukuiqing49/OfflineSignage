@@ -61,8 +61,8 @@ object GoogleSignInCoordinator {
 
             val googleCredential = GoogleIdTokenCredential.createFrom(credential.data)
             val tokenClaims = parseIdTokenClaims(googleCredential.idToken)
-            val email = tokenClaims.email
-                ?: googleCredential.id
+            val email = tokenClaims.email?.takeIf { it.isNotBlank() }
+                ?: googleCredential.id.takeIf { it.isNotBlank() }
                 ?: throw IllegalStateException("Google account email is unavailable.")
             val subject = tokenClaims.subject
             val displayName = tokenClaims.name

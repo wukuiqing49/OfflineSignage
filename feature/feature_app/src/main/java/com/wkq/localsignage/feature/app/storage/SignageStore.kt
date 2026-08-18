@@ -20,6 +20,7 @@ import com.wkq.localsignage.feature.app.model.SignageSettings
 import com.wkq.localsignage.feature.app.model.PairedDevice
 import com.wkq.localsignage.feature.app.model.DeviceAssignment
 import com.wkq.localsignage.feature.app.model.PlaybackTimingPolicy
+import com.wkq.localsignage.feature.app.model.ImageTransitionPolicy
 import com.wkq.localsignage.feature.app.model.PlaylistPolicy
 import com.wkq.localsignage.feature.app.model.ResourceKind
 import com.wkq.localsignage.feature.app.model.SecondPhasePolicy
@@ -476,7 +477,8 @@ class SignageStore(context: Context) {
 
     fun saveScene(scene: SignageScene): SignageScene = synchronized(lock) {
         val normalizedScene = scene.copy(
-            playbackSpeed = PlaybackTimingPolicy.normalizeVideoPlaybackSpeed(scene.playbackSpeed)
+            playbackSpeed = PlaybackTimingPolicy.normalizeVideoPlaybackSpeed(scene.playbackSpeed),
+            transitionEffect = ImageTransitionPolicy.normalize(scene.transitionEffect)
         )
         database.writableDatabase.inTransaction {
             require(resourceExists(this, normalizedScene.resourceId)) { "Resource does not exist" }
@@ -609,6 +611,19 @@ class SignageStore(context: Context) {
                 .values
                 .mapNotNull { scenes -> scenes.firstOrNull() }
                 .forEach { scene -> insertScene(this, scene.copy(playbackSpeed = normalizedSpeed)) }
+        }
+    }
+
+    fun updateDefaultSceneTransition(resourceIds: Collection<String>, transitionEffect: String) = synchronized(lock) {
+        val normalizedEffect = ImageTransitionPolicy.normalize(transitionEffect)
+        val targets = resourceIds.toSet()
+        database.writableDatabase.inTransaction {
+            readScenes(this)
+                .filter { it.resourceId in targets }
+                .groupBy { it.resourceId }
+                .values
+                .mapNotNull { scenes -> scenes.firstOrNull() }
+                .forEach { scene -> insertScene(this, scene.copy(transitionEffect = normalizedEffect)) }
         }
     }
 
@@ -1107,7 +1122,8 @@ class SignageStore(context: Context) {
                 muted = cursor.getInt(8) != 0,
                 createdAt = cursor.getLong(9),
                 overlays = parseOverlays(cursor.getStringOrNull(10)),
-                playbackSpeed = cursor.getFloat(11)
+                playbackSpeed = cursor.getFloat(11),
+                transitionEffect = cursor.getString(12)
             ))
         }
     }
@@ -1176,6 +1192,7 @@ class SignageStore(context: Context) {
             put("created_at", scene.createdAt)
             put("overlays_json", overlaysJson(scene.overlays))
             put("playback_speed", PlaybackTimingPolicy.normalizeVideoPlaybackSpeed(scene.playbackSpeed))
+            put("transition_effect", ImageTransitionPolicy.normalize(scene.transitionEffect))
         }
         if (db.update("scenes", values, "id = ?", arrayOf(scene.id)) == 0) {
             db.insertOrThrow("scenes", null, values)
@@ -1375,7 +1392,7 @@ class SignageStore(context: Context) {
         override fun onConfigure(db: SQLiteDatabase) { db.setForeignKeyConstraintsEnabled(true) }
         override fun onCreate(db: SQLiteDatabase) {
             db.execSQL("CREATE TABLE resources (id TEXT PRIMARY KEY NOT NULL, name TEXT NOT NULL, mime_type TEXT NOT NULL, path TEXT NOT NULL, hash TEXT NOT NULL UNIQUE, size_bytes INTEGER NOT NULL, created_at INTEGER NOT NULL, kind TEXT NOT NULL DEFAULT 'LOCAL_FILE', source_uri TEXT, content TEXT, refresh_interval_ms INTEGER, text_size_sp INTEGER NOT NULL DEFAULT 48, text_color TEXT NOT NULL DEFAULT '#FFFFFFFF', text_background_color TEXT NOT NULL DEFAULT '#FF000000', font_family TEXT NOT NULL DEFAULT 'SYSTEM_SANS', text_speed_dp_per_second INTEGER NOT NULL DEFAULT 90, text_repeat_count INTEGER NOT NULL DEFAULT 0)")
-            db.execSQL("CREATE TABLE scenes (id TEXT PRIMARY KEY NOT NULL, name TEXT NOT NULL, resource_id TEXT NOT NULL, fit_mode TEXT NOT NULL, crop_gravity TEXT NOT NULL, background_type TEXT NOT NULL, background_color TEXT, volume INTEGER, muted INTEGER NOT NULL, created_at INTEGER NOT NULL, overlays_json TEXT NOT NULL DEFAULT '[]', playback_speed REAL NOT NULL DEFAULT 1.0, FOREIGN KEY(resource_id) REFERENCES resources(id))")
+            db.execSQL("CREATE TABLE scenes (id TEXT PRIMARY KEY NOT NULL, name TEXT NOT NULL, resource_id TEXT NOT NULL, fit_mode TEXT NOT NULL, crop_gravity TEXT NOT NULL, background_type TEXT NOT NULL, background_color TEXT, volume INTEGER, muted INTEGER NOT NULL, created_at INTEGER NOT NULL, overlays_json TEXT NOT NULL DEFAULT '[]', playback_speed REAL NOT NULL DEFAULT 1.0, transition_effect TEXT NOT NULL DEFAULT 'FADE', FOREIGN KEY(resource_id) REFERENCES resources(id))")
             db.execSQL("CREATE TABLE playlists (id TEXT PRIMARY KEY NOT NULL, name TEXT NOT NULL, loop INTEGER NOT NULL, updated_at INTEGER NOT NULL)")
             db.execSQL("CREATE TABLE playlist_items (playlist_id TEXT NOT NULL, position INTEGER NOT NULL, scene_id TEXT NOT NULL, duration_ms INTEGER, enabled INTEGER NOT NULL, PRIMARY KEY(playlist_id, position), FOREIGN KEY(playlist_id) REFERENCES playlists(id) ON DELETE CASCADE, FOREIGN KEY(scene_id) REFERENCES scenes(id))")
             db.execSQL("CREATE TABLE meta (key TEXT PRIMARY KEY NOT NULL, value TEXT NOT NULL)")
@@ -1427,6 +1444,9 @@ class SignageStore(context: Context) {
                 db.execSQL("CREATE INDEX IF NOT EXISTS operation_records_created_idx ON operation_records(created_at DESC)")
             }
             if (oldVersion < 11) removeLegacyHtmlOverlays(db)
+            if (oldVersion < 12) {
+                db.execSQL("ALTER TABLE scenes ADD COLUMN transition_effect TEXT NOT NULL DEFAULT 'FADE'")
+            }
         }
 
         private fun removeLegacyHtmlOverlays(db: SQLiteDatabase) {
@@ -1469,7 +1489,7 @@ class SignageStore(context: Context) {
         const val TAG = "SignageStore"
         val SHA256_PATTERN = Regex("[a-f0-9]{64}")
         const val DATABASE_NAME = "signage.db"
-        const val DATABASE_VERSION = 11
+        const val DATABASE_VERSION = 12
         const val LEGACY_PREFERENCES = "local_signage"
         const val KEY_SCHEMA_MIGRATED = "schema_migrated"
         const val KEY_DEVICE_ID = "device_id"
@@ -1527,7 +1547,7 @@ class SignageStore(context: Context) {
         val SUPPORTED_FIT_MODES = setOf("FIT", "FILL", "CROP", "STRETCH", "CENTER")
         val SUPPORTED_CROP_GRAVITIES = setOf("CENTER", "TOP", "BOTTOM", "LEFT", "RIGHT")
         val RESOURCE_COLUMNS = arrayOf("id", "name", "mime_type", "path", "hash", "size_bytes", "created_at", "kind", "source_uri", "content", "refresh_interval_ms", "text_size_sp", "text_color", "text_background_color", "font_family", "text_speed_dp_per_second", "text_repeat_count")
-        val SCENE_COLUMNS = arrayOf("id", "name", "resource_id", "fit_mode", "crop_gravity", "background_type", "background_color", "volume", "muted", "created_at", "overlays_json", "playback_speed")
+        val SCENE_COLUMNS = arrayOf("id", "name", "resource_id", "fit_mode", "crop_gravity", "background_type", "background_color", "volume", "muted", "created_at", "overlays_json", "playback_speed", "transition_effect")
         val ERROR_COLUMNS = arrayOf("id", "media_id", "scene_id", "error_code", "action", "attempt", "created_at")
         val OPERATION_COLUMNS = arrayOf("id", "created_at", "client_name", "device_id", "action", "result", "status_code")
         val PAIRED_DEVICE_COLUMNS = arrayOf("device_id", "device_name", "host", "port", "token", "paired_at")

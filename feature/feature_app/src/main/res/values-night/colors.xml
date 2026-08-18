@@ -10,6 +10,8 @@
     <color name="entitlement_expired">#FF8A80</color>
     <color name="entitlement_verification">#F2B066</color>
     <color name="welcome_accent_surface">#20392A</color>
+    <color name="welcome_surface">#18201B</color>
+    <color name="welcome_surface_stroke">#344039</color>
     <color name="billing_background">#111512</color>
     <color name="billing_surface">#1A201C</color>
     <color name="billing_status_surface">#203328</color>

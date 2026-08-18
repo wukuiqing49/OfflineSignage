@@ -12,6 +12,7 @@ import com.wkq.localsignage.feature.app.model.ResourceKind
 import com.wkq.localsignage.feature.app.model.SignageOverlay
 import com.wkq.localsignage.feature.app.model.TextStylePolicy
 import com.wkq.localsignage.feature.app.model.PlaybackTimingPolicy
+import com.wkq.localsignage.feature.app.model.ImageTransitionPolicy
 import com.wkq.localsignage.feature.app.model.PairedDevice
 import com.wkq.localsignage.feature.app.model.DeviceAssignment
 import com.wkq.localsignage.feature.app.device.SignageDeviceFleet
@@ -389,6 +390,7 @@ class KtorSignageServer(context: Context, private val port: Int) {
                     var fitMode = "FIT"
                     var cropGravity = "CENTER"
                     var imageDurationMs = PlaybackTimingPolicy.DEFAULT_IMAGE_DURATION_MS
+                    var transitionEffect = ImageTransitionPolicy.DEFAULT_EFFECT
                     var videoPlaybackSpeed = PlaybackTimingPolicy.DEFAULT_VIDEO_PLAYBACK_SPEED
                     try {
                         val multipart = call.receiveMultipart()
@@ -414,6 +416,7 @@ class KtorSignageServer(context: Context, private val port: Int) {
                                         "durationMs" -> imageDurationMs = PlaybackTimingPolicy.normalizeImageDuration(
                                             part.value.toLongOrNull() ?: throw IllegalArgumentException("IMAGE_DURATION_INVALID")
                                         )
+                                        "transitionEffect" -> transitionEffect = ImageTransitionPolicy.normalize(part.value)
                                         "playbackSpeed" -> videoPlaybackSpeed = PlaybackTimingPolicy.normalizeVideoPlaybackSpeed(
                                             part.value.toFloatOrNull() ?: throw IllegalArgumentException("VIDEO_SPEED_INVALID")
                                         )
@@ -429,6 +432,9 @@ class KtorSignageServer(context: Context, private val port: Int) {
                                 "UPLOAD_BATCH_TYPE_INVALID"
                             }
                             SignageRuntime.updateDefaultSceneFit(uploadedIds, fitMode, cropGravity)
+                            if (resources.all { it.isImage }) {
+                                SignageRuntime.updateDefaultSceneTransition(uploadedIds, transitionEffect)
+                            }
                             if (resources.all { it.isVideo }) {
                                 SignageRuntime.updateDefaultScenePlaybackSpeed(uploadedIds, videoPlaybackSpeed)
                             }
@@ -484,6 +490,9 @@ class KtorSignageServer(context: Context, private val port: Int) {
                         val imageDurationMs = PlaybackTimingPolicy.normalizeImageDuration(
                             body.optLongOrNull("durationMs")
                         )
+                        val transitionEffect = ImageTransitionPolicy.normalize(
+                            body.optString("transitionEffect", ImageTransitionPolicy.DEFAULT_EFFECT)
+                        )
                         val videoPlaybackSpeed = PlaybackTimingPolicy.normalizeVideoPlaybackSpeed(
                             body.optDouble("playbackSpeed", 1.0).toFloat()
                         )
@@ -500,6 +509,9 @@ class KtorSignageServer(context: Context, private val port: Int) {
                             "REMOTE_MEDIA_TYPE_MISMATCH"
                         }
                         SignageRuntime.updateDefaultSceneFit(resources.map { it.id }, fitMode, cropGravity)
+                        if (mediaType == "IMAGE") {
+                            SignageRuntime.updateDefaultSceneTransition(resources.map { it.id }, transitionEffect)
+                        }
                         if (mediaType == "VIDEO") {
                             SignageRuntime.updateDefaultScenePlaybackSpeed(resources.map { it.id }, videoPlaybackSpeed)
                         }
@@ -676,7 +688,8 @@ class KtorSignageServer(context: Context, private val port: Int) {
                             volume = jsonInt(body, "volume"),
                             muted = jsonBoolean(body, "muted") ?: false,
                             overlays = overlays(JSONObject(body).optJSONArray("overlays")),
-                            playbackSpeed = JSONObject(body).optDouble("playbackSpeed", 1.0).toFloat()
+                            playbackSpeed = JSONObject(body).optDouble("playbackSpeed", 1.0).toFloat(),
+                            transitionEffect = jsonString(body, "transitionEffect") ?: ImageTransitionPolicy.DEFAULT_EFFECT
                         )
                         call.respondJson(sceneJson(SignageRuntime.saveScene(scene)), HttpStatusCode.Created)
                     } catch (error: Exception) {
@@ -787,7 +800,8 @@ class KtorSignageServer(context: Context, private val port: Int) {
                             volume = jsonInt(body, "volume"),
                             muted = jsonBoolean(body, "muted") ?: false,
                             overlays = overlays(JSONObject(body).optJSONArray("overlays")),
-                            playbackSpeed = JSONObject(body).optDouble("playbackSpeed", 1.0).toFloat()
+                            playbackSpeed = JSONObject(body).optDouble("playbackSpeed", 1.0).toFloat(),
+                            transitionEffect = jsonString(body, "transitionEffect") ?: ImageTransitionPolicy.DEFAULT_EFFECT
                         )
                         call.respondJson(sceneJson(SignageRuntime.saveScene(scene)), HttpStatusCode.Created)
                     } catch (error: IllegalArgumentException) {
@@ -1191,7 +1205,7 @@ class KtorSignageServer(context: Context, private val port: Int) {
             "\"url\":${if (resource.isLocalFile) quote("/media/${resource.id}") else "null"}}"
 
     private fun scenesJson(): String = jsonArray(SignageRuntime.scenes(), ::sceneJson)
-    private fun sceneJson(scene: SignageScene): String = "{\"id\":${quote(scene.id)},\"name\":${quote(scene.name)},\"resourceId\":${quote(scene.resourceId)},\"fitMode\":${quote(scene.fitMode)},\"cropGravity\":${quote(scene.cropGravity)},\"backgroundType\":${quote(scene.backgroundType)},\"backgroundColor\":${scene.backgroundColor?.let(::quote) ?: "null"},\"volume\":${scene.volume ?: "null"},\"muted\":${scene.muted},\"playbackSpeed\":${PlaybackTimingPolicy.normalizeVideoPlaybackSpeed(scene.playbackSpeed)},\"overlays\":${overlaysJson(scene.overlays)}}"
+    private fun sceneJson(scene: SignageScene): String = "{\"id\":${quote(scene.id)},\"name\":${quote(scene.name)},\"resourceId\":${quote(scene.resourceId)},\"fitMode\":${quote(scene.fitMode)},\"cropGravity\":${quote(scene.cropGravity)},\"backgroundType\":${quote(scene.backgroundType)},\"backgroundColor\":${scene.backgroundColor?.let(::quote) ?: "null"},\"volume\":${scene.volume ?: "null"},\"muted\":${scene.muted},\"playbackSpeed\":${PlaybackTimingPolicy.normalizeVideoPlaybackSpeed(scene.playbackSpeed)},\"transitionEffect\":${quote(ImageTransitionPolicy.normalize(scene.transitionEffect))},\"overlays\":${overlaysJson(scene.overlays)}}"
     private fun playlistsJson(): String = jsonArray(SignageRuntime.playlists(), ::playlistJson)
     private fun playlistJson(playlist: SignagePlaylist): String = "{\"id\":${quote(playlist.id)},\"name\":${quote(playlist.name)},\"loop\":${playlist.loop},\"items\":[${playlist.items.joinToString { "{\"sceneId\":${quote(it.sceneId)},\"durationMs\":${it.durationMs ?: "null"},\"enabled\":${it.enabled}}" }}]}"
     private fun sessionJson(session: com.wkq.localsignage.feature.app.model.ControlSession?): String = session?.let { "{\"sessionId\":${quote(it.sessionId)},\"clientName\":${quote(it.clientName)},\"expiresAt\":${it.expiresAt}}" } ?: "null"

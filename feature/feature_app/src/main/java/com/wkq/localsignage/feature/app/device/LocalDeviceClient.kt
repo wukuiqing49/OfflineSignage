@@ -109,6 +109,7 @@ class LocalDeviceClient(private val device: PairedDevice) {
             scene.volume?.let { put("volume", it) }
             put("muted", scene.muted)
             put("playbackSpeed", scene.playbackSpeed.toDouble())
+            put("transitionEffect", scene.transitionEffect)
             put("overlays", JSONArray().apply { scene.overlays.forEach { overlay -> put(JSONObject().apply {
                 put("id", overlay.id); put("type", overlay.type); put("content", overlay.content)
                 put("horizontalPosition", overlay.horizontalPosition); put("verticalPosition", overlay.verticalPosition)

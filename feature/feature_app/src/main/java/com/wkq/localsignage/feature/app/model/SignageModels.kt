@@ -61,8 +61,22 @@ data class SignageScene(
     val muted: Boolean = false,
     val createdAt: Long = System.currentTimeMillis(),
     val overlays: List<SignageOverlay> = emptyList(),
-    val playbackSpeed: Float = PlaybackTimingPolicy.DEFAULT_VIDEO_PLAYBACK_SPEED
+    val playbackSpeed: Float = PlaybackTimingPolicy.DEFAULT_VIDEO_PLAYBACK_SPEED,
+    val transitionEffect: String = ImageTransitionPolicy.DEFAULT_EFFECT
 )
+
+object ImageTransitionPolicy {
+    const val NONE = "NONE"
+    const val FADE = "FADE"
+    const val SLIDE = "SLIDE"
+    const val ZOOM = "ZOOM"
+    const val DEFAULT_EFFECT = FADE
+
+    private val supportedEffects = setOf(NONE, FADE, SLIDE, ZOOM)
+
+    fun normalize(value: String?): String =
+        value?.trim()?.uppercase()?.takeIf { it in supportedEffects } ?: DEFAULT_EFFECT
+}
 
 data class SignagePlaylistItem(
     val sceneId: String,

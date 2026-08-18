@@ -628,16 +628,13 @@ object SignagePlaybackController {
             domStorageEnabled = true
             allowFileAccess = false
             allowContentAccess = false
-            allowFileAccessFromFileURLs = false
-            allowUniversalAccessFromFileURLs = false
             mixedContentMode = WebSettings.MIXED_CONTENT_NEVER_ALLOW
             setGeolocationEnabled(false)
-            databaseEnabled = false
             mediaPlaybackRequiresUserGesture = false
         }
         webView.webChromeClient = null
         webView.webViewClient = object : WebViewClient() {
-            @Suppress("DEPRECATION")
+            @Suppress("DEPRECATION", "OVERRIDE_DEPRECATION")
             override fun shouldOverrideUrlLoading(view: WebView, url: String): Boolean = !isAllowedWebUri(Uri.parse(url))
 
             override fun shouldOverrideUrlLoading(view: WebView, request: WebResourceRequest): Boolean {
@@ -720,16 +717,13 @@ object SignagePlaybackController {
             domStorageEnabled = false
             allowFileAccess = false
             allowContentAccess = false
-            allowFileAccessFromFileURLs = false
-            allowUniversalAccessFromFileURLs = false
             mixedContentMode = WebSettings.MIXED_CONTENT_NEVER_ALLOW
             setGeolocationEnabled(false)
-            databaseEnabled = false
             setSupportZoom(false)
         }
         webChromeClient = null
         webViewClient = object : WebViewClient() {
-            @Suppress("DEPRECATION")
+            @Suppress("DEPRECATION", "OVERRIDE_DEPRECATION")
             override fun shouldOverrideUrlLoading(view: WebView, url: String): Boolean = true
 
             override fun shouldOverrideUrlLoading(view: WebView, request: WebResourceRequest): Boolean = true

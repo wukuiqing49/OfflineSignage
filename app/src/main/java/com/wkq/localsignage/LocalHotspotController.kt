@@ -40,11 +40,7 @@ object LocalHotspotController {
                 object : WifiManager.LocalOnlyHotspotCallback() {
                     override fun onStarted(value: WifiManager.LocalOnlyHotspotReservation) {
                         reservation = value
-                        val configuration = value.wifiConfiguration
-                        val hotspotInfo = HotspotInfo(
-                            ssid = configuration?.SSID.orEmpty(),
-                            passphrase = configuration?.preSharedKey.orEmpty()
-                        )
+                        val hotspotInfo = value.toHotspotInfo()
                         info = hotspotInfo
                         onStarted(hotspotInfo)
                     }
@@ -71,5 +67,37 @@ object LocalHotspotController {
         reservation?.close()
         reservation = null
         info = null
+    }
+
+    private fun WifiManager.LocalOnlyHotspotReservation.toHotspotInfo(): HotspotInfo {
+        return when {
+            Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU -> {
+                val configuration = softApConfiguration
+                HotspotInfo(
+                    ssid = configuration.wifiSsid?.toString().orEmpty(),
+                    passphrase = configuration.passphrase.orEmpty()
+                )
+            }
+            Build.VERSION.SDK_INT >= Build.VERSION_CODES.R -> toAndroidRHotspotInfo()
+            else -> toLegacyHotspotInfo()
+        }
+    }
+
+    @Suppress("DEPRECATION")
+    private fun WifiManager.LocalOnlyHotspotReservation.toAndroidRHotspotInfo(): HotspotInfo {
+        val configuration = softApConfiguration
+        return HotspotInfo(
+            ssid = configuration.ssid.orEmpty(),
+            passphrase = configuration.passphrase.orEmpty()
+        )
+    }
+
+    @Suppress("DEPRECATION")
+    private fun WifiManager.LocalOnlyHotspotReservation.toLegacyHotspotInfo(): HotspotInfo {
+        val configuration = wifiConfiguration
+        return HotspotInfo(
+            ssid = configuration?.SSID.orEmpty(),
+            passphrase = configuration?.preSharedKey.orEmpty()
+        )
     }
 }

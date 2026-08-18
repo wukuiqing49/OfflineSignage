@@ -93,6 +93,14 @@
                             android:textSize="14sp"
                             android:visibility="gone" />
 
+                        <TextView
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:layout_marginTop="@dimen/app_spacing_small"
+                            android:text="@string/billing_play_account_note"
+                            android:textColor="@color/billing_text_secondary"
+                            android:textSize="13sp" />
+
                         <com.google.android.material.button.MaterialButton
                             android:id="@+id/manage_subscription_button"
                             style="@style/Widget.Material3.Button.TextButton"

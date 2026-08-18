@@ -124,7 +124,7 @@ object GoogleBillingManager : GoogleBillingGateway {
             }
         } ?: GoogleBillingResponse(
             isSuccess = false,
-            responseCode = BillingClient.BillingResponseCode.SERVICE_TIMEOUT,
+            responseCode = BillingClient.BillingResponseCode.SERVICE_UNAVAILABLE,
             message = "Billing service connection timed out."
         )
     }

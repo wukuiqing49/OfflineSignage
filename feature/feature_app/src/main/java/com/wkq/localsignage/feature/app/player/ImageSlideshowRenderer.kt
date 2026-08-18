@@ -12,6 +12,7 @@ import coil.load
 import coil.request.CachePolicy
 import coil.request.ImageRequest
 import coil.size.Precision
+import com.wkq.localsignage.feature.app.model.ImageTransitionPolicy
 import com.wkq.localsignage.feature.app.model.SignageResource
 import com.wkq.localsignage.feature.app.model.SignageScene
 import com.wkq.localsignage.feature.app.runtime.SignageRuntime
@@ -31,6 +32,7 @@ internal class ImageSlideshowRenderer(private val pager: ViewPager2) {
         .build()
     private val adapter = SlideAdapter(imageLoader)
     private var slideKeys: List<SlideKey> = emptyList()
+    private var currentIndex = -1
     private var renderGeneration = 0L
     private var released = false
 
@@ -47,6 +49,7 @@ internal class ImageSlideshowRenderer(private val pager: ViewPager2) {
                 sceneId = it.scene.id,
                 fitMode = it.scene.fitMode,
                 cropGravity = it.scene.cropGravity,
+                transitionEffect = it.scene.transitionEffect,
                 backgroundColor = it.scene.backgroundColor,
                 resourceId = it.resource.id,
                 sourceUri = it.resource.sourceUri
@@ -55,14 +58,18 @@ internal class ImageSlideshowRenderer(private val pager: ViewPager2) {
         val generation = ++renderGeneration
         pager.post {
             if (released || generation != renderGeneration) return@post
-            if (keys != slideKeys) {
+            val slidesChanged = keys != slideKeys
+            if (slidesChanged) {
                 slideKeys = keys
                 adapter.submit(nextSlides)
             }
             if (nextSlides.isNotEmpty()) {
                 val target = index.coerceIn(0, nextSlides.lastIndex)
+                val shouldAnimate = !slidesChanged && currentIndex >= 0 && target != currentIndex
                 // 广告屏切图不能露出 ViewPager2 横向滚动过程中的空白区域。
                 pager.setCurrentItem(target, false)
+                currentIndex = target
+                if (shouldAnimate) animateTransition(nextSlides[target].scene.transitionEffect)
                 if (nextSlides.size > 1) {
                     prefetch(nextSlides[(target + 1) % nextSlides.size])
                 }
@@ -74,8 +81,52 @@ internal class ImageSlideshowRenderer(private val pager: ViewPager2) {
         released = true
         renderGeneration += 1
         slideKeys = emptyList()
+        currentIndex = -1
+        resetTransitionState()
         pager.adapter = null
         imageLoader.shutdown()
+    }
+
+    private fun animateTransition(effect: String) {
+        pager.animate().cancel()
+        resetTransitionState()
+        when (ImageTransitionPolicy.normalize(effect)) {
+            ImageTransitionPolicy.NONE -> Unit
+            ImageTransitionPolicy.SLIDE -> {
+                pager.translationX = pager.width * SLIDE_OFFSET_RATIO
+                pager.alpha = TRANSITION_START_ALPHA
+                pager.animate()
+                    .translationX(0f)
+                    .alpha(1f)
+                    .setDuration(TRANSITION_DURATION_MS)
+                    .start()
+            }
+            ImageTransitionPolicy.ZOOM -> {
+                pager.scaleX = ZOOM_START_SCALE
+                pager.scaleY = ZOOM_START_SCALE
+                pager.alpha = TRANSITION_START_ALPHA
+                pager.animate()
+                    .scaleX(1f)
+                    .scaleY(1f)
+                    .alpha(1f)
+                    .setDuration(TRANSITION_DURATION_MS)
+                    .start()
+            }
+            else -> {
+                pager.alpha = 0f
+                pager.animate()
+                    .alpha(1f)
+                    .setDuration(TRANSITION_DURATION_MS)
+                    .start()
+            }
+        }
+    }
+
+    private fun resetTransitionState() {
+        pager.alpha = 1f
+        pager.translationX = 0f
+        pager.scaleX = 1f
+        pager.scaleY = 1f
     }
 
     private fun prefetch(slide: ImageSlide) {
@@ -134,7 +185,16 @@ internal class ImageSlideshowRenderer(private val pager: ViewPager2) {
             image.load(slide.data, imageLoader) {
                 memoryCachePolicy(CachePolicy.ENABLED)
                 diskCachePolicy(CachePolicy.ENABLED)
-                listener(onSuccess = { _, _ -> image.post { applyCropMatrix(slide.scene.cropGravity) } })
+                listener(onSuccess = { _, _ ->
+                    image.post {
+                        val cropGravity = if (slide.scene.fitMode.equals("CROP", ignoreCase = true)) {
+                            slide.scene.cropGravity
+                        } else {
+                            "CENTER"
+                        }
+                        applyCropMatrix(cropGravity)
+                    }
+                })
             }
         }
 
@@ -176,8 +236,16 @@ internal class ImageSlideshowRenderer(private val pager: ViewPager2) {
         val sceneId: String,
         val fitMode: String,
         val cropGravity: String,
+        val transitionEffect: String,
         val backgroundColor: String?,
         val resourceId: String,
         val sourceUri: String?
     )
+
+    private companion object {
+        const val TRANSITION_DURATION_MS = 450L
+        const val TRANSITION_START_ALPHA = 0.35f
+        const val SLIDE_OFFSET_RATIO = 0.08f
+        const val ZOOM_START_SCALE = 0.94f
+    }
 }

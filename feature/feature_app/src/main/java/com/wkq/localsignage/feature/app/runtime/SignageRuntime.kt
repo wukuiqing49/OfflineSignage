@@ -130,6 +130,11 @@ object SignageRuntime {
     fun saveRemoteReference(name: String, url: String, mediaType: String): SignageResource =
         requireStore().saveRemoteReference(name, url, mediaType).also { notifyContentChanged() }
 
+    fun updateDefaultSceneTransition(resourceIds: Collection<String>, transitionEffect: String) {
+        requireStore().updateDefaultSceneTransition(resourceIds, transitionEffect)
+        notifyContentChanged()
+    }
+
     fun createImageSlideshow(name: String, resourceIds: List<String>, durationMs: Long): SignagePlaylist {
         val imageIds = resourceIds.distinct().filter { resource(it)?.isImage == true }
         require(imageIds.isNotEmpty()) { "SLIDESHOW_IMAGES_REQUIRED" }

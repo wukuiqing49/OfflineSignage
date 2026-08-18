@@ -197,6 +197,8 @@ class MainActivity : BaseActivity<ActivityMainBinding>(), PlaybackListener {
         val showPairing = !hasContent || pairingManuallyOpened
         binding.pairingPanel.visibility = if (showPairing) View.VISIBLE else View.GONE
         binding.closePairingButton.visibility = if (hasContent) View.VISIBLE else View.GONE
+        // 设备中心本身就是广告屏上的全屏连接页，不应受播放页全屏开关限制。
+        applyDisplaySettings()
         if (showPairing) {
             hidePlaybackControls.run()
             refreshPairingPanel()
@@ -323,16 +325,17 @@ class MainActivity : BaseActivity<ActivityMainBinding>(), PlaybackListener {
             }
             appliedKeepScreenAwake = settings.keepScreenAwake
         }
-        if (appliedFullscreen != settings.fullscreen) {
+        val shouldFullscreen = settings.fullscreen || binding.pairingPanel.visibility == View.VISIBLE
+        if (appliedFullscreen != shouldFullscreen) {
             WindowInsetsControllerCompat(window, window.decorView).apply {
                 systemBarsBehavior = WindowInsetsControllerCompat.BEHAVIOR_SHOW_TRANSIENT_BARS_BY_SWIPE
-                if (settings.fullscreen) {
+                if (shouldFullscreen) {
                     hide(WindowInsetsCompat.Type.systemBars())
                 } else {
                     show(WindowInsetsCompat.Type.systemBars())
                 }
             }
-            appliedFullscreen = settings.fullscreen
+            appliedFullscreen = shouldFullscreen
         }
     }
 

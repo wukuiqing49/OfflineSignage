@@ -1,0 +1,11 @@
+seed_keyword,locale,category,search_intent,product_evidence,rationale,status
+offline digital signage,en-US,differentiator,find digital signage that plays local content,PF-008,Matches the verified local storage and local-file playback path,CANDIDATE_SEED
+offline digital signage player,en-US,differentiator,find a signage player for local media,PF-002;PF-008,Matches uploaded media playlists backed by device-local files,CANDIDATE_SEED
+android digital signage player,en-US,product-category,find an Android signage player,PF-002;PF-003;PF-006,Matches the Android playback service and content-player capability,CANDIDATE_SEED
+android signage player,en-US,product-category,find an Android player for signage,PF-003;PF-006,Tests a concise Android player category term,CANDIDATE_SEED
+digital signage media player,en-US,feature,find a player for signage media,PF-002;PF-003,Matches verified image video stream web and text playback modes,CANDIDATE_SEED
+android digital signage app,en-US,product-category,find an Android app for digital signage,PF-001;PF-003,Matches the Android-hosted browser console and content player,CANDIDATE_SEED
+local network digital signage,en-US,differentiator,control signage devices on a local network,PF-001;PF-004;PF-005,Matches browser control discovery pairing and device assignment,CANDIDATE_SEED
+web controlled digital signage,en-US,core-task,control a digital sign from a browser,PF-001,Matches the Ktor-served browser control console,CANDIDATE_SEED
+html digital signage,en-US,feature,show styled HTML on a digital sign,PF-003,Matches the verified web content mode used for local HTML and web content,CANDIDATE_SEED
+multi device digital signage,en-US,feature,manage multiple signage devices,PF-004;PF-005,Matches LAN discovery paired-device assignment and fleet playlist routes,CANDIDATE_SEED

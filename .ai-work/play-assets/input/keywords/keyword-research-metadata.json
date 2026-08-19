@@ -1,0 +1,13 @@
+{
+  "tool_name": "Google Keyword Planner",
+  "target_market": "United States",
+  "locale": "en-US",
+  "exported_at": "2026-08-18",
+  "metric_definitions": {
+    "Avg. monthly searches": "Google Keyword Planner average monthly search volume for the selected target market.",
+    "Competition": "Google Ads advertiser competition level for the keyword.",
+    "Competition (indexed value)": "Google Ads advertiser competition index on the source tool scale.",
+    "Top of page bid (low range)": "Lower observed top-of-page bid range in the Google Ads account currency.",
+    "Top of page bid (high range)": "Higher observed top-of-page bid range in the Google Ads account currency."
+  }
+}

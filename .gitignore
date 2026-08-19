@@ -8,11 +8,7 @@ __pycache__/
 app/build/
 core/*/build/
 feature/*/build/
-.ai-work/
-
 # Local Android signing material
-keystore.properties
-*.jks
-*.keystore
 app/google-services.json
 /.idea/
+.idea/

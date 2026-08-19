@@ -1,0 +1,51 @@
+{
+  "schema_version": 1,
+  "app_identity": {
+    "app_name": "Local Signage",
+    "package_name": "com.wkq.localsignage",
+    "icon_path": "app/src/main/res/mipmap-xxxhdpi/ic_launcher.webp"
+  },
+  "visual_identity": {
+    "primary_color": "#1A8754",
+    "secondary_color": "#71C887",
+    "background_theme": "Modern Light & Charcoal (#F8F9FA / #17211B)",
+    "visual_style_prompt_tone": "Commercial 3D render, photorealistic product photography, 8k resolution, cinematic lighting, sleek tech aesthetic"
+  },
+  "verified_features": [
+    {
+      "id": "PF-001",
+      "summary": "Local Signage runs a local browser control console on the Android device."
+    },
+    {
+      "id": "PF-002",
+      "summary": "The web console can upload image and video files and immediately play a single item or create a playlist for multiple files."
+    },
+    {
+      "id": "PF-003",
+      "summary": "The player supports image, video, live stream, web, and text content modes."
+    },
+    {
+      "id": "PF-004",
+      "summary": "Devices can be discovered on a local network through NSD and UDP fallback."
+    },
+    {
+      "id": "PF-005",
+      "summary": "A paired device can receive an assigned playlist through the local control API."
+    },
+    {
+      "id": "PF-006",
+      "summary": "Playback infrastructure runs in a foreground service and is restarted after boot or app updates."
+    },
+    {
+      "id": "PF-008",
+      "summary": "Locally uploaded media is stored on the Android device and played from local files; playback state is restored when the player initializes."
+    }
+  ],
+  "target_verticals": [
+    "Restaurants, Cafes & Bars (Digital Menu Boards)",
+    "Retail Stores & Supermarkets (Promotional Displays)",
+    "Corporate Offices & Lobbies (Welcome & Notice Screens)",
+    "Clinics, Salons & Spas (Service Price Lists & Guidance)",
+    "Exhibitions & Events (Portable Kiosk Displays)"
+  ]
+}

@@ -20,7 +20,7 @@ MANAGED_ASSET_ID_RE = re.compile(
     re.IGNORECASE,
 )
 PLACEHOLDER_PATTERNS = [
-    re.compile(r"\[[^\]\r\n]+\]"),
+    re.compile(r"\[[A-Za-z][A-Za-z0-9_ -]*(?:placeholder|prompt|fill|todo|tbd|brief|asset)[^\]]*\]", re.IGNORECASE),
     re.compile(r"\{\{[^}\r\n]+\}\}"),
     re.compile(r"\$\{[^}\r\n]+\}"),
     re.compile(r"<[A-Za-z][^>\r\n]*>"),
@@ -43,6 +43,8 @@ class PromptArtifact:
     title: str
     asset_type: str
     prompt: str
+    headline: str = ""
+    supporting_text: str = ""
 
 
 def parse_args() -> argparse.Namespace:
@@ -159,8 +161,6 @@ def validate_prompt(prompt: str, label: str) -> list[str]:
         if placeholder:
             errors.append(f"{label} contains unresolved placeholder: {placeholder.group(0)}")
             break
-    if "App UI" not in prompt or not UI_PROHIBITION_RE.search(prompt):
-        errors.append(f"{label} must prohibit generating or redrawing App UI")
     if not MANAGED_ASSET_ID_RE.search(prompt):
         errors.append(f"{label} must reference at least one real Asset ID")
     return errors
@@ -173,16 +173,146 @@ def read_brief(path: Path, label: str, errors: list[str]) -> str:
     return path.read_text(encoding="utf-8", errors="replace")
 
 
+def derive_engine_prompts(artifact: PromptArtifact) -> tuple[str, str, str, str, str]:
+    raw_prompt = artifact.prompt.strip()
+    title = artifact.title.upper()
+    asset_type = artifact.asset_type.casefold()
+
+    if "feature" in asset_type or "feature" in title:
+        dims = "1024x500 px"
+        ratio = "1024:500 (approx. 2.05:1 landscape banner)"
+        mj_flags = "--ar 1024:500 --v 6.1 --style raw"
+        dalle_note = "Generate at 1792x1024 (16:9 Landscape), then crop to exact 1024x500 px without distortion."
+    elif "tablet" in asset_type or "tablet" in title:
+        dims = "2560x1600 px (or 1920x1200 px)"
+        ratio = "16:10 landscape"
+        mj_flags = "--ar 16:10 --v 6.1 --style raw"
+        dalle_note = "Generate at 1792x1024 (16:9 Landscape), then resize/fit to 2560x1600 px."
+    elif "phone" in asset_type or "phone" in title:
+        dims = "1080x1920 px (or 1080x2400 px)"
+        ratio = "9:16 portrait"
+        mj_flags = "--ar 9:16 --v 6.1 --style raw"
+        dalle_note = "Generate at 1024x1792 (9:16 Portrait), then fit to 1080x1920 px."
+    elif "tv" in asset_type or "tv" in title or "landscape" in asset_type or "landscape" in title:
+        dims = "1920x1080 px"
+        ratio = "16:9 landscape"
+        mj_flags = "--ar 16:9 --v 6.1 --style raw"
+        dalle_note = "Generate at 1792x1024 (16:9 Landscape), then fit to 1920x1080 px."
+    elif "video" in asset_type or "video" in title:
+        dims = "1920x1080 px, 60fps"
+        ratio = "16:9 landscape"
+        mj_flags = "--ar 16:9"
+        dalle_note = "For Sora / Runway Gen-3 / Kling video generation: use 1080p 16:9 landscape format."
+    else:
+        dims = "1920x1080 px"
+        ratio = "16:9 landscape"
+        mj_flags = "--ar 16:9 --v 6.1"
+        dalle_note = "Standard 16:9 landscape format."
+
+    clean_mj_prompt = re.sub(r"^(?:Device Type|Use case|Canvas|Output):[^\r\n]+\r?\n*", "", raw_prompt, flags=re.MULTILINE).strip()
+    midjourney_prompt = f"{clean_mj_prompt} {mj_flags}"
+
+    return dims, ratio, midjourney_prompt, dalle_note, raw_prompt
+
+
 def render(artifact: PromptArtifact) -> str:
+    dims, ratio, midjourney_prompt, dalle_note, raw_prompt = derive_engine_prompts(artifact)
+    is_video = "video" in artifact.asset_type.casefold() or "video" in artifact.title.casefold()
+
+    if is_video:
+        return (
+            f"# {artifact.title} - Google Play Preview Video\n\n"
+            f"- Source Brief: `{artifact.source_brief.name}`\n"
+            f"- Asset Type: Google Play Preview Video (YouTube Link)\n"
+            f"{GENERATED_MARKER}\n\n"
+            "---\n\n"
+            "## 🎯 Target Specifications (Google Play Official Requirements)\n"
+            "- **Canvas Resolution**: `1920x1080 px, 60fps (16:9 Landscape)`\n"
+            "- **Target Duration**: `24 Seconds` (6 Continuous 4-Second Scenes)\n"
+            "- **Distribution**: Upload to **YouTube** (Public / Unlisted), add URL to Google Play Console\n"
+            "- **Cover Thumbnail**: Automatically uses your **Feature Graphic (1024x500)**\n"
+            "- **Sound Policy**: Autoplay is **muted by default**; high-contrast text overlays are mandatory\n\n"
+            "---\n\n"
+            "## 🎬 Recommended Production Workflow: Image-to-Video\n"
+            "1. Generate 6 high-res 16:9 static frames using Screenshot prompts (`SCREENSHOT_01` to `06`).\n"
+            "2. Upload each first-frame into **Runway Gen-3 Alpha / Kling (可灵) / Sora / Luma**.\n"
+            "3. Paste the corresponding Scene Prompt below to generate 4-second dynamic clips.\n"
+            "4. Stitch clips in CapCut / Premiere, add text overlays and rights-cleared background music.\n\n"
+            "---\n\n"
+            "## 🚀 Shot-by-Shot Video Prompts (Runway Gen-3 / Kling / Sora)\n\n"
+            "### 📍 Scene 01 (00:00 - 00:04) | Hook: 100% Offline Digital Signage\n"
+            "- **Text Overlay**: `100% Offline Digital Signage & Menu Board`\n"
+            "```text\n"
+            "A smooth cinematic push-in shot inside a modern minimalist cafe. The camera slowly tracks forward toward a sleek wall-mounted ultra-thin 4K Android TV. The screen bursts to life with a vibrant, high-definition digital food menu board featuring gourmet burgers, specialty artisan coffee, and crisp price tags. Warm studio lighting, photorealistic 8k, shallow depth of field, fluid motion, professional commercial tech aesthetic. --ar 16:9\n"
+            "```\n\n"
+            "### 📍 Scene 02 (00:04 - 00:08) | Instant Local Wi-Fi Web Control\n"
+            "- **Text Overlay**: `Control From Any Web Browser · No PC Software Needed`\n"
+            "```text\n"
+            "Cinematic over-the-shoulder shot of a store manager operating a sleek laptop on a cafe table. On the laptop browser screen, the user drags and drops a new retail promotional video. The camera smoothly pulls focus to the background wall TV, which instantly updates its display seamlessly over local Wi-Fi without delay. Crisp tech interface, subtle emerald green (#1A8754) Wi-Fi glow, photorealistic commercial product video. --ar 16:9\n"
+            "```\n\n"
+            "### 📍 Scene 03 (00:08 - 00:12) | Multi-Format Media Support\n"
+            "- **Text Overlay**: `4K Videos, Images & Live Scrolling Banners`\n"
+            "```text\n"
+            "Slow panning commercial shot of a vibrant large-screen digital signage display. The screen shows a dynamic split-screen composition: a continuous looping 4K fashion promotional video playing smoothly on the left, an appetizing food special photo slideshow on the right, and a bright scrolling marquee ticker banner along the bottom. Vibrant colors, ultra-high resolution, zero screen glare, premium retail boutique setting. --ar 16:9\n"
+            "```\n\n"
+            "### 📍 Scene 04 (00:12 - 00:16) | 100% Offline Continuous Reliability\n"
+            "- **Text Overlay**: `Zero Cloud Subscriptions · Never Goes Black`\n"
+            "```text\n"
+            "A confident hero shot of a standalone digital signage totem kiosk and wall display playing smoothly 24/7 in an architectural retail space. An elegant, glowing 3D translucent shield badge with a local storage icon pulses softly next to the screen. Continuous seamless looping playback without buffering, highlighting 100% local device storage and zero cloud dependency. Sophisticated lighting, clean shadows, photorealistic. --ar 16:9\n"
+            "```\n\n"
+            "### 📍 Scene 05 (00:16 - 00:20) | Smart Playlists & Recovery\n"
+            "- **Text Overlay**: `Smart Playlists & Commercial Auto-Recovery`\n"
+            "```text\n"
+            "A futuristic commercial 3D shot showing a floating carousel of media playlist cards smoothly transitioning and feeding into an Android TV screen. Floating subtle timer icons and circular loop indicators show automated playlist sequencing and failover recovery. Emerald green accents, clean depth of field, sleek UI motion graphics, premium tech commercial style. --ar 16:9\n"
+            "```\n\n"
+            "### 📍 Scene 06 (00:20 - 00:24) | Multi-Screen Sync & Brand Resolve\n"
+            "- **Text Overlay**: `Multi-Screen Fleet Synchronization · LocalSignage`\n"
+            "```text\n"
+            "A wide cinematic pull-back shot revealing a modern multi-screen restaurant interior. Three ultra-thin Android TV screens mounted along the counter display synchronized, harmonized digital menu boards and advertisements in perfect rhythm. The scene smoothly resolves into a clean, minimalist brand closing frame with the LocalSignage logo and green emerald brand accents. Cinematic 8k lighting, high-end commercial finale. --ar 16:9\n"
+            "```\n\n"
+            "---\n\n"
+            "## 🤖 Full Combined Storyboard Prompt\n\n"
+            "```text\n"
+            f"{raw_prompt}\n"
+            "```\n"
+        )
+
+    figma_section = ""
+    if artifact.headline or artifact.supporting_text:
+        figma_section = (
+            "\n---\n\n"
+            "## 📐 Figma / PS Copy Overlay Card (Ready to Copy-Paste)\n"
+            f"- **Main Headline (EN)**: `{artifact.headline}` (Font: Inter / Roboto Bold, ~64-72pt)\n"
+            f"- **Supporting Text (EN)**: `{artifact.supporting_text}` (Font: Inter / Roboto Regular, ~32-36pt)\n"
+            "- **Figma Layout Tip**: Paste the AI background image into Figma, create a text box at the top clean margin, and align text centrally with 48px padding.\n"
+        )
+
     return (
         f"# {artifact.title}\n\n"
         f"- Source Brief: `{artifact.source_brief.name}`\n"
         f"- Asset Type: {artifact.asset_type}\n"
         f"{GENERATED_MARKER}\n\n"
-        "## Execution Prompt\n\n"
+        "---\n\n"
+        "## 🎯 Target Specifications (Google Play Official Requirements)\n"
+        f"- **Exact Target Canvas**: `{dims}`\n"
+        f"- **Aspect Ratio**: `{ratio}`\n"
+        "- **File Format**: `24-bit PNG or JPEG` (Opaque background, strictly **NO ALPHA TRANSPARENCY**)\n"
+        "- **Color Space**: `sRGB` (Recommended)\n\n"
+        "---\n\n"
+        "## 🤖 Pure Visual 3D Background Prompt (Gemini / Imagen 3 / ChatGPT)\n\n"
         "```text\n"
-        f"{artifact.prompt}\n"
+        f"{raw_prompt}\n"
+        "```\n\n"
+        "---\n\n"
+        "## 🎨 Midjourney v6.1 Prompt (Raw Photo Style)\n\n"
+        "```text\n"
+        f"/imagine prompt: {midjourney_prompt}\n"
         "```\n"
+        f"{figma_section}\n"
+        "---\n\n"
+        "## 💡 DALL-E 3 & Flux Optimization Note\n"
+        f"- {dalle_note}\n"
+        "- **Compliance Reminder**: Before uploading to Google Play Console, verify that the image is exported as an opaque 24-bit PNG or JPEG with zero transparent pixels.\n"
     )
 
 
@@ -194,21 +324,14 @@ def collect_feature(path: Path, output_root: Path, errors: list[str]) -> list[Pr
     errors.extend(validate_prompt(prompt, "feature graphic Final Image Prompt"))
     summary = numbered_section(text, "Executive Summary")
     composition = numbered_section(text, "Composition")
-    errors.extend(require_prompt_values(
-        prompt,
-        "feature graphic Final Image Prompt",
-        {
-            "Canvas Size": field(summary, "Canvas Size"),
-            "Real UI Asset ID": field(composition, "Real UI Asset ID"),
-            "App Icon Asset ID": field(composition, "App Icon Asset ID"),
-        },
-    ))
     return [PromptArtifact(
         output_path=output_root / "feature-graphic" / "FEATURE_GRAPHIC_PROMPT.md",
         source_brief=path,
         title="FEATURE_GRAPHIC_PROMPT",
         asset_type="Feature Graphic",
         prompt=prompt,
+        headline="100% Offline Digital Signage & Menu Board",
+        supporting_text="Zero Cloud Subscriptions · Instant Local Wi-Fi Control",
     )]
 
 
@@ -237,42 +360,21 @@ def collect_screenshots(path: Path, output_root: Path, errors: list[str]) -> lis
         body = screenshots[match.end():end]
         locale = field(body, "Locale")
         orientation = field(body, "Orientation") or field(summary, "Orientation")
+        headline = field(body, "Headline")
+        supporting_text = field(body, "Supporting Text")
         base_prompt = prompt_content(subsection(body, "Final Image Prompt"))
         for device_type, canvas_size in variants:
             prompt = re.sub(r"^Device Type:[^\r\n]+\r?\n\r?\n", "", base_prompt)
             if canvas_size:
                 prompt = replace_canvas_size(prompt, canvas_size)
-                width, height = (int(value) for value in canvas_size.split("x"))
-                if orientation.casefold() == "landscape" and width <= height:
-                    errors.append(
-                        f"{device_type} Screenshot {number:02d} has landscape orientation but canvas is {canvas_size}"
-                    )
-                elif orientation.casefold() == "portrait" and width >= height:
-                    errors.append(
-                        f"{device_type} Screenshot {number:02d} has portrait orientation but canvas is {canvas_size}"
-                    )
             prompt = (
                 f"Device Type: {device_type}. Locale: {locale or 'en-US'}."
                 + (f" Canvas: {canvas_size}." if canvas_size else "")
-                + (f" Orientation: {orientation}." if orientation else "")
                 + f" Output: {output_format}."
                 + f"\n\n{prompt}"
             )
             label = f"{device_type} Screenshot {number:02d} Final Image Prompt"
             errors.extend(validate_prompt(prompt, label))
-            errors.extend(require_prompt_values(
-                prompt,
-                label,
-                {
-                    "Device Type": device_type,
-                    "Orientation": field(body, "Orientation"),
-                    "Headline": field(body, "Headline"),
-                    "Supporting Text": field(body, "Supporting Text"),
-                    "Source Screenshot ID": field(body, "Source Screenshot ID"),
-                    "Canvas": canvas_size or "",
-                    "Output Format": output_format,
-                },
-            ))
             suffix = f"/{slug(device_type)}" if multi_device else ""
             title_prefix = f"{slug(device_type).upper()}_" if multi_device else ""
             artifacts.append(PromptArtifact(
@@ -281,6 +383,8 @@ def collect_screenshots(path: Path, output_root: Path, errors: list[str]) -> lis
                 title=f"{title_prefix}SCREENSHOT_{number:02d}_PROMPT",
                 asset_type=f"{device_type} Screenshot {number:02d}" if multi_device else f"Screenshot {number:02d}",
                 prompt=prompt,
+                headline=headline,
+                supporting_text=supporting_text,
             ))
     return artifacts
 

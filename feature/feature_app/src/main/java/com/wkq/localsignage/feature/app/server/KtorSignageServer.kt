@@ -392,6 +392,7 @@ class KtorSignageServer(context: Context, private val port: Int) {
                     var imageDurationMs = PlaybackTimingPolicy.DEFAULT_IMAGE_DURATION_MS
                     var transitionEffect = ImageTransitionPolicy.DEFAULT_EFFECT
                     var videoPlaybackSpeed = PlaybackTimingPolicy.DEFAULT_VIDEO_PLAYBACK_SPEED
+                    var shouldPlay = call.request.queryParameters["play"]?.toBooleanStrictOrNull() ?: true
                     try {
                         val multipart = call.receiveMultipart()
                         val uploadedIds = mutableListOf<String>()
@@ -411,6 +412,7 @@ class KtorSignageServer(context: Context, private val port: Int) {
                                     if (resource.id !in existingIds) createdIds += resource.id
                                 } else if (part is PartData.FormItem) {
                                     when (part.name) {
+                                        "play" -> shouldPlay = part.value.toBooleanStrictOrNull() ?: shouldPlay
                                         "fitMode" -> fitMode = part.value
                                         "cropGravity" -> cropGravity = part.value
                                         "durationMs" -> imageDurationMs = PlaybackTimingPolicy.normalizeImageDuration(
@@ -446,7 +448,7 @@ class KtorSignageServer(context: Context, private val port: Int) {
                                 }
                             } else null
                             createdPlaylistId = playlist?.id
-                            if (!deviceRequest) {
+                            if (!deviceRequest && shouldPlay) {
                                 if (playlist != null) SignagePlaybackController.applyCommand("PLAY_PLAYLIST", playlistId = playlist.id)
                                 else SignagePlaybackController.applyCommand("PLAY", resourceId = uploadedIds.last())
                             }
@@ -472,6 +474,7 @@ class KtorSignageServer(context: Context, private val port: Int) {
                     var createdPlaylistId: String? = null
                     try {
                         val body = JSONObject(call.receiveText())
+                        val shouldPlay = body.optBoolean("play", call.request.queryParameters["play"]?.toBooleanStrictOrNull() ?: true)
                         val mediaType = body.optString("mediaType").uppercase()
                         val urls = buildList {
                             body.optJSONArray("urls")?.let { array ->
@@ -523,8 +526,10 @@ class KtorSignageServer(context: Context, private val port: Int) {
                             }
                         } else null
                         createdPlaylistId = playlist?.id
-                        if (playlist != null) SignagePlaybackController.applyCommand("PLAY_PLAYLIST", playlistId = playlist.id)
-                        else SignagePlaybackController.applyCommand("PLAY", resourceId = resources.single().id)
+                        if (shouldPlay) {
+                            if (playlist != null) SignagePlaybackController.applyCommand("PLAY_PLAYLIST", playlistId = playlist.id)
+                            else SignagePlaybackController.applyCommand("PLAY", resourceId = resources.single().id)
+                        }
                         call.respondJson(
                             "{\"ids\":[${resources.joinToString { quote(it.id) }}],\"playlistId\":${playlist?.id?.let(::quote) ?: "null"}}",
                             HttpStatusCode.Created
@@ -543,11 +548,14 @@ class KtorSignageServer(context: Context, private val port: Int) {
                     if (!call.authorized()) return@post
                     try {
                         val body = JSONObject(call.receiveText())
+                        val shouldPlay = body.optBoolean("play", call.request.queryParameters["play"]?.toBooleanStrictOrNull() ?: true)
                         val url = body.optString("url").trim().takeIf { it.isNotBlank() }
                             ?: throw IllegalArgumentException("REMOTE_URL_REQUIRED")
                         val name = body.optString("name").takeIf { it.isNotBlank() }
                         val resource = withContext(Dispatchers.IO) { SignageRuntime.saveRemote(url, name) }
-                        SignagePlaybackController.applyCommand("PLAY", resourceId = resource.id)
+                        if (shouldPlay) {
+                            SignagePlaybackController.applyCommand("PLAY", resourceId = resource.id)
+                        }
                         call.respondJson(resourceJson(resource), HttpStatusCode.Created)
                     } catch (error: IllegalArgumentException) {
                         call.respondJson(errorJson(error.message ?: "REMOTE_DOWNLOAD_FAILED"), HttpStatusCode.BadRequest)
@@ -557,6 +565,7 @@ class KtorSignageServer(context: Context, private val port: Int) {
                     if (!call.authorized()) return@post
                     try {
                         val body = JSONObject(call.receiveText())
+                        val shouldPlay = body.optBoolean("play", call.request.queryParameters["play"]?.toBooleanStrictOrNull() ?: true)
                         val kind = ResourceKind.valueOf(body.optString("kind").uppercase())
                         val resource = SignageRuntime.saveVirtualResource(
                             name = body.optString("name").ifBlank { kind.name.lowercase() },
@@ -571,7 +580,9 @@ class KtorSignageServer(context: Context, private val port: Int) {
                             textSpeedDpPerSecond = body.optIntOrNull("textSpeedDpPerSecond"),
                             textRepeatCount = body.optIntOrNull("textRepeatCount")
                         )
-                        SignagePlaybackController.applyCommand("PLAY", resourceId = resource.id)
+                        if (shouldPlay) {
+                            SignagePlaybackController.applyCommand("PLAY", resourceId = resource.id)
+                        }
                         call.respondJson(resourceJson(resource), HttpStatusCode.Created)
                     } catch (error: Exception) {
                         call.respondJson(errorJson(error.message ?: "INVALID_VIRTUAL_RESOURCE"), HttpStatusCode.BadRequest)
@@ -584,6 +595,7 @@ class KtorSignageServer(context: Context, private val port: Int) {
                     var createdPlaylistId: String? = null
                     try {
                         val body = JSONObject(call.receiveText())
+                        val shouldPlay = body.optBoolean("play", call.request.queryParameters["play"]?.toBooleanStrictOrNull() ?: true)
                         val items = body.optJSONArray("items") ?: JSONArray()
                         val messages = buildList {
                             for (index in 0 until items.length()) {
@@ -612,7 +624,9 @@ class KtorSignageServer(context: Context, private val port: Int) {
                         }
                         val playlist = SignageRuntime.createMediaPlaylist(baseName, resources.map { it.id })
                         createdPlaylistId = playlist.id
-                        SignagePlaybackController.applyCommand("PLAY_PLAYLIST", playlistId = playlist.id)
+                        if (shouldPlay) {
+                            SignagePlaybackController.applyCommand("PLAY_PLAYLIST", playlistId = playlist.id)
+                        }
                         call.respondJson(
                             "{\"ids\":[${resources.joinToString { quote(it.id) }}],\"playlistId\":${quote(playlist.id)}}",
                             HttpStatusCode.Created
@@ -898,8 +912,15 @@ class KtorSignageServer(context: Context, private val port: Int) {
     }
 
     private fun ApplicationCall.hasDeviceToken(): Boolean {
-        val supplied = request.headers["X-Local-Signage-Device-Token"]?.toByteArray() ?: return false
-        return MessageDigest.isEqual(supplied, SignageRuntime.controlToken().toByteArray())
+        val supplied = request.headers["X-Local-Signage-Device-Token"] ?: return false
+        val suppliedBytes = supplied.toByteArray()
+        if (MessageDigest.isEqual(suppliedBytes, SignageRuntime.controlToken().toByteArray())) return true
+        if (SignageRuntime.hasWebAccessToken(supplied)) return true
+        val pairing = SignageRuntime.pairingToken()
+        if (pairing.expiresAt >= System.currentTimeMillis() && MessageDigest.isEqual(suppliedBytes, pairing.token.toByteArray())) return true
+        val accessCode = SignageRuntime.pairingCodeToken()
+        if (accessCode.expiresAt >= System.currentTimeMillis() && MessageDigest.isEqual(suppliedBytes, accessCode.token.toByteArray())) return true
+        return false
     }
 
     private suspend fun ApplicationCall.authorizedOrDevice(requireSession: Boolean = true): Boolean =
@@ -1110,6 +1131,16 @@ class KtorSignageServer(context: Context, private val port: Int) {
             "\"state\":${quote(status.state.name)},\"checkedAt\":${status.checkedAt}," +
             "\"currentResourceId\":${status.currentResourceId?.let(::quote) ?: "null"},\"currentSceneId\":${status.currentSceneId?.let(::quote) ?: "null"}," +
             "\"currentPlaylistId\":${status.currentPlaylistId?.let(::quote) ?: "null"},\"playing\":${status.playing},\"volume\":${status.volume},\"muted\":${status.muted}," +
+            "\"currentResourceName\":${status.currentResourceName?.let(::quote) ?: "null"}," +
+            "\"currentResourceKind\":${status.currentResourceKind?.let(::quote) ?: "null"}," +
+            "\"currentResourceContent\":${status.currentResourceContent?.let(::quote) ?: "null"}," +
+            "\"currentResourceSourceUri\":${status.currentResourceSourceUri?.let(::quote) ?: "null"}," +
+            "\"currentResourceMimeType\":${status.currentResourceMimeType?.let(::quote) ?: "null"}," +
+            "\"currentResourceTextSizeSp\":${status.currentResourceTextSizeSp ?: "null"}," +
+            "\"currentResourceTextColor\":${status.currentResourceTextColor?.let(::quote) ?: "null"}," +
+            "\"currentResourceTextBackgroundColor\":${status.currentResourceTextBackgroundColor?.let(::quote) ?: "null"}," +
+            "\"currentResourceFontFamily\":${status.currentResourceFontFamily?.let(::quote) ?: "null"}," +
+            "\"currentResourceUrl\":${status.currentResourceUrl?.let(::quote) ?: "null"}," +
             "\"error\":${status.error?.let(::quote) ?: "null"},\"commandRevision\":${status.commandRevision}}"
     }
 
@@ -1117,6 +1148,8 @@ class KtorSignageServer(context: Context, private val port: Int) {
         val state = SignageRuntime.state()
         val playlist = SignageRuntime.playlist(state.currentPlaylistId)
         val playlistIndex = playlist?.items?.indexOfFirst { it.sceneId == state.currentSceneId } ?: -1
+        val resource = SignageRuntime.resource(state.currentResourceId)
+        val scene = SignageRuntime.scene(state.currentSceneId)
         return "{" +
             "\"deviceId\":${quote(state.deviceId)},\"deviceName\":${quote(state.deviceName)}," +
             "\"currentResourceId\":${state.currentResourceId?.let(::quote) ?: "null"}," +
@@ -1124,7 +1157,19 @@ class KtorSignageServer(context: Context, private val port: Int) {
             "\"currentPlaylistId\":${state.currentPlaylistId?.let(::quote) ?: "null"}," +
             "\"playing\":${state.playing},\"volume\":${state.volume},\"muted\":${state.muted}," +
             "\"playlistIndex\":${if (playlistIndex >= 0) playlistIndex else "null"},\"playlistItemCount\":${playlist?.items?.size ?: 0}," +
-            "\"positionMs\":${state.positionMs},\"error\":${state.error?.let(::quote) ?: "null"},\"serverPort\":${state.serverPort},\"commandRevision\":${state.commandRevision}" + "}"
+            "\"positionMs\":${state.positionMs},\"error\":${state.error?.let(::quote) ?: "null"},\"serverPort\":${state.serverPort},\"commandRevision\":${state.commandRevision}," +
+            "\"currentResourceName\":${resource?.name?.let(::quote) ?: "null"}," +
+            "\"currentResourceKind\":${resource?.kind?.let(::quote) ?: "null"}," +
+            "\"currentResourceContent\":${resource?.content?.let(::quote) ?: "null"}," +
+            "\"currentResourceSourceUri\":${resource?.sourceUri?.let(::quote) ?: "null"}," +
+            "\"currentResourceMimeType\":${resource?.mimeType?.let(::quote) ?: "null"}," +
+            "\"currentResourceTextSizeSp\":${resource?.textSizeSp ?: "null"}," +
+            "\"currentResourceTextColor\":${resource?.textColor?.let(::quote) ?: "null"}," +
+            "\"currentResourceTextBackgroundColor\":${resource?.textBackgroundColor?.let(::quote) ?: "null"}," +
+            "\"currentResourceFontFamily\":${resource?.fontFamily?.let(::quote) ?: "null"}," +
+            "\"currentResourceFitMode\":${scene?.fitMode?.let(::quote) ?: "null"}," +
+            "\"currentResourceUrl\":${if (resource?.isLocalFile == true) quote("/media/${resource.id}") else "null"}" +
+            "}"
     }
 
     private fun deviceStatusEventJson(): String = "{\"type\":\"DEVICE_STATUS\",\"state\":${statusJson()}}"

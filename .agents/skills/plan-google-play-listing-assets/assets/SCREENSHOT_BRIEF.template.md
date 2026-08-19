@@ -9,9 +9,9 @@
 - Target Locale:
 - Device Type:
 - Screenshot Count:
-- Device Sets: Phone=1920x1080, Tablet=2560x1600
+- Device Sets: Phone=1080x1920, TV=1920x1080, Tablet=2560x1600
 - Output Format: opaque PNG or JPEG
-- Orientation:
+- Orientation: portrait | landscape
 - Prompt Output Directory: prompts/{device}/
 - Blocking Issues:
 

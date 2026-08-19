@@ -6,4 +6,4 @@ Delete all app data on this device: open Android Settings, go to Apps > Local Si
 
 Google Play purchase records: Google retains orders and subscriptions. Clearing app data or uninstalling does not remove orders and does not cancel a subscription. Manage subscriptions under Payments and subscriptions in Google Play, and use Google Play order support for purchase records or refund requests.
 
-For more help, use the developer contact details on the Google Play store listing.
+For further assistance, contact our developer support team at: wukuiqing@gmail.com.

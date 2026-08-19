@@ -39,7 +39,17 @@ class LocalDeviceClient(private val device: PairedDevice) {
             volume = json.optInt("volume", 80),
             muted = json.optBoolean("muted"),
             error = json.optString("error").takeIf { it.isNotBlank() },
-            commandRevision = json.optLong("commandRevision", 0L)
+            commandRevision = json.optLong("commandRevision", 0L),
+            currentResourceName = json.optString("currentResourceName").takeIf { it.isNotBlank() },
+            currentResourceKind = json.optString("currentResourceKind").takeIf { it.isNotBlank() },
+            currentResourceContent = json.optString("currentResourceContent").takeIf { it.isNotBlank() },
+            currentResourceSourceUri = json.optString("currentResourceSourceUri").takeIf { it.isNotBlank() },
+            currentResourceMimeType = json.optString("currentResourceMimeType").takeIf { it.isNotBlank() },
+            currentResourceTextSizeSp = if (json.has("currentResourceTextSizeSp") && !json.isNull("currentResourceTextSizeSp")) json.optInt("currentResourceTextSizeSp") else null,
+            currentResourceTextColor = json.optString("currentResourceTextColor").takeIf { it.isNotBlank() },
+            currentResourceTextBackgroundColor = json.optString("currentResourceTextBackgroundColor").takeIf { it.isNotBlank() },
+            currentResourceFontFamily = json.optString("currentResourceFontFamily").takeIf { it.isNotBlank() },
+            currentResourceUrl = json.optString("currentResourceUrl").takeIf { it.isNotBlank() }
         )
     }
 
@@ -197,7 +207,17 @@ class LocalDeviceClient(private val device: PairedDevice) {
         val volume: Int = 80,
         val muted: Boolean = false,
         val error: String? = null,
-        val commandRevision: Long = 0L
+        val commandRevision: Long = 0L,
+        val currentResourceName: String? = null,
+        val currentResourceKind: String? = null,
+        val currentResourceContent: String? = null,
+        val currentResourceSourceUri: String? = null,
+        val currentResourceMimeType: String? = null,
+        val currentResourceTextSizeSp: Int? = null,
+        val currentResourceTextColor: String? = null,
+        val currentResourceTextBackgroundColor: String? = null,
+        val currentResourceFontFamily: String? = null,
+        val currentResourceUrl: String? = null
     )
     data class RemoteCommandResult(val success: Boolean, val status: Int, val body: String)
     private data class HttpResponse(val status: Int, val body: String)

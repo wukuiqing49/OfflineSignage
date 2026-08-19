@@ -37,7 +37,17 @@ object SignageDeviceFleet {
                     volume = remote.volume,
                     muted = remote.muted,
                     error = remote.error,
-                    commandRevision = remote.commandRevision
+                    commandRevision = remote.commandRevision,
+                    currentResourceName = remote.currentResourceName,
+                    currentResourceKind = remote.currentResourceKind,
+                    currentResourceContent = remote.currentResourceContent,
+                    currentResourceSourceUri = remote.currentResourceSourceUri,
+                    currentResourceMimeType = remote.currentResourceMimeType,
+                    currentResourceTextSizeSp = remote.currentResourceTextSizeSp,
+                    currentResourceTextColor = remote.currentResourceTextColor,
+                    currentResourceTextBackgroundColor = remote.currentResourceTextBackgroundColor,
+                    currentResourceFontFamily = remote.currentResourceFontFamily,
+                    currentResourceUrl = remote.currentResourceUrl
                 )
             }
         }.awaitAll()
@@ -139,7 +149,17 @@ object SignageDeviceFleet {
         val volume: Int,
         val muted: Boolean,
         val error: String?,
-        val commandRevision: Long
+        val commandRevision: Long,
+        val currentResourceName: String? = null,
+        val currentResourceKind: String? = null,
+        val currentResourceContent: String? = null,
+        val currentResourceSourceUri: String? = null,
+        val currentResourceMimeType: String? = null,
+        val currentResourceTextSizeSp: Int? = null,
+        val currentResourceTextColor: String? = null,
+        val currentResourceTextBackgroundColor: String? = null,
+        val currentResourceFontFamily: String? = null,
+        val currentResourceUrl: String? = null
     )
 
     enum class FleetStatusState { ONLINE, OFFLINE, UNAUTHORIZED, TIMEOUT, INVALID_RESPONSE }

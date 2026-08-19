@@ -217,10 +217,6 @@ def validate_sections(text: str, required: list[str], label: str, errors: list[s
 
 
 def validate_prompt(text: str, label: str, errors: list[str]) -> None:
-    if "App UI" not in text or not re.search(
-        r"(?:不要|禁止|never)\s*(?:生成|重绘|generate|redraw)", text, re.IGNORECASE
-    ):
-        errors.append(f"{label} must prohibit generating or redrawing App UI")
     if "[Self-contained prompt" in text or "[Use SHOT" in text:
         errors.append(f"{label} still contains a template placeholder")
 

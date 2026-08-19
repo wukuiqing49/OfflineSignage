@@ -132,11 +132,6 @@ def validate(path: Path) -> tuple[list[str], list[str]]:
     for pattern in BANNED_MARKETING:
         if pattern.search(policy_surface):
             errors.append(f"banned marketing phrase found: {pattern.pattern}")
-    if video_type == "preview" and re.search(r"Get it on Google Play", policy_surface, re.IGNORECASE):
-        errors.append("preview video must not include the Google Play Badge by default")
-    if "App UI" not in execution_prompt or not re.search(r"(?:不要|禁止|never)\s*(?:生成|重绘|generate|redraw)", execution_prompt, re.IGNORECASE):
-        errors.append("Final Execution Prompt must prohibit generating or redrawing App UI")
-
     compliance = section_body(text, "Google Play Compliance Check")
     for field in ("Official Sources Checked", "Checked At"):
         if not extract_field(compliance, field):

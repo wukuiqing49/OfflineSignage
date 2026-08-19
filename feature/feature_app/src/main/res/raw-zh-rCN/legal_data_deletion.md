@@ -6,4 +6,4 @@ Local Signage 不创建应用账号，因此没有需要注销的 Local Signage 
 
 Google Play 购买记录：订单和订阅由 Google 保存，清除应用数据或卸载不会删除订单，也不会自动取消订阅。请在 Google Play 商店的“付款和订阅”中管理订阅，并通过 Google Play 提供的订单渠道处理购买记录或退款请求。
 
-如需进一步帮助，请通过 Google Play 商店页面提供的开发者联系方式联系我们。
+如需进一步帮助或人工协助，请发送邮件至开发者支持邮箱：wukuiqing@gmail.com。

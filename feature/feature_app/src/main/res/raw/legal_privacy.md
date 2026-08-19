@@ -30,4 +30,4 @@ This product is intended for signage management and is not directed to children.
 
 8. Updates and contact
 
-Policy changes may be delivered with app updates. Contact us using the developer contact details on the Google Play store listing.
+Policy changes may be delivered with app updates. If you have any questions or require support, contact us at our developer support email: wukuiqing@gmail.com.

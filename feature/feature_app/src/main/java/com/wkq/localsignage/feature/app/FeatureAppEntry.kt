@@ -27,7 +27,8 @@ object FeatureAppEntry {
                 billingRequireAppAccount = false,
                 featureGateConfig = GoogleFeatureGateConfig(enabled = false),
                 enableFirebaseAnalytics = !debug,
-                appName = appContext.getString(R.string.app_name)
+                appName = appContext.getString(R.string.app_name),
+                feedbackEmail = "wukuiqing@gmail.com"
             )
         )
         MonetizationRepository.initialize(

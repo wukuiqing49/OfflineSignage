@@ -1,0 +1,523 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Local Signage - Privacy Policy & Data Deletion</title>
+  <meta name="description" content="Official Privacy Policy, User Data Deletion Policy, and Terms of Service for Local Signage Android Application.">
+  <style>
+    :root {
+      --brand: #1a8754;
+      --brand-light: #e8f5e9;
+      --brand-dark: #12633d;
+      --text: #1f2937;
+      --text-muted: #6b7280;
+      --bg: #f9fafb;
+      --card-bg: #ffffff;
+      --border: #e5e7eb;
+      --shadow: 0 4px 14px rgba(0, 0, 0, 0.05);
+      --font: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: var(--font);
+      background-color: var(--bg);
+      color: var(--text);
+      line-height: 1.75;
+      margin: 0;
+      padding: 0;
+      -webkit-font-smoothing: antialiased;
+    }
+    header {
+      background: var(--card-bg);
+      border-bottom: 1px solid var(--border);
+      position: sticky;
+      top: 0;
+      z-index: 100;
+      box-shadow: 0 1px 3px rgba(0,0,0,0.02);
+    }
+    .header-container {
+      max-width: 960px;
+      margin: 0 auto;
+      padding: 14px 24px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+    .logo-area {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      text-decoration: none;
+      color: inherit;
+    }
+    .logo-icon {
+      width: 38px;
+      height: 38px;
+      background: var(--brand);
+      color: #fff;
+      border-radius: 8px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-weight: 800;
+      font-size: 17px;
+      letter-spacing: -0.5px;
+    }
+    .logo-copy {
+      display: flex;
+      flex-direction: column;
+    }
+    .logo-title {
+      font-size: 17px;
+      font-weight: 750;
+      color: var(--text);
+      line-height: 1.2;
+    }
+    .logo-sub {
+      font-size: 11px;
+      color: var(--text-muted);
+      font-weight: 500;
+    }
+    .lang-switcher select {
+      padding: 7px 14px;
+      font-size: 13px;
+      font-weight: 600;
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      background-color: #fff;
+      color: var(--text);
+      cursor: pointer;
+      outline: none;
+      transition: border-color 0.2s;
+    }
+    .lang-switcher select:focus {
+      border-color: var(--brand);
+    }
+    .container {
+      max-width: 960px;
+      margin: 32px auto 60px;
+      padding: 0 20px;
+    }
+    .nav-tabs {
+      display: flex;
+      gap: 8px;
+      margin-bottom: 24px;
+      border-bottom: 2px solid var(--border);
+      padding-bottom: 12px;
+      overflow-x: auto;
+      scrollbar-width: thin;
+    }
+    .tab-btn {
+      background: transparent;
+      border: none;
+      padding: 9px 18px;
+      font-size: 15px;
+      font-weight: 600;
+      color: var(--text-muted);
+      cursor: pointer;
+      border-radius: 6px;
+      white-space: nowrap;
+      transition: all 0.2s;
+    }
+    .tab-btn:hover {
+      color: var(--brand);
+      background: rgba(26, 135, 84, 0.05);
+    }
+    .tab-btn.active {
+      background: var(--brand-light);
+      color: var(--brand);
+    }
+    .card {
+      background: var(--card-bg);
+      border-radius: 12px;
+      border: 1px solid var(--border);
+      box-shadow: var(--shadow);
+      padding: 40px 44px;
+      margin-bottom: 30px;
+    }
+    h1 {
+      font-size: 26px;
+      margin-bottom: 8px;
+      color: var(--text);
+      line-height: 1.3;
+    }
+    .effective-date {
+      color: var(--text-muted);
+      font-size: 13px;
+      margin-bottom: 28px;
+      display: block;
+      font-weight: 500;
+    }
+    h2 {
+      font-size: 18px;
+      margin: 32px 0 14px;
+      color: var(--brand-dark);
+      border-left: 4px solid var(--brand);
+      padding-left: 12px;
+      line-height: 1.4;
+    }
+    p, li {
+      font-size: 15px;
+      color: #374151;
+      margin-bottom: 12px;
+    }
+    ul, ol {
+      margin-left: 24px;
+      margin-bottom: 16px;
+    }
+    li {
+      margin-bottom: 6px;
+    }
+    .highlight-box {
+      background: #f0fdf4;
+      border: 1px solid #bbf7d0;
+      border-radius: 8px;
+      padding: 18px 22px;
+      margin: 20px 0;
+    }
+    .highlight-box strong {
+      color: #166534;
+      display: block;
+      margin-bottom: 6px;
+      font-size: 15px;
+    }
+    .contact-box {
+      background: #f8fafc;
+      border: 1px solid #e2e8f0;
+      border-radius: 8px;
+      padding: 20px 24px;
+      margin-top: 28px;
+      font-size: 14px;
+    }
+    .contact-box a {
+      color: var(--brand);
+      text-decoration: none;
+      font-weight: 600;
+    }
+    .contact-box a:hover {
+      text-decoration: underline;
+    }
+    footer {
+      text-align: center;
+      padding: 28px 20px;
+      color: var(--text-muted);
+      font-size: 13px;
+      border-top: 1px solid var(--border);
+      background: #fff;
+    }
+    @media (max-width: 680px) {
+      .card { padding: 24px 20px; }
+      h1 { font-size: 22px; }
+      h2 { font-size: 17px; margin-top: 24px; }
+      .header-container { padding: 12px 16px; }
+      .container { margin-top: 20px; }
+    }
+  </style>
+</head>
+<body>
+
+<header>
+  <div class="header-container">
+    <a href="#" class="logo-area">
+      <div class="logo-icon">LS</div>
+      <div class="logo-copy">
+        <span class="logo-title">Local Signage</span>
+        <span class="logo-sub">Legal & Privacy Center</span>
+      </div>
+    </a>
+    <div class="lang-switcher">
+      <select id="langSelect" onchange="changeLanguage(this.value)" aria-label="Language">
+        <option value="en" selected>English</option>
+        <option value="zh-CN">中文 (简体)</option>
+        <option value="ja-JP">日本語</option>
+        <option value="ko-KR">한국어</option>
+        <option value="es-ES">Español</option>
+        <option value="de-DE">Deutsch</option>
+        <option value="fr-FR">Français</option>
+        <option value="pt-BR">Português</option>
+        <option value="ru-RU">Русский</option>
+      </select>
+    </div>
+  </div>
+</header>
+
+<div class="container">
+  <div class="nav-tabs">
+    <button class="tab-btn active" onclick="showSection('privacy')">
+      <span data-i18n="tabPrivacy">Privacy Policy</span>
+    </button>
+    <button class="tab-btn" onclick="showSection('deletion')">
+      <span data-i18n="tabDeletion">Account & Data Deletion</span>
+    </button>
+    <button class="tab-btn" onclick="showSection('terms')">
+      <span data-i18n="tabTerms">Terms & Subscription</span>
+    </button>
+  </div>
+
+  <!-- 1. PRIVACY POLICY -->
+  <section id="privacy" class="card">
+    <!-- English (Default) -->
+    <div class="lang-block lang-en">
+      <h1>Local Signage Privacy Policy</h1>
+      <span class="effective-date">Effective Date: August 18, 2026 | Last Updated: August 19, 2026</span>
+
+      <div class="highlight-box">
+        <strong>💡 Local-First & Account-Free Commitment</strong>
+        Local Signage is a local-first, offline-first digital signage player for Android. The application <strong>does not require user account registration</strong>, collects no user passwords, operates no public cloud user tracking, and ensures that all content scheduling remains strictly within your device and local network.
+      </div>
+
+      <h2>1. Information We Process and Purpose of Use</h2>
+      <p>To enable content display and secure local-network fleet management, the app stores and processes the following data locally on your device:</p>
+      <ul>
+        <li><strong>Media and Display Content:</strong> Texts, images, videos, live streams (HLS/DASH/RTSP), web URLs, and custom HTML added by you.</li>
+        <li><strong>Playback & Configuration:</strong> Playlists, slide timings, aspect ratio crop/fit settings, colors, fonts, and device volumes.</li>
+        <li><strong>Local Network & Device Identifiers:</strong> Randomly generated device UUID, device name, local IP address, port, and temporary pairing codes used strictly for local-network discovery and authorized management.</li>
+        <li><strong>Diagnostics Logs:</strong> Operational records and playback logs stored exclusively in local SQLite for troubleshooting.</li>
+      </ul>
+
+      <h2>2. Third-Party Services and Cloud Components</h2>
+      <ul>
+        <li><strong>Google Play Billing:</strong> Premium purchases and subscription verification are handled securely through Google Play. Google manages payment processing under its own policies. We never receive or store complete financial details.</li>
+        <li><strong>Firebase / Analytics:</strong> Firebase Analytics and remote user tracking are disabled by default. The app contains no third-party ad networks and does not use Advertising IDs.</li>
+      </ul>
+
+      <h2>3. Device Permissions</h2>
+      <ul>
+        <li><strong>Network Permissions (INTERNET / ACCESS_NETWORK_STATE):</strong> Required to host the local Web Console, render streaming/web content, and verify Google Play subscriptions.</li>
+        <li><strong>Nearby Devices / Wi-Fi Permissions:</strong> Used to discover paired signage devices across the local subnet or manage local hotspot connections.</li>
+        <li><strong>Storage / Media Access:</strong> Accessed only when you explicitly select images or videos from your local device storage.</li>
+      </ul>
+
+      <h2>4. Data Storage and Sharing</h2>
+      <p>We do not sell, rent, or transmit your signage media or business data to external third parties. Control APIs are local-only and protected by token authorization.</p>
+
+      <h2>5. Children's Privacy</h2>
+      <p>Our service is designed for business and informational signage management and is not directed at children under the age of 13.</p>
+
+      <h2>6. Contact Us</h2>
+      <div class="contact-box">
+        <strong>Developer Contact Information:</strong><br>
+        📧 Email: <a href="mailto:wukuiqing@gmail.com">wukuiqing@gmail.com</a><br>
+        🏢 Organization: Local Signage Developer Team
+      </div>
+    </div>
+
+    <!-- 中文 (Chinese Simplified) -->
+    <div class="lang-block lang-zh-CN" style="display:none;">
+      <h1>Local Signage 隐私政策</h1>
+      <span class="effective-date">生效日期：2026 年 8 月 18 日 | 最近更新：2026 年 8 月 19 日</span>
+
+      <div class="highlight-box">
+        <strong>💡 本地优先与无账号原则</strong>
+        Local Signage 是一款 Local-first（本地优先 / 离线优先）的 Android 广告机与电子标牌播放工具。应用<strong>不要求注册任何账号</strong>，不收集账号密码，不架设公网用户服务器，所有画面编排与播放均在您的设备及局域网内闭环完成。
+      </div>
+
+      <h2>1. 我们处理的数据及用途</h2>
+      <p>为了实现广告屏的展示与局域网便捷管理，应用会在设备本地存储与处理以下必要信息：</p>
+      <ul>
+        <li><strong>媒体与展示内容：</strong>您主动添加或上传的文字、图片、视频文件、直播流地址（HLS/DASH/RTSP）、网页 URL 及 HTML 代码。</li>
+        <li><strong>播放与场景配置：</strong>播放列表顺序、画面切换时长、拉伸与适配模式、背景颜色、字号字体、设备音量等设置。</li>
+        <li><strong>局域网连接与设备标识：</strong>设备随机生成的本地设备 ID、设备名称、局域网 IP 地址、端口号及 6 位动态电脑配对码。这些数据仅用于同一局域网内的控制端发现大屏与安全鉴权。</li>
+        <li><strong>运行与诊断日志：</strong>本地播放异常与最近操作记录，仅保存在设备本地存储中，供您排查故障，绝不向第三方后台回传。</li>
+      </ul>
+
+      <h2>2. 第三方 SDK 与云端服务说明</h2>
+      <ul>
+        <li><strong>Google Play Billing（结算服务）：</strong>应用的专业版授权与订阅验证通过 Google Play 官方结算库完成。交易信息、信用卡及付款方式由 Google 依据其隐私政策安全处理，本应用不收集且无法访问您的银行卡或完整支付凭证。</li>
+        <li><strong>Firebase / Google Play 服务：</strong>应用引入了基础 Google 服务组件，但<strong>Firebase Analytics 及数据分析功能默认关闭</strong>。应用不包含任何第三方广告 SDK，不收集广告标识符（AAID/IDFA），不进行用户画像追踪。</li>
+      </ul>
+
+      <h2>3. 权限申请与使用目的</h2>
+      <ul>
+        <li><strong>网络权限（INTERNET / ACCESS_NETWORK_STATE）：</strong>用于局域网内 Web 控制台服务（Ktor Server）、直播/网页媒体拉取、多设备局域网同步以及 Google Play 订阅状态校验。</li>
+        <li><strong>局域网与附近设备权限（Wi-Fi / 附近设备）：</strong>用于在同一 Wi-Fi 环境下通过 UDP 广播自动发现局域网内的其他广告机屏幕，或在无路由器时启动设备热点供电脑直连。</li>
+        <li><strong>存储与媒体选择权限：</strong>仅在您主动从设备中选取图片、视频作为播放海报时读取对应的媒体文件。</li>
+      </ul>
+
+      <h2>4. 数据存储、安全与分享</h2>
+      <p>本应用<strong>不会将您的展示内容、设备信息或商业数据出售、出租或同步给任何第三方</strong>。所有的控制接口仅开放于局域网内，并通过配对码与访问令牌实施鉴权保护。请确保在受信任的专用局域网或商用网络中使用。</p>
+
+      <h2>5. 儿童隐私保护</h2>
+      <p>本产品主要面向商户、展厅、办公场所及个人用户的电子标牌与信息发布场景，不以 13 周岁以下儿童为目标用户，不主动收集儿童个人信息。</p>
+
+      <h2>6. 政策更新与联系方式</h2>
+      <div class="contact-box">
+        <strong>开发者支持联系方式：</strong><br>
+        📧 电子邮箱：<a href="mailto:wukuiqing@gmail.com">wukuiqing@gmail.com</a><br>
+        🏢 产品支持：Local Signage Developer Team
+      </div>
+    </div>
+  </section>
+
+  <!-- 2. DATA DELETION & ACCOUNT REMOVAL -->
+  <section id="deletion" class="card" style="display:none;">
+    <!-- English (Default) -->
+    <div class="lang-block lang-en">
+      <h1>Account Deletion & User Data Erasure Policy</h1>
+      <span class="effective-date">Compliant with Google Play User Data Deletion Policy</span>
+
+      <div class="highlight-box">
+        <strong>📌 Account-Free Architecture Statement</strong>
+        Local Signage operates on an account-free, local-first model. Because <strong>no cloud accounts are created</strong>, there is no remote account to delete. All application data is stored locally on your hardware and can be permanently deleted at any time.
+      </div>
+
+      <h2>1. Deleting Specific Media & Resources</h2>
+      <ol>
+        <li>Open the Local Signage Web Console in your local web browser.</li>
+        <li>Navigate to the Content/Resource section, select unwanted items, and click <strong>Delete</strong>.</li>
+        <li>The selected files and database records will be permanently erased from device storage.</li>
+      </ol>
+
+      <h2>2. Erasing All App Data from Your Device</h2>
+      <p>To completely wipe all records, configurations, and media:</p>
+      <ol>
+        <li>Open your Android device <strong>Settings</strong>.</li>
+        <li>Navigate to <strong>Apps &gt; Local Signage &gt; Storage &amp; Cache</strong>.</li>
+        <li>Tap <strong>Clear Storage / Clear All Data</strong>, or simply <strong>Uninstall</strong> the app.</li>
+      </ol>
+      <p><em>Note: This action irreversibly removes all playlists, media files, pairing keys, and diagnostics from the local hardware.</em></p>
+
+      <h2>3. Google Play Subscription Management</h2>
+      <p>Purchases and subscriptions are managed securely by Google Play. Uninstalling the app does not automatically cancel active subscriptions. To cancel or modify your plan, visit <strong>Google Play Store &gt; Profile &gt; Payments &amp; Subscriptions &gt; Subscriptions</strong>.</p>
+
+      <h2>4. Support Inquiries</h2>
+      <div class="contact-box">
+        <strong>Need Assistance?</strong><br>
+        If you need assistance regarding data deletion, contact us at: <a href="mailto:wukuiqing@gmail.com">wukuiqing@gmail.com</a>.
+      </div>
+    </div>
+
+    <!-- 中文 (Chinese Simplified) -->
+    <div class="lang-block lang-zh-CN" style="display:none;">
+      <h1>账号注销与用户数据删除说明</h1>
+      <span class="effective-date">符合 Google Play 用户数据删除政策（User Data Deletion Policy）要求</span>
+
+      <div class="highlight-box">
+        <strong>📌 关于“账号注销”的说明</strong>
+        Local Signage 为本地离线架构，<strong>未设立云端账号体系</strong>，因此您无需进行繁琐的账号注销申请。所有数据均归属于设备本地，您可以随时完全掌控和彻底清除。
+      </div>
+
+      <h2>一、如何删除已上传的媒体与内容</h2>
+      <ol>
+        <li>在浏览器中打开 Local Signage 的 <strong>Web 控制台</strong>。</li>
+        <li>进入“设备 / 资源管理”或已上传列表，选中不需要的图片、视频、文字或网页，点击<strong>“删除”</strong>。</li>
+        <li>相关媒体文件与数据库索引将立即从设备存储中永久清除。</li>
+      </ol>
+
+      <h2>二、如何彻底清除设备上的全部应用数据</h2>
+      <p>如果您希望重置设备或清除全部历史数据：</p>
+      <ol>
+        <li>打开 Android 系统的<strong>“设置 (Settings)”</strong>。</li>
+        <li>进入<strong>“应用与通知” > “Local Signage” > “存储与缓存”</strong>。</li>
+        <li>点击<strong>“清除存储空间 / 清除所有数据 (Clear Storage)”</strong>。</li>
+        <li>或者直接从设备上<strong>卸载应用</strong>。</li>
+      </ol>
+      <p><em>注意：执行上述操作后，设备上的所有媒体资源、播放列表、配对凭据及本地试用记录将被物理删除且无法恢复。</em></p>
+
+      <h2>三、Google Play 订单与订阅数据说明</h2>
+      <p>由于应用内的购买与订阅由 Google Play 统一托管：</p>
+      <ul>
+        <li>清除设备数据或卸载应用<strong>不会自动取消正在生效的订阅</strong>。</li>
+        <li>如需管理或取消订阅，请打开 <strong>Google Play 商店 App > 点击右上角头像 > 付款和订阅 > 订阅</strong> 进行管理。</li>
+        <li>历史订单凭据均归属于您的 Google 账号，受 Google 隐私保护政策保护。</li>
+      </ul>
+
+      <h2>四、人工协助与数据权利咨询</h2>
+      <div class="contact-box">
+        <strong>技术支持联系：</strong><br>
+        如果您对数据删除有任何疑问，或需要技术协助，可发送邮件至：<a href="mailto:wukuiqing@gmail.com">wukuiqing@gmail.com</a>，我们将在 3 个工作日内给予回复。
+      </div>
+    </div>
+  </section>
+
+  <!-- 3. TERMS & SUBSCRIPTION -->
+  <section id="terms" class="card" style="display:none;">
+    <!-- English (Default) -->
+    <div class="lang-block lang-en">
+      <h1>Terms of Service & Subscription Terms</h1>
+      <span class="effective-date">Effective Date: August 18, 2026</span>
+
+      <h2>1. Software License</h2>
+      <p>Local Signage grants you a non-exclusive, non-transferable license to use the application on compatible Android devices. You agree not to distribute unlawful content or violate third-party intellectual property rights.</p>
+
+      <h2>2. Plans & Feature Tiers</h2>
+      <ul>
+        <li><strong>Free Tier:</strong> Basic single-device display and local control capabilities.</li>
+        <li><strong>Pro License (Subscription / Lifetime):</strong> Unlocks multi-screen fleet synchronization, advanced scheduling, video background playback, and priority controls.</li>
+      </ul>
+
+      <h2>3. Billing and Renewal</h2>
+      <p>Subscriptions automatically renew unless cancelled at least 24 hours before the end of the current period via Google Play Store account settings.</p>
+    </div>
+
+    <!-- 中文 (Chinese Simplified) -->
+    <div class="lang-block lang-zh-CN" style="display:none;">
+      <h1>服务条款与订阅说明</h1>
+      <span class="effective-date">生效日期：2026 年 8 月 18 日</span>
+
+      <h2>1. 软件许可与合规使用</h2>
+      <p>Local Signage 授予您在兼容 Android 硬件上播放与展示多媒体内容的非独占许可。用户应确保展示的内容（包括文字、图片、音视频等）符合当地法律法规，不侵犯第三方知识产权。</p>
+
+      <h2>2. 免费版与专业版功能</h2>
+      <ul>
+        <li><strong>免费基础版：</strong>支持单机基础播放与基础局域网管理。</li>
+        <li><strong>Pro 专业版（买断或订阅）：</strong>解锁无限多设备集群控制、高清视频与网页混播、多屏同步等高级能力。</li>
+      </ul>
+
+      <h2>3. 订阅续订与取消</h2>
+      <p>自动续订订阅将在当前周期结束前 24 小时内由 Google Play 自动扣款。您可随时在 Google Play 商店设置中取消自动续订，取消后在当前计费周期结束前仍可继续使用专业版权益。</p>
+    </div>
+  </section>
+</div>
+
+<footer>
+  &copy; 2026 Local Signage. All rights reserved. | Local-First Digital Signage Solution
+</footer>
+
+<script>
+  const i18nTitles = {
+    'en': { tabPrivacy: 'Privacy Policy', tabDeletion: 'Account & Data Deletion', tabTerms: 'Terms & Subscription' },
+    'zh-CN': { tabPrivacy: '隐私政策', tabDeletion: '账号注销与数据删除', tabTerms: '服务条款与订阅说明' },
+    'ja-JP': { tabPrivacy: 'プライバシーポリシー', tabDeletion: 'データ削除について', tabTerms: '利用規約' },
+    'ko-KR': { tabPrivacy: '개인정보처리방침', tabDeletion: '데이터 삭제 안내', tabTerms: '이용약관' },
+    'es-ES': { tabPrivacy: 'Política de Privacidad', tabDeletion: 'Eliminación de Datos', tabTerms: 'Términos' },
+    'de-DE': { tabPrivacy: 'Datenschutzerklärung', tabDeletion: 'Datenlöschung', tabTerms: 'Nutzungsbedingungen' },
+    'fr-FR': { tabPrivacy: 'Politique de Confidentialité', tabDeletion: 'Suppression des Données', tabTerms: 'Conditions' },
+    'pt-BR': { tabPrivacy: 'Política de Privacidade', tabDeletion: 'Exclusão de Dados', tabTerms: 'Termos' },
+    'ru-RU': { tabPrivacy: 'Политика конфиденциальности', tabDeletion: 'Удаление данных', tabTerms: 'Условия' }
+  };
+
+  function changeLanguage(lang) {
+    document.documentElement.lang = lang;
+    const targetBlock = lang === 'zh-CN' ? 'lang-zh-CN' : 'lang-en';
+    
+    document.querySelectorAll('.lang-block').forEach(b => b.style.display = 'none');
+    document.querySelectorAll('.' + targetBlock).forEach(b => b.style.display = 'block');
+
+    const titles = i18nTitles[lang] || i18nTitles['en'];
+    document.querySelector('[data-i18n="tabPrivacy"]').textContent = titles.tabPrivacy;
+    document.querySelector('[data-i18n="tabDeletion"]').textContent = titles.tabDeletion;
+    document.querySelector('[data-i18n="tabTerms"]').textContent = titles.tabTerms;
+  }
+
+  function showSection(sectionId) {
+    document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+    document.querySelectorAll('section.card').forEach(s => s.style.display = 'none');
+    
+    event.currentTarget.classList.add('active');
+    const target = document.getElementById(sectionId);
+    if (target) {
+      target.style.display = 'block';
+      target.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }
+  }
+
+  // Set default language as English on initial load
+  window.addEventListener('DOMContentLoaded', () => {
+    changeLanguage('en');
+  });
+</script>
+
+</body>
+</html>

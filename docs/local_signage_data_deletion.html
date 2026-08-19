@@ -1,0 +1,466 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Local Signage - Account Deletion & User Data Erasure Policy</title>
+  <meta name="description" content="Official Account Deletion and User Data Erasure Policy for Local Signage Android Application. Compliant with Google Play User Data Deletion Policy.">
+  <style>
+    :root {
+      --brand: #1a8754;
+      --brand-light: #e8f5e9;
+      --brand-dark: #12633d;
+      --text: #1f2937;
+      --text-muted: #6b7280;
+      --bg: #f9fafb;
+      --card-bg: #ffffff;
+      --border: #e5e7eb;
+      --shadow: 0 4px 14px rgba(0, 0, 0, 0.05);
+      --font: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: var(--font);
+      background-color: var(--bg);
+      color: var(--text);
+      line-height: 1.75;
+      margin: 0;
+      padding: 0;
+      -webkit-font-smoothing: antialiased;
+    }
+    header {
+      background: var(--card-bg);
+      border-bottom: 1px solid var(--border);
+      position: sticky;
+      top: 0;
+      z-index: 100;
+      box-shadow: 0 1px 3px rgba(0,0,0,0.02);
+    }
+    .header-container {
+      max-width: 960px;
+      margin: 0 auto;
+      padding: 14px 24px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+    .logo-area {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      text-decoration: none;
+      color: inherit;
+    }
+    .logo-icon {
+      width: 38px;
+      height: 38px;
+      background: var(--brand);
+      color: #fff;
+      border-radius: 8px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-weight: 800;
+      font-size: 17px;
+      letter-spacing: -0.5px;
+    }
+    .logo-copy {
+      display: flex;
+      flex-direction: column;
+    }
+    .logo-title {
+      font-size: 17px;
+      font-weight: 750;
+      color: var(--text);
+      line-height: 1.2;
+    }
+    .logo-sub {
+      font-size: 11px;
+      color: var(--text-muted);
+      font-weight: 500;
+    }
+    .lang-switcher select {
+      padding: 7px 14px;
+      font-size: 13px;
+      font-weight: 600;
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      background-color: #fff;
+      color: var(--text);
+      cursor: pointer;
+      outline: none;
+      transition: border-color 0.2s;
+    }
+    .lang-switcher select:focus {
+      border-color: var(--brand);
+    }
+    .container {
+      max-width: 960px;
+      margin: 32px auto 60px;
+      padding: 0 20px;
+    }
+    .card {
+      background: var(--card-bg);
+      border-radius: 12px;
+      border: 1px solid var(--border);
+      box-shadow: var(--shadow);
+      padding: 40px 44px;
+      margin-bottom: 30px;
+    }
+    h1 {
+      font-size: 26px;
+      margin-bottom: 8px;
+      color: var(--text);
+      line-height: 1.3;
+    }
+    .effective-date {
+      color: var(--text-muted);
+      font-size: 13px;
+      margin-bottom: 28px;
+      display: block;
+      font-weight: 500;
+    }
+    h2 {
+      font-size: 18px;
+      margin: 32px 0 14px;
+      color: var(--brand-dark);
+      border-left: 4px solid var(--brand);
+      padding-left: 12px;
+      line-height: 1.4;
+    }
+    p, li {
+      font-size: 15px;
+      color: #374151;
+      margin-bottom: 12px;
+    }
+    ul, ol {
+      margin-left: 24px;
+      margin-bottom: 16px;
+    }
+    li {
+      margin-bottom: 8px;
+    }
+    .highlight-box {
+      background: #f0fdf4;
+      border: 1px solid #bbf7d0;
+      border-radius: 8px;
+      padding: 18px 22px;
+      margin: 20px 0;
+    }
+    .highlight-box strong {
+      color: #166534;
+      display: block;
+      margin-bottom: 6px;
+      font-size: 15px;
+    }
+    .step-card {
+      background: #f8fafc;
+      border: 1px solid #e2e8f0;
+      border-radius: 8px;
+      padding: 18px 22px;
+      margin-bottom: 16px;
+    }
+    .step-card h3 {
+      font-size: 16px;
+      color: var(--text);
+      margin-bottom: 8px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+    .step-badge {
+      background: var(--brand);
+      color: #fff;
+      border-radius: 50%;
+      width: 24px;
+      height: 24px;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 12px;
+      font-weight: 700;
+    }
+    .contact-box {
+      background: #f8fafc;
+      border: 1px solid #e2e8f0;
+      border-radius: 8px;
+      padding: 20px 24px;
+      margin-top: 28px;
+      font-size: 14px;
+    }
+    .contact-box a {
+      color: var(--brand);
+      text-decoration: none;
+      font-weight: 600;
+    }
+    .contact-box a:hover {
+      text-decoration: underline;
+    }
+    .nav-link {
+      display: inline-block;
+      margin-top: 14px;
+      color: var(--brand);
+      text-decoration: none;
+      font-weight: 600;
+      font-size: 14px;
+    }
+    .nav-link:hover {
+      text-decoration: underline;
+    }
+    footer {
+      text-align: center;
+      padding: 28px 20px;
+      color: var(--text-muted);
+      font-size: 13px;
+      border-top: 1px solid var(--border);
+      background: #fff;
+    }
+    @media (max-width: 680px) {
+      .card { padding: 24px 20px; }
+      h1 { font-size: 22px; }
+      h2 { font-size: 17px; margin-top: 24px; }
+      .header-container { padding: 12px 16px; }
+      .container { margin-top: 20px; }
+    }
+  </style>
+</head>
+<body>
+
+<header>
+  <div class="header-container">
+    <a href="local_signage_privacy_policy.html" class="logo-area">
+      <div class="logo-icon">LS</div>
+      <div class="logo-copy">
+        <span class="logo-title">Local Signage</span>
+        <span class="logo-sub">User Data Erasure Center</span>
+      </div>
+    </a>
+    <div class="lang-switcher">
+      <select id="langSelect" onchange="changeLanguage(this.value)" aria-label="Language">
+        <option value="en" selected>English</option>
+        <option value="zh-CN">中文 (简体)</option>
+        <option value="ja-JP">日本語</option>
+        <option value="ko-KR">한국어</option>
+        <option value="es-ES">Español</option>
+        <option value="de-DE">Deutsch</option>
+        <option value="fr-FR">Français</option>
+        <option value="pt-BR">Português</option>
+        <option value="ru-RU">Русский</option>
+      </select>
+    </div>
+  </div>
+</header>
+
+<div class="container">
+  <div class="card">
+    <!-- English (Default) -->
+    <div class="lang-block lang-en">
+      <h1>Account Deletion & User Data Erasure Policy</h1>
+      <span class="effective-date">Effective Date: August 18, 2026 | Last Updated: August 19, 2026</span>
+
+      <div class="highlight-box">
+        <strong>📌 Account-Free & Local-First Architecture Statement</strong>
+        Local Signage is an offline-first application that <strong>does not require user account registration</strong>. Because no central accounts or cloud databases are maintained, you do not need to submit an account deletion request. All your uploaded media, playlists, device settings, and operational logs reside exclusively on your local Android hardware and can be deleted immediately by you at any time.
+      </div>
+
+      <h2>1. How to Delete Uploaded Media and Playlists</h2>
+      <div class="step-card">
+        <h3><span class="step-badge">1</span> Remove Content via the Local Web Console</h3>
+        <p>You can manage and delete individual or multiple media assets directly through the local browser console:</p>
+        <ol>
+          <li>Connect your browser to the Local Signage Web Console (e.g., <code>http://&lt;device-ip&gt;:8080</code>).</li>
+          <li>Navigate to the <strong>Resources / Devices</strong> section.</li>
+          <li>Select the images, videos, texts, or HTML layouts you wish to remove and click <strong>Delete</strong>.</li>
+          <li>The media files and database indices will be permanently and immediately removed from the device storage.</li>
+        </ol>
+      </div>
+
+      <h2>2. How to Completely Erase All Application Data</h2>
+      <div class="step-card">
+        <h3><span class="step-badge">2</span> Wipe Device Storage via Android Settings</h3>
+        <p>If you are decommissioning a display, transferring hardware, or wish to perform a complete data wipe:</p>
+        <ol>
+          <li>Open your Android device's <strong>Settings</strong> app.</li>
+          <li>Go to <strong>Apps & Notifications &gt; See all apps &gt; Local Signage</strong>.</li>
+          <li>Select <strong>Storage & Cache</strong>.</li>
+          <li>Tap <strong>Clear Storage</strong> (or <strong>Clear All Data</strong>).</li>
+          <li>Alternatively, you can <strong>Uninstall</strong> the Local Signage application from your device.</li>
+        </ol>
+        <p><em>Note: Clearing storage or uninstalling the app permanently purges all local media, paired device encryption keys, playback logs, and local preferences with immediate effect. This action is irreversible.</em></p>
+      </div>
+
+      <h2>3. Google Play Purchase & Subscription Management</h2>
+      <p>All in-app purchases and subscriptions are securely processed and retained by Google Play:</p>
+      <ul>
+        <li>Clearing local application data or uninstalling the app <strong>does not automatically cancel active subscriptions</strong>.</li>
+        <li>To cancel or manage your subscription, please open the <strong>Google Play Store app &gt; tap your profile icon &gt; Payments & Subscriptions &gt; Subscriptions</strong>.</li>
+        <li>Purchase receipts and transaction records are associated with your Google Account and are subject to Google's Privacy Policy.</li>
+      </ul>
+
+      <h2>4. Data Retention Summary Table</h2>
+      <table style="width:100%; border-collapse: collapse; margin-top: 12px; font-size: 14px;">
+        <thead>
+          <tr style="background:#f1f5f9; text-align: left;">
+            <th style="padding: 10px 14px; border: 1px solid var(--border);">Data Type</th>
+            <th style="padding: 10px 14px; border: 1px solid var(--border);">Storage Location</th>
+            <th style="padding: 10px 14px; border: 1px solid var(--border);">Deletion Method</th>
+            <th style="padding: 10px 14px; border: 1px solid var(--border);">Retention Period</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td style="padding: 10px 14px; border: 1px solid var(--border);">Media Files (Images, Videos, HTML)</td>
+            <td style="padding: 10px 14px; border: 1px solid var(--border);">Local Device Storage</td>
+            <td style="padding: 10px 14px; border: 1px solid var(--border);">Delete via Web Console or Clear App Storage</td>
+            <td style="padding: 10px 14px; border: 1px solid var(--border);">Permanent until deleted by user</td>
+          </tr>
+          <tr>
+            <td style="padding: 10px 14px; border: 1px solid var(--border);">Playlists & Display Configuration</td>
+            <td style="padding: 10px 14px; border: 1px solid var(--border);">Local SQLite Database</td>
+            <td style="padding: 10px 14px; border: 1px solid var(--border);">Clear Storage or Uninstall App</td>
+            <td style="padding: 10px 14px; border: 1px solid var(--border);">Permanent until deleted by user</td>
+          </tr>
+          <tr>
+            <td style="padding: 10px 14px; border: 1px solid var(--border);">Device Pairing Keys & Tokens</td>
+            <td style="padding: 10px 14px; border: 1px solid var(--border);">Encrypted Local Storage</td>
+            <td style="padding: 10px 14px; border: 1px solid var(--border);">Revoke in Web Console or Clear Storage</td>
+            <td style="padding: 10px 14px; border: 1px solid var(--border);">Expires automatically or on manual wipe</td>
+          </tr>
+          <tr>
+            <td style="padding: 10px 14px; border: 1px solid var(--border);">Cloud User Account / Passwords</td>
+            <td style="padding: 10px 14px; border: 1px solid var(--border);">None (No cloud accounts used)</td>
+            <td style="padding: 10px 14px; border: 1px solid var(--border);">N/A</td>
+            <td style="padding: 10px 14px; border: 1px solid var(--border);">Never collected</td>
+          </tr>
+        </tbody>
+      </table>
+
+      <h2>5. Human Support & Data Requests</h2>
+      <p>If you have any questions, require technical assistance, or wish to make an inquiry regarding your data rights, please contact our developer support team:</p>
+      <div class="contact-box">
+        <strong>Developer Contact:</strong><br>
+        📧 Email: <a href="mailto:wukuiqing@gmail.com">wukuiqing@gmail.com</a><br>
+        🏢 Product Support: Local Signage Developer Team<br>
+        ⏱️ Response Time: Within 3 business days
+      </div>
+
+      <a href="local_signage_privacy_policy.html" class="nav-link">← View Local Signage Privacy Policy</a>
+    </div>
+
+    <!-- 中文 (Chinese Simplified) -->
+    <div class="lang-block lang-zh-CN" style="display:none;">
+      <h1>账号注销与用户数据删除说明</h1>
+      <span class="effective-date">生效日期：2026 年 8 月 18 日 | 最近更新：2026 年 8 月 19 日</span>
+
+      <div class="highlight-box">
+        <strong>📌 无账号与本地优先架构说明</strong>
+        Local Signage 为本地离线型广告机工具，<strong>无需注册任何应用账号</strong>。由于系统未在云端建立用户中心或账号数据库，因此您无需经过复杂的人工注销审核流程。您上传的所有媒体文件、播放方案、设备配置及运行日志均 100% 留存在本地硬件中，您可随时自主、彻底地清除全部数据。
+      </div>
+
+      <h2>一、如何删除已上传的内容与播放方案</h2>
+      <div class="step-card">
+        <h3><span class="step-badge">1</span> 通过 Web 控制台精确删除</h3>
+        <p>在日常使用中，如需删除特定的海报、视频或网页内容：</p>
+        <ol>
+          <li>在局域网电脑或手机浏览器中打开 Local Signage 控制台（如 <code>http://&lt;设备IP&gt;:8080</code>）。</li>
+          <li>进入<strong>“设备 / 资源”</strong>管理页面。</li>
+          <li>选中不再需要展示的素材或播放列表，点击<strong>“删除”</strong>。</li>
+          <li>对应的媒体物理文件和数据库记录将立即从设备存储中永久销毁。</li>
+        </ol>
+      </div>
+
+      <h2>二、如何彻底清除设备上的全部应用数据</h2>
+      <div class="step-card">
+        <h3><span class="step-badge">2</span> 通过 Android 系统设置重置清除</h3>
+        <p>如需更换大屏用途、归还硬件或彻底清除所有使用痕迹：</p>
+        <ol>
+          <li>打开 Android 系统的<strong>“设置 (Settings)”</strong>。</li>
+          <li>进入<strong>“应用与通知” > “查看全部应用” > “Local Signage”</strong>。</li>
+          <li>点击<strong>“存储和缓存 (Storage & Cache)”</strong>。</li>
+          <li>点击<strong>“清除存储空间 / 清除所有数据 (Clear Storage)”</strong>。</li>
+          <li>或者直接在桌面长按应用图标选择<strong>“卸载应用”</strong>。</li>
+        </ol>
+        <p><em>注意：清除存储空间或卸载应用将物理抹除设备上的所有媒体资源、播放记录、局域网配对凭据及试用状态，且无法撤销或恢复。</em></p>
+      </div>
+
+      <h2>三、Google Play 订单与订阅数据说明</h2>
+      <p>专业版授权与订阅均由 Google Play 官方结算系统托管：</p>
+      <ul>
+        <li>清除设备数据或卸载应用<strong>不会自动终止正在扣费的订阅</strong>。</li>
+        <li>如需取消或管理自动续订，请打开 <strong>Google Play 商店 App > 点击右上角头像 > 付款和订阅 > 订阅</strong> 进行退订操作。</li>
+        <li>历史账单与交易明细归属于您的 Google 账号，受 Google 官方隐私保护。</li>
+      </ul>
+
+      <h2>四、数据存储与删除机制对照表</h2>
+      <table style="width:100%; border-collapse: collapse; margin-top: 12px; font-size: 14px;">
+        <thead>
+          <tr style="background:#f1f5f9; text-align: left;">
+            <th style="padding: 10px 14px; border: 1px solid var(--border);">数据类型</th>
+            <th style="padding: 10px 14px; border: 1px solid var(--border);">存储位置</th>
+            <th style="padding: 10px 14px; border: 1px solid var(--border);">删除方式</th>
+            <th style="padding: 10px 14px; border: 1px solid var(--border);">保留期限</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td style="padding: 10px 14px; border: 1px solid var(--border);">媒体素材 (图片/视频/HTML)</td>
+            <td style="padding: 10px 14px; border: 1px solid var(--border);">设备本地私有目录</td>
+            <td style="padding: 10px 14px; border: 1px solid var(--border);">Web 控制台单项删除或清除应用数据</td>
+            <td style="padding: 10px 14px; border: 1px solid var(--border);">用户手动删除前永久保留</td>
+          </tr>
+          <tr>
+            <td style="padding: 10px 14px; border: 1px solid var(--border);">播放列表与大屏配置</td>
+            <td style="padding: 10px 14px; border: 1px solid var(--border);">设备本地 SQLite 数据库</td>
+            <td style="padding: 10px 14px; border: 1px solid var(--border);">清除应用存储空间或卸载应用</td>
+            <td style="padding: 10px 14px; border: 1px solid var(--border);">用户手动删除前永久保留</td>
+          </tr>
+          <tr>
+            <td style="padding: 10px 14px; border: 1px solid var(--border);">配对秘钥与局域网 Token</td>
+            <td style="padding: 10px 14px; border: 1px solid var(--border);">本地加密存储</td>
+            <td style="padding: 10px 14px; border: 1px solid var(--border);">在控制台撤销授权或清除应用数据</td>
+            <td style="padding: 10px 14px; border: 1px solid var(--border);">到期自动失效或手动销毁</td>
+          </tr>
+          <tr>
+            <td style="padding: 10px 14px; border: 1px solid var(--border);">云端注册账号 / 密码</td>
+            <td style="padding: 10px 14px; border: 1px solid var(--border);">无（无云端账号系统）</td>
+            <td style="padding: 10px 14px; border: 1px solid var(--border);">无需处理</td>
+            <td style="padding: 10px 14px; border: 1px solid var(--border);">从不采集</td>
+          </tr>
+        </tbody>
+      </table>
+
+      <h2>五、人工支持与协助通道</h2>
+      <p>如果您在数据清除过程中遇到问题，或有任何隐私合规疑问，请通过以下方式联系开发者支持团队：</p>
+      <div class="contact-box">
+        <strong>开发者支持联系方式：</strong><br>
+        📧 电子邮箱：<a href="mailto:wukuiqing@gmail.com">wukuiqing@gmail.com</a><br>
+        🏢 支持机构：Local Signage Developer Team<br>
+        ⏱️ 回复时效：3 个工作日内处理回复
+      </div>
+
+      <a href="local_signage_privacy_policy.html" class="nav-link">← 查看 Local Signage 隐私政策完整版</a>
+    </div>
+  </div>
+</div>
+
+<footer>
+  &copy; 2026 Local Signage. All rights reserved. | Local-First Digital Signage Solution
+</footer>
+
+<script>
+  function changeLanguage(lang) {
+    document.documentElement.lang = lang;
+    const targetBlock = lang === 'zh-CN' ? 'lang-zh-CN' : 'lang-en';
+    
+    document.querySelectorAll('.lang-block').forEach(b => b.style.display = 'none');
+    document.querySelectorAll('.' + targetBlock).forEach(b => b.style.display = 'block');
+  }
+
+  // Set default language as English on initial load
+  window.addEventListener('DOMContentLoaded', () => {
+    changeLanguage('en');
+  });
+</script>
+
+</body>
+</html>

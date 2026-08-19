@@ -6,7 +6,7 @@ import com.wkq.localsignage.feature.app.databinding.ActivityHelpBinding
 class HelpActivity : BaseActivity<ActivityHelpBinding>() {
     override fun initView() {
         enableEdgeToEdgeSystemBars()
-        binding.toolbarContainer.applySystemBarPadding(horizontal = true)
+        binding.toolbarContainer.applySystemBarPadding(top = true, horizontal = true)
         binding.helpScroll.applySystemBarPadding(bottom = true, horizontal = true)
         binding.toolbar.setNavigationOnClickListener { finish() }
         binding.quickStartButton.setOnClickListener { openArticle(HelpArticleActivity.ARTICLE_QUICK_START) }

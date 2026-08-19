@@ -6,7 +6,7 @@ import com.wkq.localsignage.feature.app.databinding.ActivityLegalCenterBinding
 class LegalCenterActivity : BaseActivity<ActivityLegalCenterBinding>() {
     override fun initView() {
         enableEdgeToEdgeSystemBars()
-        binding.toolbarContainer.applySystemBarPadding(horizontal = true)
+        binding.toolbarContainer.applySystemBarPadding(top = true, horizontal = true)
         binding.legalScroll.applySystemBarPadding(bottom = true, horizontal = true)
         binding.toolbar.setNavigationOnClickListener { finish() }
         binding.privacyButton.setOnClickListener {

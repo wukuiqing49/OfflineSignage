@@ -74,7 +74,7 @@
   <string name="legal_subscription_title">Abonnementbedingungen</string>
   <string name="legal_data_deletion_title">Lokale Daten löschen</string>
   <string name="help_title">Bedienungsanleitung</string>
-  <string name="help_quick_start_title">Schnellstart & Verbindung</string>
+  <string name="help_quick_start_title">Schnellstart &amp; Verbindung</string>
   <string name="help_content_title">Medieninhalte senden</string>
   <string name="help_html_title">HTML-Layouts erstellen</string>
   <string name="help_playback_title">Wiedergabesteuerung</string>

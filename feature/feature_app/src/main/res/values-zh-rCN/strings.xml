@@ -78,6 +78,9 @@
   <string name="billing_status_lifetime">永久版本已生效</string>
   <string name="billing_choose_plan">选择版本</string>
   <string name="billing_recommended">推荐</string>
+  <string name="billing_monthly_title">月度订阅</string>
+  <string name="billing_monthly_description">按月开通专业版权限，由 Google Play 自动续费，可随时取消。</string>
+  <string name="billing_subscribe_monthly">订阅月度版本</string>
   <string name="billing_subscription_title">年度订阅</string>
   <string name="billing_subscription_description">持续获得专业版授权。订阅由 Google Play 自动续费，可随时在 Play 商店管理。</string>
   <string name="billing_lifetime_title">永久版本</string>

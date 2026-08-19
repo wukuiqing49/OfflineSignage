@@ -130,9 +130,54 @@
                         android:orientation="horizontal">
 
                         <LinearLayout
+                            android:id="@+id/monthly_panel"
+                            android:layout_width="0dp"
+                            android:layout_height="wrap_content"
+                            android:layout_weight="1"
+                            android:background="@drawable/bg_billing_plan"
+                            android:orientation="vertical"
+                            android:padding="@dimen/app_spacing_large">
+
+                            <TextView
+                                android:layout_width="match_parent"
+                                android:layout_height="wrap_content"
+                                android:text="@string/billing_monthly_title"
+                                android:textColor="@color/billing_text_primary"
+                                android:textSize="18sp"
+                                android:textStyle="bold" />
+
+                            <TextView
+                                android:id="@+id/monthly_price"
+                                android:layout_width="match_parent"
+                                android:layout_height="wrap_content"
+                                android:layout_marginTop="@dimen/app_spacing_medium"
+                                android:textColor="@color/billing_accent"
+                                android:textSize="26sp"
+                                android:textStyle="bold" />
+
+                            <TextView
+                                android:layout_width="match_parent"
+                                android:layout_height="wrap_content"
+                                android:layout_marginTop="@dimen/app_spacing_small"
+                                android:text="@string/billing_monthly_description"
+                                android:textColor="@color/billing_text_secondary"
+                                android:textSize="14sp" />
+
+                            <com.google.android.material.button.MaterialButton
+                                android:id="@+id/monthly_button"
+                                style="@style/Widget.Material3.Button.OutlinedButton"
+                                android:layout_width="match_parent"
+                                android:layout_height="wrap_content"
+                                android:layout_marginTop="@dimen/app_spacing_large"
+                                android:enabled="false"
+                                android:text="@string/billing_subscribe_monthly" />
+                        </LinearLayout>
+
+                        <LinearLayout
                             android:id="@+id/subscription_panel"
                             android:layout_width="0dp"
                             android:layout_height="wrap_content"
+                            android:layout_marginStart="@dimen/app_spacing_medium"
                             android:layout_weight="1"
                             android:background="@drawable/bg_billing_plan"
                             android:orientation="vertical"

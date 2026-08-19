@@ -27,6 +27,7 @@ import kotlin.math.max
 
 class BillingActivity : BaseActivity<ActivityBillingBinding>() {
     private val viewModel by viewModels<BillingViewModel>()
+    private var monthlyProduct: GoogleProduct? = null
     private var subscriptionProduct: GoogleProduct? = null
     private var lifetimeProduct: GoogleProduct? = null
     private var hasPositionedContent = false
@@ -38,6 +39,7 @@ class BillingActivity : BaseActivity<ActivityBillingBinding>() {
         binding.billingRoot.requestFocus()
         binding.toolbar.setNavigationOnClickListener { finish() }
         binding.planContainer.doOnLayout { configurePlanLayout(binding.billingRoot.width) }
+        binding.monthlyButton.setOnClickListener { monthlyProduct?.let(::launchPurchase) }
         binding.subscriptionButton.setOnClickListener { subscriptionProduct?.let(::launchPurchase) }
         binding.lifetimeButton.setOnClickListener { lifetimeProduct?.let(::launchPurchase) }
         binding.restoreButton.setOnClickListener { viewModel.refresh() }
@@ -62,7 +64,8 @@ class BillingActivity : BaseActivity<ActivityBillingBinding>() {
     private fun configurePlanLayout(availableWidth: Int) {
         val compact = availableWidth < resources.getDimensionPixelSize(R.dimen.billing_compact_breakpoint)
         binding.planContainer.orientation = if (compact) LinearLayout.VERTICAL else LinearLayout.HORIZONTAL
-        configurePlanPanel(binding.subscriptionPanel, compact, first = true)
+        configurePlanPanel(binding.monthlyPanel, compact, first = true)
+        configurePlanPanel(binding.subscriptionPanel, compact, first = false)
         configurePlanPanel(binding.lifetimePanel, compact, first = false)
     }
 
@@ -76,6 +79,10 @@ class BillingActivity : BaseActivity<ActivityBillingBinding>() {
     }
 
     private fun render(state: MonetizationUiState) {
+        monthlyProduct = state.catalog.subscriptions.firstOrNull {
+            it.baseProductId == MonetizationRepository.PRO_SUBSCRIPTION_ID &&
+                it.basePlanId == MonetizationRepository.MONTHLY_BASE_PLAN_ID
+        }
         subscriptionProduct = state.catalog.subscriptions.firstOrNull {
             it.baseProductId == MonetizationRepository.PRO_SUBSCRIPTION_ID &&
                 it.basePlanId == MonetizationRepository.YEARLY_BASE_PLAN_ID
@@ -87,12 +94,16 @@ class BillingActivity : BaseActivity<ActivityBillingBinding>() {
         }
 
         binding.entitlementStatus.text = entitlementText(state.entitlement)
+        binding.monthlyPrice.text = monthlyProduct?.formattedPrice
+            ?.takeIf(String::isNotBlank)
+            ?: getString(R.string.billing_price_unavailable)
         binding.subscriptionPrice.text = subscriptionProduct?.formattedPrice
             ?.takeIf(String::isNotBlank)
             ?: getString(R.string.billing_price_unavailable)
         binding.lifetimePrice.text = lifetimeProduct?.formattedPrice
             ?.takeIf(String::isNotBlank)
             ?: getString(R.string.billing_price_unavailable)
+        binding.monthlyButton.isEnabled = monthlyProduct != null && !state.loading
         binding.subscriptionButton.isEnabled = subscriptionProduct != null && !state.loading
         binding.lifetimeButton.isEnabled = lifetimeProduct != null && !state.loading
         binding.restoreButton.isEnabled = !state.loading

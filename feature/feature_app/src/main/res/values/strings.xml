@@ -78,6 +78,9 @@
   <string name="billing_status_lifetime">Lifetime version active</string>
   <string name="billing_choose_plan">Choose a plan</string>
   <string name="billing_recommended">Recommended</string>
+  <string name="billing_monthly_title">Monthly subscription</string>
+  <string name="billing_monthly_description">Flexible monthly Pro access with auto-renewal via Google Play.</string>
+  <string name="billing_subscribe_monthly">Subscribe monthly</string>
   <string name="billing_subscription_title">Annual subscription</string>
   <string name="billing_subscription_description">Keep Pro access active. Google Play renews the subscription automatically, and you can manage it in Play at any time.</string>
   <string name="billing_lifetime_title">Lifetime version</string>

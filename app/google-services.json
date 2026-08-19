@@ -1,0 +1,47 @@
+{
+  "project_info": {
+    "project_number": "122104333432",
+    "project_id": "local-signage",
+    "storage_bucket": "local-signage.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:122104333432:android:ed4819a9b1d0dedf88d98d",
+        "android_client_info": {
+          "package_name": "com.wkq.localsignage"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "122104333432-8i56pj68b2staiovb0qanlptf4tfonjv.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.wkq.localsignage",
+            "certificate_hash": "3190fc2bb63bf5b9c6f9fd333ceec7b52babcc9d"
+          }
+        },
+        {
+          "client_id": "122104333432-put3pch2e10opvfphoe6o0pr3son498u.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyAlhzBaJw_KclbsbMNHjXN-1klSeUhBlRE"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": [
+            {
+              "client_id": "122104333432-put3pch2e10opvfphoe6o0pr3son498u.apps.googleusercontent.com",
+              "client_type": 3
+            }
+          ]
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

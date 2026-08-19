@@ -23,7 +23,7 @@ import kotlinx.coroutines.sync.withLock
 object MonetizationRepository {
     const val PRO_SUBSCRIPTION_ID = "pro_subscription"
     const val LIFETIME_PRODUCT_ID = "pro_lifetime"
-    const val MONTHLY_BASE_PLAN_ID = "pro-month"
+    const val MONTHLY_BASE_PLAN_ID = "pro-mouth"
     const val YEARLY_BASE_PLAN_ID = "pro-yearly"
 
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)

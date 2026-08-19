@@ -94,13 +94,13 @@ class BillingActivity : BaseActivity<ActivityBillingBinding>() {
         }
 
         binding.entitlementStatus.text = entitlementText(state.entitlement)
-        binding.monthlyPrice.text = monthlyProduct?.formattedPrice
+        binding.monthlyPrice.text = monthlyProduct?.displayPrice()
             ?.takeIf(String::isNotBlank)
             ?: getString(R.string.billing_price_unavailable)
-        binding.subscriptionPrice.text = subscriptionProduct?.formattedPrice
+        binding.subscriptionPrice.text = subscriptionProduct?.displayPrice()
             ?.takeIf(String::isNotBlank)
             ?: getString(R.string.billing_price_unavailable)
-        binding.lifetimePrice.text = lifetimeProduct?.formattedPrice
+        binding.lifetimePrice.text = lifetimeProduct?.displayPrice()
             ?.takeIf(String::isNotBlank)
             ?: getString(R.string.billing_price_unavailable)
         binding.monthlyButton.isEnabled = monthlyProduct != null && !state.loading
@@ -145,6 +145,20 @@ class BillingActivity : BaseActivity<ActivityBillingBinding>() {
                 R.string.billing_purchase_unavailable,
                 Toast.LENGTH_LONG
             ).show()
+        }
+    }
+
+    private fun GoogleProduct.displayPrice(): String {
+        val localizedPrice = formattedPrice.trim()
+        val currencyCode = priceCurrencyCode.trim()
+        return if (localizedPrice.isBlank() || currencyCode.isBlank()) {
+            localizedPrice
+        } else {
+            val localizedAmount = localizedPrice
+                .replace(Regex("""[^\p{N}\p{P}\p{Zs}]"""), "")
+                .trim()
+                .ifBlank { localizedPrice }
+            "$currencyCode $localizedAmount"
         }
     }
 

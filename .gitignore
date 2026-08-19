@@ -9,6 +9,5 @@ app/build/
 core/*/build/
 feature/*/build/
 # Local Android signing material
-app/google-services.json
 /.idea/
 .idea/

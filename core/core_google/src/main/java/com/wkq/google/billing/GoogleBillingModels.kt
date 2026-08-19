@@ -12,6 +12,7 @@ object GoogleBillingResponseCode {
 
 data class GooglePricingPhase(
     val formattedPrice: String,
+    val priceCurrencyCode: String = "",
     val billingPeriod: String,
     val recurrenceMode: Int,
     val billingCycleCount: Int
@@ -23,6 +24,7 @@ data class GoogleProduct(
     val title: String,
     val description: String,
     val formattedPrice: String,
+    val priceCurrencyCode: String = "",
     val offerToken: String = "",
     val baseProductId: String = productId.substringBefore(":"),
     val basePlanId: String = "",

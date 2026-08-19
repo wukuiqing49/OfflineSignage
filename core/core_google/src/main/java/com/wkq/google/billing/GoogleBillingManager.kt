@@ -540,6 +540,7 @@ private fun ProductDetails.toGoogleProducts(): List<GoogleProduct> {
                 title = title,
                 description = description,
                 formattedPrice = offer?.formattedPrice.orEmpty(),
+                priceCurrencyCode = offer?.priceCurrencyCode.orEmpty(),
                 offerToken = offer?.offerToken.orEmpty(),
                 baseProductId = productId
             )
@@ -565,6 +566,7 @@ private fun ProductDetails.toGoogleProducts(): List<GoogleProduct> {
         val phases = offer.pricingPhases.pricingPhaseList.map { phase ->
             GooglePricingPhase(
                 formattedPrice = phase.formattedPrice,
+                priceCurrencyCode = phase.priceCurrencyCode,
                 billingPeriod = phase.billingPeriod,
                 recurrenceMode = phase.recurrenceMode,
                 billingCycleCount = phase.billingCycleCount
@@ -577,6 +579,7 @@ private fun ProductDetails.toGoogleProducts(): List<GoogleProduct> {
             title = title,
             description = description,
             formattedPrice = recurringPhase?.formattedPrice.orEmpty(),
+            priceCurrencyCode = recurringPhase?.priceCurrencyCode.orEmpty(),
             offerToken = offer.offerToken,
             baseProductId = productId,
             basePlanId = basePlanId,

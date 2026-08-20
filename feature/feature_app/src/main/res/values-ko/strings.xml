@@ -26,8 +26,9 @@
   <string name="pairing_qr_content_description">제어 콘솔 페어링 QR 코드</string>
   <string name="pairing_computer_code">컴퓨터 페어링 코드</string>
   <string name="pairing_computer_code_content_description">컴퓨터 브라우저 일회용 페어링 코드</string>
-  <string name="show_pairing">디바이스 센터</string>
-  <string name="return_to_playback">재생 화면으로 돌아가기</string>
+  <string name="show_pairing">기기 센터</string>
+  <string name="return_to_playback">재생으로 돌아가기</string>
+  <string name="exit_app">앱 종료</string>
   <string name="welcome_label">로컬 우선 · 계정 불필요</string>
   <string name="welcome_title">Local Signage에 오신 것을 환영합니다</string>
   <string name="welcome_summary">이 기기를 디지털 사이니지 화면으로 전환하고 동일한 Wi-Fi 네트워크의 브라우저에서 편리하게 제어하세요.</string>

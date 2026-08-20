@@ -26,9 +26,10 @@
   <string name="pairing_qr_content_description">QR-Code für Konsole</string>
   <string name="pairing_computer_code">PC-Kopplungscode</string>
   <string name="pairing_computer_code_content_description">Einmaliger PC-Kopplungscode</string>
-  <string name="show_pairing">Gerätezentrum</string>
+  <string name="show_pairing">Geräte-Center</string>
   <string name="return_to_playback">Zurück zur Wiedergabe</string>
-  <string name="welcome_label">LOKAL · KEIN KONTO ERFORDERLICH</string>
+  <string name="exit_app">App beenden</string>
+  <string name="welcome_label">LOKAL ZUERST · KEIN KONTO ERFORDERLICH</string>
   <string name="welcome_title">Willkommen bei Local Signage</string>
   <string name="welcome_summary">Verwandeln Sie dieses Gerät in ein Werbedisplay und steuern Sie Inhalte über das lokale Netzwerk.</string>
   <string name="welcome_setup_title">In 3 Schritten eingerichtet</string>

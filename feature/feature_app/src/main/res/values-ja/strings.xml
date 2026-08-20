@@ -26,9 +26,10 @@
   <string name="pairing_qr_content_description">管理画面ペアリング用QRコード</string>
   <string name="pairing_computer_code">PCペアリングコード</string>
   <string name="pairing_computer_code_content_description">PC用ワンタイムペアリングコード</string>
-  <string name="show_pairing">端末センター</string>
-  <string name="return_to_playback">再生画面に戻る</string>
-  <string name="welcome_label">ローカル完結 · アカウント不要</string>
+  <string name="show_pairing">デバイスセンター</string>
+  <string name="return_to_playback">再生に戻る</string>
+  <string name="exit_app">アプリを終了</string>
+  <string name="welcome_label">ローカルファースト・アカウント不要</string>
   <string name="welcome_title">Local Signage へようこそ</string>
   <string name="welcome_summary">この端末をサイネージ画面に変身させ、同一LAN内のスマホやPCから簡単にコンテンツを管理できます。</string>
   <string name="welcome_setup_title">3ステップで設定完了</string>

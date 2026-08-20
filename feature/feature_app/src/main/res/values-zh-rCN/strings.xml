@@ -28,6 +28,7 @@
   <string name="pairing_computer_code_content_description">电脑浏览器一次性配对码</string>
   <string name="show_pairing">设备中心</string>
   <string name="return_to_playback">返回播放</string>
+  <string name="exit_app">退出应用</string>
   <string name="welcome_label">本地优先 · 无需账号</string>
   <string name="welcome_title">欢迎使用 Local Signage</string>
   <string name="welcome_summary">将这台设备设为广告播放屏，并通过同一局域网中的手机或电脑完成内容管理。</string>

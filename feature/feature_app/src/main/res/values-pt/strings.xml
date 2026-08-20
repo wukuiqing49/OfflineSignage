@@ -26,9 +26,10 @@
   <string name="pairing_qr_content_description">QR code de pareamento</string>
   <string name="pairing_computer_code">Código para PC</string>
   <string name="pairing_computer_code_content_description">Código de uso único para PC</string>
-  <string name="show_pairing">Central do dispositivo</string>
+  <string name="show_pairing">Central de dispositivos</string>
   <string name="return_to_playback">Voltar à reprodução</string>
-  <string name="welcome_label">LOCAL · SEM CONTAS</string>
+  <string name="exit_app">Sair do aplicativo</string>
+  <string name="welcome_label">LOCAL FIRST · SEM CONTAS</string>
   <string name="welcome_title">Bem-vindo ao Local Signage</string>
   <string name="welcome_summary">Transforme este dispositivo em um painel digital e controle pelo navegador na mesma rede local.</string>
   <string name="welcome_setup_title">Configuração em 3 etapas</string>

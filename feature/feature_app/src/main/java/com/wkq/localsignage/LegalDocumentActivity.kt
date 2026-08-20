@@ -10,7 +10,7 @@ import java.nio.charset.StandardCharsets
 class LegalDocumentActivity : BaseActivity<ActivityLegalDocumentBinding>() {
     override fun initView() {
         enableEdgeToEdgeSystemBars()
-        binding.toolbarContainer.applySystemBarPadding(horizontal = true)
+        binding.toolbarContainer.applySystemBarPadding(top = true, horizontal = true)
         binding.documentScroll.applySystemBarPadding(bottom = true, horizontal = true)
         binding.toolbar.setNavigationOnClickListener { finish() }
         val (title, document) = documentResources(intent.getStringExtra(EXTRA_DOCUMENT))

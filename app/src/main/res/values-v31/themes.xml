@@ -4,5 +4,7 @@
         <item name="android:windowSplashScreenBackground">@color/welcome_background</item>
         <item name="android:windowSplashScreenAnimatedIcon">@mipmap/ic_launcher</item>
         <item name="android:windowSplashScreenIconBackgroundColor">@color/welcome_accent_surface</item>
+        <item name="android:windowLightStatusBar">@bool/is_light_theme</item>
+        <item name="android:windowLightNavigationBar">@bool/is_light_theme</item>
     </style>
 </resources>

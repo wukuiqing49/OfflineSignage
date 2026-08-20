@@ -28,6 +28,7 @@
   <string name="pairing_computer_code_content_description">One-time computer browser pairing code</string>
   <string name="show_pairing">Device center</string>
   <string name="return_to_playback">Return to playback</string>
+  <string name="exit_app">Exit app</string>
   <string name="welcome_label">LOCAL-FIRST · NO ACCOUNT</string>
   <string name="welcome_title">Welcome to Local Signage</string>
   <string name="welcome_summary">Turn this device into a signage screen and manage content from a phone or computer on the same local network.</string>

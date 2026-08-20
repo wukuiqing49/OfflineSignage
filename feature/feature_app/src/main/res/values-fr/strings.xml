@@ -28,6 +28,7 @@
   <string name="pairing_computer_code_content_description">Code unique pour navigateur PC</string>
   <string name="show_pairing">Centre de l\'appareil</string>
   <string name="return_to_playback">Retour à la lecture</string>
+  <string name="exit_app">Quitter l\'application</string>
   <string name="welcome_label">LOCAL · SANS COMPTE</string>
   <string name="welcome_title">Bienvenue sur Local Signage</string>
   <string name="welcome_summary">Transformez cet appareil en panneau d\'affichage et gérez le contenu via votre réseau local.</string>

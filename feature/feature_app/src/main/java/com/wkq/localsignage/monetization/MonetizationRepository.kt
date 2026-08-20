@@ -87,16 +87,22 @@ object MonetizationRepository {
     private suspend fun refreshNow(loadCatalog: Boolean) = refreshMutex.withLock {
         _uiState.value = _uiState.value.copy(loading = true, errorMessage = "")
         val catalog = if (loadCatalog) {
-            GoogleKit.billing.queryConfiguredCatalog().getOrElse {
+            GoogleKit.billing.queryConfiguredCatalog().also { result ->
+                android.util.Log.e("BillingDebug", "catalogResult subs=${result.getOrNull()?.subscriptions?.size} inapp=${result.getOrNull()?.oneTimeProducts?.size} err=${result.exceptionOrNull()?.message}")
+            }.getOrElse {
+                android.util.Log.e("BillingDebug", "catalogFallback error=${it.message}")
                 _uiState.value.catalog
             }
         } else {
             _uiState.value.catalog
         }
+        android.util.Log.e("BillingDebug", "catalog after query: subs=${catalog.subscriptions.size} inapp=${catalog.oneTimeProducts.size}")
         val subscriptionResult = GoogleKit.billing.queryActivePurchases(GoogleProductType.SUBS)
         val lifetimeResult = GoogleKit.billing.queryActivePurchases(GoogleProductType.IN_APP)
+        android.util.Log.e("BillingDebug", "activePurchases subsOk=${subscriptionResult.isSuccess} subCount=${subscriptionResult.getOrNull()?.size} inappOk=${lifetimeResult.isSuccess} inappCount=${lifetimeResult.getOrNull()?.size}")
         if (subscriptionResult.isFailure || lifetimeResult.isFailure) {
             val error = subscriptionResult.exceptionOrNull() ?: lifetimeResult.exceptionOrNull()
+            android.util.Log.e("BillingDebug", "purchaseQueryFailed: ${error?.message}")
             _uiState.value = MonetizationUiState(
                 entitlement = policy.evaluateLocal(store.snapshot()),
                 catalog = catalog,

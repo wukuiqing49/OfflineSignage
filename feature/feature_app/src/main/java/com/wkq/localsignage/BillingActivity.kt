@@ -34,7 +34,7 @@ class BillingActivity : BaseActivity<ActivityBillingBinding>() {
 
     override fun initView() {
         enableEdgeToEdgeSystemBars()
-        binding.toolbarContainer.applySystemBarPadding(horizontal = true)
+        binding.toolbarContainer.applySystemBarPadding(top = true, horizontal = true)
         binding.contentScroll.applySystemBarPadding(bottom = true, horizontal = true)
         binding.billingRoot.requestFocus()
         binding.toolbar.setNavigationOnClickListener { finish() }

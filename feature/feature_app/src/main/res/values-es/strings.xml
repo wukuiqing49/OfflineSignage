@@ -26,9 +26,10 @@
   <string name="pairing_qr_content_description">Código QR para emparejamiento</string>
   <string name="pairing_computer_code">Código para PC</string>
   <string name="pairing_computer_code_content_description">Código de un solo uso para PC</string>
-  <string name="show_pairing">Centro del dispositivo</string>
+  <string name="show_pairing">Centro de dispositivos</string>
   <string name="return_to_playback">Volver a la reproducción</string>
-  <string name="welcome_label">LOCAL · SIN CUENTAS</string>
+  <string name="exit_app">Salir de la aplicación</string>
+  <string name="welcome_label">LOCAL FIRST · SIN CUENTA</string>
   <string name="welcome_title">Bienvenido a Local Signage</string>
   <string name="welcome_summary">Convierta este dispositivo en una pantalla de señalización digital controlada desde el navegador en la misma red local.</string>
   <string name="welcome_setup_title">Configuración en 3 pasos</string>

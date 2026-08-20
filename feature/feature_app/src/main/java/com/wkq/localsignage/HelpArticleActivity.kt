@@ -10,7 +10,7 @@ import com.wkq.localsignage.feature.app.databinding.ActivityLegalDocumentBinding
 class HelpArticleActivity : BaseActivity<ActivityLegalDocumentBinding>() {
     override fun initView() {
         enableEdgeToEdgeSystemBars()
-        binding.toolbarContainer.applySystemBarPadding(horizontal = true)
+        binding.toolbarContainer.applySystemBarPadding(top = true, horizontal = true)
         binding.documentScroll.applySystemBarPadding(bottom = true, horizontal = true)
         binding.toolbar.setNavigationOnClickListener { finish() }
         val article = articleResources(intent.getStringExtra(EXTRA_ARTICLE))

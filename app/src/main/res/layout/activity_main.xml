@@ -145,8 +145,8 @@
                     android:minWidth="0dp"
                     android:text="@string/return_to_playback"
                     android:textColor="@color/pairing_text_primary"
-                    android:visibility="gone"
-                    app:icon="@drawable/ic_arrow_back_24"
+                    android:visibility="visible"
+                    app:icon="@drawable/ic_close_24"
                     app:iconTint="@color/pairing_text_primary" />
             </LinearLayout>
 

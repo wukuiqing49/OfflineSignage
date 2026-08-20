@@ -77,17 +77,40 @@ class MainActivity : BaseActivity<ActivityMainBinding>(), PlaybackListener {
 
     override fun initView() {
         requestedOrientation = ActivityInfo.SCREEN_ORIENTATION_LANDSCAPE
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) {
+            window.attributes = window.attributes.apply {
+                layoutInDisplayCutoutMode = WindowManager.LayoutParams.LAYOUT_IN_DISPLAY_CUTOUT_MODE_SHORT_EDGES
+            }
+        }
         ContextCompat.startForegroundService(this, Intent(this, SignageService::class.java))
         SignagePlaybackController.initialize(this)
         WindowCompat.setDecorFitsSystemWindows(window, false)
         applyDisplaySettings()
         SignagePlaybackController.attach(playbackViews, this)
+        onBackPressedDispatcher.addCallback(this, object : androidx.activity.OnBackPressedCallback(true) {
+            override fun handleOnBackPressed() {
+                if (binding.pairingPanel.visibility == View.VISIBLE &&
+                    SignageRuntime.resources().isNotEmpty() &&
+                    pairingManuallyOpened
+                ) {
+                    closePairingPanel()
+                } else {
+                    finish()
+                }
+            }
+        })
         binding.pauseResumeButton.setOnClickListener {
             SignagePlaybackController.togglePause()
             showPlaybackControls()
         }
         binding.showPairingButton.setOnClickListener { openPairingPanel() }
-        binding.closePairingButton.setOnClickListener { closePairingPanel() }
+        binding.closePairingButton.setOnClickListener {
+            if (SignageRuntime.resources().isNotEmpty() && pairingManuallyOpened) {
+                closePairingPanel()
+            } else {
+                finish()
+            }
+        }
         binding.openHotspotSettingsButton.setOnClickListener { toggleLocalHotspot() }
         binding.openBillingRow.setOnClickListener {
             startActivity(Intent(this, BillingActivity::class.java))
@@ -196,7 +219,18 @@ class MainActivity : BaseActivity<ActivityMainBinding>(), PlaybackListener {
         if (!hasContent) pairingManuallyOpened = false
         val showPairing = !hasContent || pairingManuallyOpened
         binding.pairingPanel.visibility = if (showPairing) View.VISIBLE else View.GONE
-        binding.closePairingButton.visibility = if (hasContent) View.VISIBLE else View.GONE
+        binding.playbackRoot.setBackgroundColor(
+            if (showPairing) ContextCompat.getColor(this, FeatureAppR.color.pairing_background)
+            else android.graphics.Color.BLACK
+        )
+        binding.closePairingButton.visibility = View.VISIBLE
+        if (hasContent && pairingManuallyOpened) {
+            binding.closePairingButton.setText(FeatureAppR.string.return_to_playback)
+            binding.closePairingButton.setIconResource(FeatureAppR.drawable.ic_arrow_back_24)
+        } else {
+            binding.closePairingButton.setText(FeatureAppR.string.exit_app)
+            binding.closePairingButton.setIconResource(FeatureAppR.drawable.ic_close_24)
+        }
         // 设备中心本身就是广告屏上的全屏连接页，不应受播放页全屏开关限制。
         applyDisplaySettings()
         if (showPairing) {
@@ -326,17 +360,17 @@ class MainActivity : BaseActivity<ActivityMainBinding>(), PlaybackListener {
             appliedKeepScreenAwake = settings.keepScreenAwake
         }
         val shouldFullscreen = settings.fullscreen || binding.pairingPanel.visibility == View.VISIBLE
-        if (appliedFullscreen != shouldFullscreen) {
-            WindowInsetsControllerCompat(window, window.decorView).apply {
-                systemBarsBehavior = WindowInsetsControllerCompat.BEHAVIOR_SHOW_TRANSIENT_BARS_BY_SWIPE
-                if (shouldFullscreen) {
-                    hide(WindowInsetsCompat.Type.systemBars())
-                } else {
-                    show(WindowInsetsCompat.Type.systemBars())
-                }
+        WindowInsetsControllerCompat(window, window.decorView).apply {
+            isAppearanceLightStatusBars = false
+            isAppearanceLightNavigationBars = false
+            systemBarsBehavior = WindowInsetsControllerCompat.BEHAVIOR_SHOW_TRANSIENT_BARS_BY_SWIPE
+            if (shouldFullscreen) {
+                hide(WindowInsetsCompat.Type.systemBars())
+            } else {
+                show(WindowInsetsCompat.Type.systemBars())
             }
-            appliedFullscreen = shouldFullscreen
         }
+        appliedFullscreen = shouldFullscreen
     }
 
     private fun refreshPairingPanel() {

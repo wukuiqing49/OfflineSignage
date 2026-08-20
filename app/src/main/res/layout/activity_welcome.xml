@@ -13,6 +13,7 @@
         android:id="@+id/welcome_content"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
+        android:baselineAligned="false"
         android:gravity="center_vertical"
         android:orientation="horizontal"
         android:padding="@dimen/welcome_screen_padding">

@@ -46,7 +46,7 @@
     <item quantity="other">试用剩余约 %1$d 天 · 查看版本</item>
   </plurals>
   <string name="entitlement_trial_ended_entry">试用已结束 · 选择版本</string>
-  <string name="entitlement_subscription_entry">年度订阅已生效 · 管理授权</string>
+  <string name="entitlement_subscription_entry">订阅已生效 · 管理授权</string>
   <string name="entitlement_subscription_grace_entry">等待联网验证 · 管理授权</string>
   <string name="entitlement_lifetime_entry">永久版本已生效 · 查看授权</string>
   <plurals name="entitlement_trial_status">
@@ -58,11 +58,11 @@
     <item quantity="other">试用 · 剩余 %1$d 天</item>
   </plurals>
   <string name="entitlement_trial_ended_compact">试用已结束</string>
-  <string name="entitlement_subscription_compact">专业版 · 年度订阅</string>
+  <string name="entitlement_subscription_compact">专业版 · 订阅</string>
   <string name="entitlement_subscription_grace_compact">等待联网验证</string>
   <string name="entitlement_lifetime_compact">专业版 · 永久授权</string>
   <string name="entitlement_trial_ended">试用已结束 · 播放继续运行</string>
-  <string name="entitlement_subscription">专业版 · 年度订阅</string>
+  <string name="entitlement_subscription">专业版 · 订阅</string>
   <string name="entitlement_subscription_grace">专业版 · 等待联网验证</string>
   <string name="entitlement_lifetime">专业版 · 永久授权</string>
   <string name="device_license_status_action">授权状态：%1$s。打开版本与授权。</string>
@@ -74,7 +74,7 @@
   </plurals>
   <string name="billing_status_trial">7 天完整试用 · 剩余约 %1$d 天</string>
   <string name="billing_status_trial_ended">试用已结束，播放功能仍可继续使用</string>
-  <string name="billing_status_subscription">年度订阅已生效</string>
+  <string name="billing_status_subscription">订阅已生效</string>
   <string name="billing_status_subscription_grace">订阅暂未联网验证，当前处于离线宽限期</string>
   <string name="billing_status_lifetime">永久版本已生效</string>
   <string name="billing_choose_plan">选择版本</string>
@@ -112,18 +112,22 @@
   <string name="help_html_title">制作 HTML 标签画面</string>
   <string name="help_playback_title">播放控制与显示设置</string>
   <string name="help_multi_device_title">多设备控制</string>
+  <string name="help_autostart_title">开机自启动与后台守护</string>
+  <string name="help_open_autostart_settings">前往系统设置开启自启动与电池权限</string>
   <string name="help_troubleshooting_title">网络与播放问题</string>
   <string name="help_purchase_title">试用、购买与恢复</string>
   <string name="help_visual_pairing_caption">广告屏显示连接信息，手机扫码或电脑输入短码后，在浏览器中管理内容。</string>
   <string name="help_visual_content_caption">从控制台选择内容类型，先预览，再发送到选定广告屏播放。</string>
   <string name="help_visual_html_caption">HTML 标签是一整张可排版的主画面，保存后直接替换当前内容。</string>
   <string name="help_visual_devices_caption">同一局域网内的设备可分别选择内容，也可批量同步与控制。</string>
+  <string name="help_visual_autostart_caption">商用广告机大屏与主流手机品牌开机自启和后台常驻配置指南。</string>
   <string name="help_visual_billing_caption">试用、订阅和永久授权都在安装应用的 Android 设备内完成。</string>
   <string name="help_quick_start_body">1. 在安装 Local Signage 的 Android 设备上打开“设备中心”。\n\n2. 让广告屏与手机或电脑连接同一局域网。也可以在设备中心启动本机热点，再让控制端连接该热点。\n\n3. 手机扫描二维码；电脑打开屏幕显示的局域网地址并输入 6 位电脑配对码。临时配对凭据会定期更新。\n\n4. 浏览器连接成功后进入“发送”页面，选择内容并发送播放。广告屏后续可在断网状态下继续播放已经保存在本机的内容。</string>
   <string name="help_content_body">内容从手机或电脑的 Web 控制台发送，不需要在控制端安装专用 App。\n\n文字：输入文字并设置字体、字号、颜色、背景与滚动速度。\n\n图片：选择相册或文件，也可添加 HTTPS 图片地址；支持完整显示、铺满、裁切和拉伸。\n\n视频：选择本地视频或 HTTPS 视频地址，并设置画面适配和播放速度。\n\n直播：填写 HLS、DASH 或 RTSP 地址，广告屏会直接连接直播源。\n\n网页：填写 HTTPS 网页地址，可配置刷新间隔。\n\n发送成功后内容会保存到当前广告屏，并自动创建基础播放配置。完整播放控制位于 Web 控制台的“播放”页面。</string>
   <string name="help_html_body">HTML 标签用于制作通知、促销、菜单、状态看板等有排版样式的完整画面。它与普通文字是独立内容类型。\n\n操作步骤：\n\n1. 在 Web 控制台打开“发送”，选择“HTML”。\n\n2. 选择通知、促销或状态看板模板，或者输入自己的 HTML / CSS。\n\n3. 在右侧预览区域检查效果。\n\n4. 点击“发送并播放”。\n\nHTML 会作为完整主画面播放，不会叠加在图片、视频或普通文字上。为保证离线与安全，脚本、外部资源和嵌入页面会被拦截。</string>
   <string name="help_playback_body">Web 控制台的“播放”页面提供播放、暂停、停止、上一项、下一项、静音和音量控制，并显示当前内容和运行状态。\n\n广告屏播放页面保持简洁。点击画面会暂时显示设备中心和暂停/继续控制。\n\n画面适配、保持屏幕常亮、启动后自动恢复和全屏播放等选项位于 Web 控制台的当前设备设置中。设置会保存在广告屏本机，重启后继续生效。</string>
-  <string name="help_multi_device_body">多设备功能运行在同一局域网内，不依赖云端账号。\n\n1. 在 Web 控制台打开“设备”。\n\n2. 添加局域网内发现的另一台广告屏，并输入目标设备提供的配对 Token。\n\n3. 配对成功后查看每台设备的在线状态、当前内容和播放状态。\n\n4. 进入目标设备管理页，可以为不同设备选择不同的已发送内容，也可以同步内容后播放，并分别调整播放、静音和音量。\n\n一台设备离线不会阻止其他设备继续播放。</string>
+  <string name="help_multi_device_body">多设备功能运行在同一局域网内，不依赖云端账号。\n\n1. 在 Web 控制台打开“设备”。\n\n2. 添加局域网内发现的另一台广告屏，输入目标设备屏幕上的 6 位配对码，也可粘贴配对 Token。\n\n3. 配对成功后查看每台设备的在线状态、当前内容和播放状态。\n\n4. 进入目标设备管理页，可以为不同设备选择不同的已发送内容，也可以同步内容后播放，并分别调整播放、静音和音量。\n\n一台设备离线不会阻止其他设备继续播放。</string>
+  <string name="help_autostart_body">商用广告机与 Android 电视盒子：\nLocal Signage 已内置完整的开机广播监听（BOOT_COMPLETED 与快速唤醒）。在专用广告机与工控屏硬件上，通电开机即可全自动启动并恢复全屏 4K 循环播放，无需任何手动操作。\n\n主流手机品牌开机自启与后台保活配置：\n普通智能手机因厂商激进的省电策略，初次安装后需在系统设置中开启对应权限：\n\n1. 小米 / 红米（HyperOS / MIUI）：\n长按 App 图标 >「应用信息」> 开启「自启动」>「省电策略」设为「无限制」>「权限管理」开启「后台弹出界面」。\n\n2. 华为 / 荣耀（HarmonyOS / MagicOS）：\n系统「设置」>「应用和服务」>「应用启动管理」> 找到 Local Signage 改为「手动管理」> 勾选「允许自启动」、「允许关联启动」和「允许后台活动」。\n\n3. OPPO / 一加 / 真我（ColorOS）：\n长按 App 图标 >「应用信息」>「应用耗电管理」> 开启「允许完全后台行为」与「允许自启动」>「权限」开启「悬浮窗 / 后台弹出界面」。\n\n4. vivo / iQOO（OriginOS）：\n系统「设置」>「应用与权限」>「权限管理」>「自启动」开启本应用 >「电池」>「后台高耗电」设为允许。\n\n5. 三星（One UI）：\n系统「设置」>「应用程序」> Local Signage >「电池」设为「不受限制」>「设备关怀」>「电池」>「后台使用限制」将本应用加入「从不休眠的应用程序」。</string>
   <string name="help_troubleshooting_body">没有显示二维码：确认设备已连接 Wi-Fi、以太网或已启动本机热点，等待局域网地址出现。\n\n浏览器无法打开控制台：确认控制端和广告屏位于同一局域网，并关闭可能隔离本地网络的 VPN 或访客网络。\n\n图片或视频发送失败：检查文件格式、文件大小和设备剩余存储空间。\n\n直播无法播放：确认直播地址有效，协议为 HLS、DASH 或 RTSP，并且广告屏网络可以访问该来源。\n\nHTML 无法发送：移除脚本、外链资源和嵌入页面后重试。\n\n仍然异常时，可在 Web 控制台“记录”页面查看最近操作和播放异常。</string>
-  <string name="help_purchase_body">购买只能在安装 Local Signage App 的 Android 手机、平板或广告机上完成，局域网 Web 控制台不会处理付款。\n\n首次成功启动后提供 7 天完整本地试用，不会自动扣费。试用结束后继续播放，但会显示“试用已结束”标签。\n\n在 Android 设备中心打开“版本与授权”，可以选择 Google Play 年度订阅或一次性永久版本。价格和币种以 Google Play 结算页面为准。\n\n已经购买时，使用相同 Google Play 账号点击“恢复购买”。年度订阅可在 Google Play 的“付款和订阅”中管理或取消。卸载应用不会自动取消订阅。</string>
+  <string name="help_purchase_body">购买只能在安装 Local Signage App 的 Android 手机、平板或广告机上完成，局域网 Web 控制台不会处理付款。\n\n首次成功启动后提供 7 天完整本地试用，不会自动扣费。试用结束后继续播放，但会显示“试用已结束”标签。\n\n在 Android 设备中心打开“版本与授权”，可以选择 Google Play 月度或年度订阅，也可购买一次性永久版本。价格、币种和计费周期以 Google Play 结算页面为准。\n\n已经购买时，使用相同 Google Play 账号点击“恢复购买”。订阅可在 Google Play 的“付款和订阅”中管理或取消。卸载应用不会自动取消订阅。</string>
 </resources>

@@ -179,7 +179,7 @@
                             android:layout_height="wrap_content"
                             android:layout_marginStart="@dimen/app_spacing_medium"
                             android:layout_weight="1"
-                            android:background="@drawable/bg_billing_plan"
+                            android:background="@drawable/bg_billing_plan_recommended"
                             android:orientation="vertical"
                             android:padding="@dimen/app_spacing_large">
 

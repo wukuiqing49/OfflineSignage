@@ -19,6 +19,7 @@ import androidx.activity.result.contract.ActivityResultContracts
 import androidx.core.view.WindowCompat
 import androidx.core.view.WindowInsetsCompat
 import androidx.core.view.WindowInsetsControllerCompat
+import androidx.core.view.isVisible
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.lifecycleScope
 import androidx.lifecycle.repeatOnLifecycle
@@ -66,7 +67,7 @@ class MainActivity : BaseActivity<ActivityMainBinding>(), PlaybackListener {
         )
     private val pairingHandler = Handler(Looper.getMainLooper())
     private val hidePlaybackControls = Runnable {
-        binding.playbackStatusBar.visibility = View.GONE
+        binding.playbackStatusBar.isVisible = false
     }
     private val pairingRefresh = object : Runnable {
         override fun run() {
@@ -89,7 +90,7 @@ class MainActivity : BaseActivity<ActivityMainBinding>(), PlaybackListener {
         SignagePlaybackController.attach(playbackViews, this)
         onBackPressedDispatcher.addCallback(this, object : androidx.activity.OnBackPressedCallback(true) {
             override fun handleOnBackPressed() {
-                if (binding.pairingPanel.visibility == View.VISIBLE &&
+                if (binding.pairingPanel.isVisible &&
                     SignageRuntime.resources().isNotEmpty() &&
                     pairingManuallyOpened
                 ) {
@@ -120,6 +121,14 @@ class MainActivity : BaseActivity<ActivityMainBinding>(), PlaybackListener {
         }
         binding.openHelpButton.setOnClickListener {
             startActivity(Intent(this, HelpActivity::class.java))
+        }
+        binding.pairingAddress.setOnClickListener {
+            val address = binding.pairingAddress.text?.toString()
+            if (!address.isNullOrBlank() && address.startsWith("http")) {
+                val clipboard = getSystemService(android.content.Context.CLIPBOARD_SERVICE) as? android.content.ClipboardManager
+                clipboard?.setPrimaryClip(android.content.ClipData.newPlainText("LocalSignage Address", address))
+                android.widget.Toast.makeText(this, address, android.widget.Toast.LENGTH_SHORT).show()
+            }
         }
         binding.pairingPanel.addOnLayoutChangeListener { _, left, top, right, bottom,
                                                          oldLeft, oldTop, oldRight, oldBottom ->
@@ -241,8 +250,8 @@ class MainActivity : BaseActivity<ActivityMainBinding>(), PlaybackListener {
     }
 
     private fun showPlaybackControls() {
-        if (binding.pairingPanel.visibility == View.VISIBLE || SignageRuntime.resources().isEmpty()) return
-        binding.playbackStatusBar.visibility = View.VISIBLE
+        if (binding.pairingPanel.isVisible || SignageRuntime.resources().isEmpty()) return
+        binding.playbackStatusBar.isVisible = true
         pairingHandler.removeCallbacks(hidePlaybackControls)
         pairingHandler.postDelayed(hidePlaybackControls, PLAYBACK_CONTROLS_TIMEOUT_MS)
     }
@@ -359,7 +368,7 @@ class MainActivity : BaseActivity<ActivityMainBinding>(), PlaybackListener {
             }
             appliedKeepScreenAwake = settings.keepScreenAwake
         }
-        val shouldFullscreen = settings.fullscreen || binding.pairingPanel.visibility == View.VISIBLE
+        val shouldFullscreen = settings.fullscreen || binding.pairingPanel.isVisible
         WindowInsetsControllerCompat(window, window.decorView).apply {
             isAppearanceLightStatusBars = false
             isAppearanceLightNavigationBars = false
@@ -407,10 +416,9 @@ class MainActivity : BaseActivity<ActivityMainBinding>(), PlaybackListener {
         if (length == 6 && all(Char::isDigit)) chunked(3).joinToString(" ") else this
 
     private fun renderMonetization() {
-        val pairingVisible = binding.pairingPanel.visibility == View.VISIBLE
-        binding.trialExpiredBadge.visibility = if (
+        val pairingVisible = binding.pairingPanel.isVisible
+        binding.trialExpiredBadge.isVisible =
             entitlementState.type == EntitlementType.TRIAL_EXPIRED && !pairingVisible
-        ) View.VISIBLE else View.GONE
         val (compactStatus, accessibleStatus, statusColor) = when (entitlementState.type) {
             EntitlementType.TRIAL_ACTIVE -> {
                 val remainingMillis = max(

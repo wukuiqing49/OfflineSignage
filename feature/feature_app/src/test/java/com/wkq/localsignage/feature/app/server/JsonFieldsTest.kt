@@ -16,4 +16,11 @@ class JsonFieldsTest {
     fun trimsStringValues() {
         assertEquals("scene-id", normalizedString("  scene-id  "))
     }
+
+    @Test
+    fun normalizesSixDigitPairingCodesOnly() {
+        assertEquals("123456", normalizedPairingCode("123 456"))
+        assertNull(normalizedPairingCode("pairing-token"))
+        assertNull(normalizedPairingCode("１２３４５６"))
+    }
 }

@@ -21,10 +21,10 @@ import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 
 object MonetizationRepository {
-    const val PRO_SUBSCRIPTION_ID = "pro_subscription"
-    const val LIFETIME_PRODUCT_ID = "pro_lifetime"
-    const val MONTHLY_BASE_PLAN_ID = "pro-mouth"
-    const val YEARLY_BASE_PLAN_ID = "pro-yearly"
+    const val PRO_SUBSCRIPTION_ID = "local_signage_pro"
+    const val LIFETIME_PRODUCT_ID = "local_signage_lifetime"
+    const val MONTHLY_BASE_PLAN_ID = "monthly"
+    const val YEARLY_BASE_PLAN_ID = "yearly"
 
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
     private val refreshMutex = Mutex()

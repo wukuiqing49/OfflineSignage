@@ -123,6 +123,18 @@
                     app:iconGravity="textEnd" />
 
                 <com.google.android.material.button.MaterialButton
+                    android:id="@+id/autostart_button"
+                    style="@style/Widget.Material3.Button.OutlinedButton"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="@dimen/app_spacing_small"
+                    android:gravity="start|center_vertical"
+                    android:text="@string/help_autostart_title"
+                    app:cornerRadius="4dp"
+                    app:icon="@drawable/ic_chevron_right_24"
+                    app:iconGravity="textEnd" />
+
+                <com.google.android.material.button.MaterialButton
                     android:id="@+id/troubleshooting_button"
                     style="@style/Widget.Material3.Button.OutlinedButton"
                     android:layout_width="match_parent"

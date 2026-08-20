@@ -149,17 +149,7 @@ class BillingActivity : BaseActivity<ActivityBillingBinding>() {
     }
 
     private fun GoogleProduct.displayPrice(): String {
-        val localizedPrice = formattedPrice.trim()
-        val currencyCode = priceCurrencyCode.trim()
-        return if (localizedPrice.isBlank() || currencyCode.isBlank()) {
-            localizedPrice
-        } else {
-            val localizedAmount = localizedPrice
-                .replace(Regex("""[^\p{N}\p{P}\p{Zs}]"""), "")
-                .trim()
-                .ifBlank { localizedPrice }
-            "$currencyCode $localizedAmount"
-        }
+        return formattedPrice.trim()
     }
 
     private fun openSubscriptionManagement() {

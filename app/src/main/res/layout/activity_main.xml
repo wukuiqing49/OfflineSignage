@@ -83,7 +83,7 @@
         <LinearLayout
             android:id="@+id/pairing_content_card"
             android:layout_width="match_parent"
-            android:layout_height="match_parent"
+            android:layout_height="wrap_content"
             android:layout_gravity="center_horizontal"
             android:layout_marginStart="@dimen/pairing_screen_padding"
             android:layout_marginTop="@dimen/pairing_screen_padding"
@@ -160,6 +160,7 @@
                 android:layout_width="match_parent"
                 android:layout_height="0dp"
                 android:layout_weight="1"
+                android:baselineAligned="false"
                 android:gravity="center_vertical"
                 android:orientation="horizontal"
                 android:padding="@dimen/pairing_screen_padding">
@@ -189,7 +190,7 @@
                             android:layout_height="18dp"
                             android:contentDescription="@null"
                             android:src="@drawable/ic_license_24"
-                            android:tint="@color/pairing_accent" />
+                            app:tint="@color/pairing_accent" />
 
                         <TextView
                             android:id="@+id/entitlement_status"
@@ -209,7 +210,7 @@
                             android:layout_height="18dp"
                             android:contentDescription="@null"
                             android:src="@drawable/ic_chevron_right_24"
-                            android:tint="@color/pairing_text_secondary" />
+                            app:tint="@color/pairing_text_secondary" />
                     </LinearLayout>
 
                     <FrameLayout

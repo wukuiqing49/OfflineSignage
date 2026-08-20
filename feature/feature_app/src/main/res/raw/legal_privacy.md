@@ -1,4 +1,5 @@
 Effective date: August 18, 2026
+Document version: 1.0
 
 1. About the product
 

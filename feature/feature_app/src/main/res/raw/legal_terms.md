@@ -1,4 +1,5 @@
 Effective date: August 18, 2026
+Document version: 1.0
 
 1. Service scope
 
@@ -10,7 +11,7 @@ You must have the right to use all text, images, videos, live streams, web pages
 
 3. Trial and licensing
 
-The app provides a seven-day full local trial after its first successful launch. It does not automatically become a paid subscription. After the trial, playback continues with a Trial ended label. You may remove the label by purchasing the annual subscription or lifetime version through Google Play.
+The app provides a seven-day full local trial after its first successful launch. It does not automatically become a paid subscription. After the trial, playback continues with a Trial ended label. You may remove the label by purchasing a monthly or annual subscription, or the lifetime version, through Google Play.
 
 4. Purchases
 

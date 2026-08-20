@@ -1,10 +1,11 @@
 Effective date: August 18, 2026
+Document version: 1.0
 
-The annual subscription product is local_signage_pro. The purchase screen in Google Play provides the actual price, currency, tax, and billing period.
+The subscription product is local_signage_pro and may offer monthly and annual billing plans. The purchase screen in Google Play provides the actual price, currency, tax, and billing period.
 
 1. The seven-day trial is a local app trial, not a Google Play subscription free trial, and it never charges automatically.
 
-2. The annual subscription begins after you confirm the purchase through Google Play. It renews for the period shown by Google Play unless canceled before the current billing period ends.
+2. A subscription begins after you confirm the purchase through Google Play. It renews for the billing period shown by Google Play unless canceled before the current billing period ends.
 
 3. Manage or cancel it under Payments and subscriptions in Google Play. Uninstalling the app, clearing local data, or no longer using the device does not cancel the subscription.
 

@@ -117,7 +117,8 @@ def validate_raw_html(res_dir: Path, errors: list[str], warnings: list[str]) -> 
             continue
         for index, script in enumerate(scripts, start=1):
             result = subprocess.run(
-                [node, "-e", f"new Function({script!r});"],
+                [node, "--check", "-"],
+                input=script,
                 capture_output=True,
                 text=True,
                 encoding="utf-8",
@@ -132,7 +133,11 @@ def main() -> int:
     warnings: list[str] = []
     res_dirs = [Path(path) for path in args.res_dir]
     if not res_dirs:
-        res_dirs = [Path("app/src/main/res"), Path("feature/feature_res/src/main/res")]
+        res_dirs = [
+            Path("app/src/main/res"),
+            Path("feature/feature_app/src/main/res"),
+            Path("feature/feature_res/src/main/res"),
+        ]
     for res_dir in res_dirs:
         if res_dir.exists():
             validate_res_dir(res_dir, errors, warnings, args.strict_missing)

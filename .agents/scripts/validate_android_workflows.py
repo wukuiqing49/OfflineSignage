@@ -174,6 +174,7 @@ def main() -> int:
     ])
     i18n_res_args = existing_args(root, "--res-dir", [
         f"{modules['app']}/src/main/res",
+        f"{modules['featureApp']}/src/main/res",
         f"{modules['featureRes']}/src/main/res",
     ])
 

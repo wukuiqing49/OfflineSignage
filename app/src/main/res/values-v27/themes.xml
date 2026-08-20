@@ -2,4 +2,10 @@
     <style name="Theme.LocalSignage" parent="Theme.LocalSignage.Base">
         <item name="android:windowLightNavigationBar">@bool/is_light_theme</item>
     </style>
+
+    <style name="Theme.LocalSignage.Splash" parent="Theme.LocalSignage.Base">
+        <item name="android:windowBackground">@color/welcome_background</item>
+        <item name="android:windowLightStatusBar">@bool/is_light_theme</item>
+        <item name="android:windowLightNavigationBar">@bool/is_light_theme</item>
+    </style>
 </resources>

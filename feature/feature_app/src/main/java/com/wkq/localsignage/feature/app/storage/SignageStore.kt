@@ -806,19 +806,12 @@ class SignageStore(context: Context) {
 
     fun deleteResource(id: String): Boolean = synchronized(lock) {
         val resource = resource(id) ?: return@synchronized false
+        require(scenes().none { it.resourceId == id }) { "RESOURCE_IN_USE" }
         val deleted = database.writableDatabase.inTransaction {
-            readScenes(this).filter { it.resourceId == id }.forEach { scene ->
-                delete(this, "playlist_items", "scene_id = ?", arrayOf(scene.id))
-                if (getMeta(this, KEY_CURRENT_SCENE) == scene.id) setMeta(this, KEY_CURRENT_SCENE, null)
-                delete(this, "scenes", "id = ?", arrayOf(scene.id))
-            }
             delete(this, "resources", "id = ?", arrayOf(id))
             if (getMeta(this, KEY_CURRENT_RESOURCE) == id) {
                 readResources(this).firstOrNull()?.id?.let { setMeta(this, KEY_CURRENT_RESOURCE, it) }
                     ?: setMeta(this, KEY_CURRENT_RESOURCE, null)
-            }
-            if (getMeta(this, KEY_CURRENT_SCENE) == null) {
-                readScenes(this).firstOrNull()?.id?.let { setMeta(this, KEY_CURRENT_SCENE, it) }
             }
             true
         }

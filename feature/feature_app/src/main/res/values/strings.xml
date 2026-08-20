@@ -46,7 +46,7 @@
     <item quantity="other">About %1$d days left · View plans</item>
   </plurals>
   <string name="entitlement_trial_ended_entry">Trial ended · Choose a plan</string>
-  <string name="entitlement_subscription_entry">Annual subscription active · Manage license</string>
+  <string name="entitlement_subscription_entry">Subscription active · Manage license</string>
   <string name="entitlement_subscription_grace_entry">Awaiting online verification · Manage license</string>
   <string name="entitlement_lifetime_entry">Lifetime version active · View license</string>
   <plurals name="entitlement_trial_status">
@@ -58,11 +58,11 @@
     <item quantity="other">Trial · %1$d days</item>
   </plurals>
   <string name="entitlement_trial_ended_compact">Trial ended</string>
-  <string name="entitlement_subscription_compact">Pro · Annual</string>
+  <string name="entitlement_subscription_compact">Pro · Subscription</string>
   <string name="entitlement_subscription_grace_compact">Verify online</string>
   <string name="entitlement_lifetime_compact">Pro · Lifetime</string>
   <string name="entitlement_trial_ended">Trial ended · playback continues</string>
-  <string name="entitlement_subscription">Pro · annual subscription</string>
+  <string name="entitlement_subscription">Pro · subscription</string>
   <string name="entitlement_subscription_grace">Pro · awaiting online verification</string>
   <string name="entitlement_lifetime">Pro · lifetime license</string>
   <string name="device_license_status_action">License status: %1$s. Open plans and license.</string>
@@ -74,7 +74,7 @@
   </plurals>
   <string name="billing_status_trial">7-day full trial · about %1$d days left</string>
   <string name="billing_status_trial_ended">Trial ended; playback remains available</string>
-  <string name="billing_status_subscription">Annual subscription active</string>
+  <string name="billing_status_subscription">Subscription active</string>
   <string name="billing_status_subscription_grace">Subscription is awaiting online verification and is in offline grace</string>
   <string name="billing_status_lifetime">Lifetime version active</string>
   <string name="billing_choose_plan">Choose a plan</string>
@@ -112,18 +112,22 @@
   <string name="help_html_title">Create an HTML label screen</string>
   <string name="help_playback_title">Playback controls and display settings</string>
   <string name="help_multi_device_title">Multi-device control</string>
+  <string name="help_autostart_title">Auto-start and background guard</string>
+  <string name="help_open_autostart_settings">Open system settings to configure auto-start</string>
   <string name="help_troubleshooting_title">Network and playback issues</string>
   <string name="help_purchase_title">Trial, purchase, and restore</string>
   <string name="help_visual_pairing_caption">The display shows connection details. Scan the QR code on a phone or enter the short code on a computer, then manage content in a browser.</string>
   <string name="help_visual_content_caption">Choose a content type in the console, preview it, then send it to the selected display.</string>
   <string name="help_visual_html_caption">An HTML label is one complete, styled main screen. Saving it replaces the current content.</string>
   <string name="help_visual_devices_caption">Devices on the same local network can receive separate content or be synchronized and controlled together.</string>
+  <string name="help_visual_autostart_caption">Configure auto-launch on commercial digital signage screens and mobile devices from major manufacturers.</string>
   <string name="help_visual_billing_caption">Trials, subscriptions, and lifetime licenses are completed on the Android device running the app.</string>
   <string name="help_quick_start_body">1. Open Device center on the Android device running Local Signage.\n\n2. Connect the display and your phone or computer to the same local network. You can also start the device hotspot and connect the controller to it.\n\n3. Scan the QR code on a phone. On a computer, open the local address shown on the display and enter the six-digit computer pairing code. Temporary pairing credentials refresh periodically.\n\n4. After the browser connects, open Send, choose content, and start playback. Content stored on the display can continue playing when the internet is unavailable.</string>
   <string name="help_content_body">Send content from the Web console on a phone or computer. The controller does not need a dedicated app.\n\nText: enter text and choose the font, size, colors, background, and ticker speed.\n\nImages: choose photos or files, or add HTTPS image addresses. Fit, fill, crop, and stretch modes are available.\n\nVideo: choose a local video or HTTPS video address, then set display fit and playback speed.\n\nLive: enter an HLS, DASH, or RTSP address. The display connects directly to the source.\n\nWeb: enter an HTTPS page address and optionally set a refresh interval.\n\nAfter a successful send, the content is stored on the current display and a basic playback configuration is created automatically. Full playback controls are on the Playback page.</string>
   <string name="help_html_body">HTML labels create fully styled screens for notices, promotions, menus, and status boards. They are separate from plain text content.\n\nSteps:\n\n1. Open Send in the Web console and choose HTML.\n\n2. Choose a notice, promotion, or status-board template, or enter your own HTML and CSS.\n\n3. Check the result in the preview area.\n\n4. Select Send and play.\n\nHTML plays as the full primary screen. It does not overlay images, video, or plain text. Scripts, external assets, and embedded pages are blocked for offline reliability and security.</string>
   <string name="help_playback_body">The Playback page in the Web console provides play, pause, stop, previous, next, mute, and volume controls, together with current content and runtime status.\n\nThe display playback screen stays minimal. Tap the screen to temporarily show Device center and pause or resume controls.\n\nDisplay fit, keep-awake, startup resume, and fullscreen options are under the current-device settings in the Web console. Settings are stored on the display and remain active after restart.</string>
-  <string name="help_multi_device_body">Multi-device features work on the same local network and do not require a cloud account.\n\n1. Open Devices in the Web console.\n\n2. Add another discovered display and enter the pairing token shown by that target device.\n\n3. After pairing, review each device’s online state, current content, and playback state.\n\n4. Open a target device to choose different saved content, sync and play content, or control playback, mute, and volume independently.\n\nOne offline device does not stop other devices from continuing playback.</string>
+  <string name="help_multi_device_body">Multi-device features work on the same local network and do not require a cloud account.\n\n1. Open Devices in the Web console.\n\n2. Add another discovered display and enter its six-digit pairing code, or paste its pairing token.\n\n3. After pairing, review each device’s online state, current content, and playback state.\n\n4. Open a target device to choose different saved content, sync and play content, or control playback, mute, and volume independently.\n\nOne offline device does not stop other devices from continuing playback.</string>
+  <string name="help_autostart_body">Commercial Signage Displays and Android TV Boxes:\nLocal Signage automatically listens for BOOT_COMPLETED and quick power-on broadcasts. On dedicated commercial hardware, the app launches and resumes full-screen playback automatically upon power-on without requiring manual intervention.\n\nSmartphone Setup Guide by Manufacturer:\nDue to battery-saving policies on consumer smartphones, enable the following permissions in system settings for reliable auto-start:\n\n1. Xiaomi / Redmi (HyperOS / MIUI):\nApp Info > Enable \"Auto-start\" > Battery saver > Select \"No restrictions\" > Other permissions > Enable \"Display pop-up windows while running in the background\".\n\n2. Huawei / Honor (HarmonyOS / MagicOS):\nSettings > Apps > App launch > Local Signage > Change to \"Manage manually\" > Enable \"Auto-launch\", \"Secondary launch\", and \"Run in background\".\n\n3. OPPO / OnePlus / Realme (ColorOS):\nApp Info > Battery usage > Enable \"Allow background activity\" and \"Allow auto-launch\" > App permissions > Enable \"Floating windows / Pop-up windows\".\n\n4. vivo / iQOO (OriginOS):\nSettings > Apps &amp; permissions > Permission management > \"Auto-start\" > Enable Local Signage > Battery > Background high power consumption > Allow.\n\n5. Samsung (One UI):\nSettings > Apps > Local Signage > Battery > Select \"Unrestricted\" > Settings > Battery and device care > Battery > Background usage limits > Add to \"Never sleeping apps\".</string>
   <string name="help_troubleshooting_body">No QR code: confirm that the device is connected by Wi-Fi or Ethernet, or start its hotspot, then wait for a local address.\n\nThe browser cannot open the console: confirm that both devices are on the same local network. Disable VPN or guest-network isolation that may block local traffic.\n\nImage or video send fails: check the file type, file size, and free storage on the display.\n\nLive playback fails: verify the address, use HLS, DASH, or RTSP, and confirm that the display network can reach the source.\n\nHTML cannot be sent: remove scripts, external resources, and embedded pages, then try again.\n\nFor continuing issues, review recent operations and playback errors on the Records page in the Web console.</string>
-  <string name="help_purchase_body">Purchases must be completed on the Android phone, tablet, or signage device where Local Signage is installed. The local Web console never handles payment.\n\nA seven-day full local trial starts after the first successful launch and never charges automatically. Playback continues after the trial with a Trial ended label.\n\nOpen Plans and license from Device center on the Android device to choose the Google Play annual subscription or one-time lifetime version. Google Play provides the final price and currency.\n\nTo restore an existing purchase, use the same Google Play account and select Restore purchases. Manage or cancel an annual subscription under Payments and subscriptions in Google Play. Uninstalling the app does not cancel a subscription.</string>
+  <string name="help_purchase_body">Purchases must be completed on the Android phone, tablet, or signage device where Local Signage is installed. The local Web console never handles payment.\n\nA seven-day full local trial starts after the first successful launch and never charges automatically. Playback continues after the trial with a Trial ended label.\n\nOpen Plans and license from Device center on the Android device to choose a Google Play monthly or annual subscription, or the one-time lifetime version. Google Play provides the final price, currency, and billing period.\n\nTo restore an existing purchase, use the same Google Play account and select Restore purchases. Manage or cancel a subscription under Payments and subscriptions in Google Play. Uninstalling the app does not cancel a subscription.</string>
 </resources>

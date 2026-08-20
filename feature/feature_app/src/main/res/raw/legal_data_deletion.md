@@ -1,3 +1,6 @@
+Effective date: August 18, 2026
+Document version: 1.0
+
 Local Signage does not create an app account, so there is no Local Signage account to close.
 
 Delete local content: remove uploaded resources and related playback configuration in the Web console.

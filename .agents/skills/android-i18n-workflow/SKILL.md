@@ -28,6 +28,7 @@ description: "用于实现和验证 Android 国际化：strings、plurals、多�
 ```powershell
 python .agents/skills/android-i18n-workflow/scripts/validate_i18n_resources.py `
   --res-dir app/src/main/res `
+  --res-dir feature/feature_app/src/main/res `
   --res-dir feature/feature_res/src/main/res
 ```
 

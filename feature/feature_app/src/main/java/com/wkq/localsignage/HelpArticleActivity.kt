@@ -1,7 +1,10 @@
 package com.wkq.localsignage
 
+import android.content.ComponentName
 import android.content.Context
 import android.content.Intent
+import android.net.Uri
+import android.provider.Settings
 import android.view.View
 import com.wkq.base.activity.BaseActivity
 import com.wkq.localsignage.feature.app.R
@@ -10,18 +13,55 @@ import com.wkq.localsignage.feature.app.databinding.ActivityLegalDocumentBinding
 class HelpArticleActivity : BaseActivity<ActivityLegalDocumentBinding>() {
     override fun initView() {
         enableEdgeToEdgeSystemBars()
-        binding.toolbarContainer.applySystemBarPadding(top = true, horizontal = true)
+        binding.toolbarContainer.applySystemBarPadding(horizontal = true)
         binding.documentScroll.applySystemBarPadding(bottom = true, horizontal = true)
         binding.toolbar.setNavigationOnClickListener { finish() }
-        val article = articleResources(intent.getStringExtra(EXTRA_ARTICLE))
+        val articleType = intent.getStringExtra(EXTRA_ARTICLE)
+        val article = articleResources(articleType)
         binding.toolbar.setTitle(article.title)
         binding.documentBody.setText(article.body)
         binding.documentVisualCard.visibility = View.VISIBLE
         binding.documentVisual.setImageResource(article.visual)
         binding.documentVisualCaption.setText(article.visualCaption)
+
+        if (articleType == ARTICLE_AUTOSTART) {
+            binding.documentActionButton.visibility = View.VISIBLE
+            binding.documentActionButton.setText(R.string.help_open_autostart_settings)
+            binding.documentActionButton.setOnClickListener { openSystemAutoStartSettings() }
+        } else {
+            binding.documentActionButton.visibility = View.GONE
+        }
     }
 
     override fun initData() = Unit
+
+    private fun openSystemAutoStartSettings() {
+        val pkg = packageName
+        val intents = listOf(
+            Intent().setComponent(ComponentName("com.miui.securitycenter", "com.miui.permcenter.autostart.AutoStartManagementActivity")),
+            Intent("miui.intent.action.OP_AUTO_START").addCategory(Intent.CATEGORY_DEFAULT),
+            Intent().setComponent(ComponentName("com.huawei.systemmanager", "com.huawei.systemmanager.startupmgr.ui.StartupNormalAppListActivity")),
+            Intent().setComponent(ComponentName("com.huawei.systemmanager", "com.huawei.systemmanager.optimize.bootstart.BootStartActivity")),
+            Intent().setComponent(ComponentName("com.huawei.systemmanager", "com.huawei.systemmanager.appcontrol.activity.StartupAppControlActivity")),
+            Intent().setComponent(ComponentName("com.coloros.safecenter", "com.coloros.safecenter.permission.startup.StartupAppListActivity")),
+            Intent().setComponent(ComponentName("com.coloros.safecenter", "com.coloros.safecenter.startupapp.StartupAppListActivity")),
+            Intent().setComponent(ComponentName("com.oppo.safe", "com.oppo.safe.permission.startup.StartupAppListActivity")),
+            Intent().setComponent(ComponentName("com.iqoo.secure", "com.iqoo.secure.ui.phoneoptimize.AddWhiteListActivity")),
+            Intent().setComponent(ComponentName("com.vivo.permissionmanager", "com.vivo.permissionmanager.activity.BgStartUpManagerActivity")),
+            Intent().setComponent(ComponentName("com.samsung.android.lool", "com.samsung.android.sm.ui.battery.BatteryActivity")),
+            Intent().setComponent(ComponentName("com.samsung.android.sm", "com.samsung.android.sm.battery.ui.BatteryActivity")),
+            Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS).setData(Uri.fromParts("package", pkg, null)),
+            Intent(Settings.ACTION_SETTINGS)
+        )
+
+        for (intent in intents) {
+            val launched = runCatching {
+                startActivity(intent)
+                true
+            }.getOrDefault(false)
+            if (launched) return
+        }
+    }
 
     private fun articleResources(article: String?): HelpArticle = when (article) {
         ARTICLE_CONTENT -> HelpArticle(
@@ -47,6 +87,12 @@ class HelpArticleActivity : BaseActivity<ActivityLegalDocumentBinding>() {
             R.string.help_multi_device_body,
             R.drawable.illustration_help_devices,
             R.string.help_visual_devices_caption
+        )
+        ARTICLE_AUTOSTART -> HelpArticle(
+            R.string.help_autostart_title,
+            R.string.help_autostart_body,
+            R.drawable.illustration_help_devices,
+            R.string.help_visual_autostart_caption
         )
         ARTICLE_TROUBLESHOOTING -> HelpArticle(
             R.string.help_troubleshooting_title,
@@ -81,6 +127,7 @@ class HelpArticleActivity : BaseActivity<ActivityLegalDocumentBinding>() {
         const val ARTICLE_HTML = "html"
         const val ARTICLE_PLAYBACK = "playback"
         const val ARTICLE_MULTI_DEVICE = "multi_device"
+        const val ARTICLE_AUTOSTART = "autostart"
         const val ARTICLE_TROUBLESHOOTING = "troubleshooting"
         const val ARTICLE_PURCHASE = "purchase"
         private const val EXTRA_ARTICLE = "article"

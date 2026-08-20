@@ -1,5 +1,6 @@
 package com.wkq.localsignage.feature.app.device
 
+import com.google.gson.JsonParser
 import com.wkq.localsignage.feature.app.model.PairedDevice
 import com.wkq.localsignage.feature.app.model.SignageResource
 import com.wkq.localsignage.feature.app.model.SignageScene
@@ -69,9 +70,27 @@ class LocalDeviceClient(private val device: PairedDevice) {
                 output.write("\r\n--$boundary--\r\n".toByteArray(StandardCharsets.UTF_8))
             }
             val response = read(connection)
-            val json = runCatching { JSONObject(response.body) }.getOrNull()
-            RemoteResourceResult(response.status in 200..299, json?.optString("id")?.takeIf { it.isNotBlank() }, response.status)
+            RemoteResourceResult(
+                response.status in 200..299,
+                uploadedResourceId(response.body),
+                response.status
+            )
         }.getOrElse { RemoteResourceResult(false, null, -1) }
+    }
+
+    fun exchangePairingCredential(): RemotePairingResult {
+        val response = postJson("/api/device/pair", JSONObject().apply {
+            put("pairingCredential", device.token)
+        })
+        val json = runCatching { JSONObject(response.body) }.getOrNull()
+        val deviceToken = json?.optString("deviceToken")?.takeIf { it.isNotBlank() }
+        return RemotePairingResult(
+            success = response.status in 200..299 && deviceToken != null,
+            status = response.status,
+            deviceId = json?.optString("deviceId")?.takeIf { it.isNotBlank() },
+            deviceName = json?.optString("deviceName")?.takeIf { it.isNotBlank() },
+            deviceToken = deviceToken
+        )
     }
 
     fun saveVirtualResource(resource: SignageResource): RemoteResourceResult {
@@ -196,6 +215,13 @@ class LocalDeviceClient(private val device: PairedDevice) {
     }.getOrDefault(false)
 
     data class RemoteResourceResult(val exists: Boolean, val resourceId: String?, val status: Int)
+    data class RemotePairingResult(
+        val success: Boolean,
+        val status: Int,
+        val deviceId: String? = null,
+        val deviceName: String? = null,
+        val deviceToken: String? = null
+    )
     data class RemoteStatusResult(
         val status: Int,
         val deviceId: String? = null,
@@ -226,3 +252,16 @@ class LocalDeviceClient(private val device: PairedDevice) {
         const val TIMEOUT_MS = 5_000
     }
 }
+
+internal fun uploadedResourceId(responseBody: String): String? = runCatching {
+    val json = JsonParser.parseString(responseBody).asJsonObject
+    json.get("id")
+        ?.takeUnless { it.isJsonNull }
+        ?.asString
+        ?.takeIf { it.isNotBlank() }
+        ?: json.getAsJsonArray("ids")
+            ?.firstOrNull()
+            ?.takeUnless { it.isJsonNull }
+            ?.asString
+            ?.takeIf { it.isNotBlank() }
+}.getOrNull()

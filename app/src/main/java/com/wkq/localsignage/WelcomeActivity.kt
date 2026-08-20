@@ -8,6 +8,7 @@ import android.os.Build
 import android.view.ViewGroup
 import android.view.WindowManager
 import android.widget.LinearLayout
+import androidx.core.content.edit
 import androidx.core.view.ViewCompat
 import androidx.core.view.WindowCompat
 import androidx.core.view.WindowInsetsCompat
@@ -91,10 +92,9 @@ class WelcomeActivity : BaseActivity<ActivityWelcomeBinding>() {
             .getBoolean(KEY_WELCOME_COMPLETED, false)
 
     private fun markWelcomeCompleted() {
-        getSharedPreferences(PREFERENCES_NAME, Context.MODE_PRIVATE)
-            .edit()
-            .putBoolean(KEY_WELCOME_COMPLETED, true)
-            .apply()
+        getSharedPreferences(PREFERENCES_NAME, Context.MODE_PRIVATE).edit {
+            putBoolean(KEY_WELCOME_COMPLETED, true)
+        }
     }
 
     private fun openPlayer() {

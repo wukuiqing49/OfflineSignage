@@ -72,6 +72,17 @@ import java.security.MessageDigest
 import java.util.concurrent.ConcurrentHashMap
 import java.util.concurrent.CopyOnWriteArraySet
 
+internal val FLEET_COMMAND_ACTIONS = linkedMapOf(
+    "play" to "PLAY",
+    "previous" to "PREVIOUS",
+    "next" to "NEXT",
+    "pause" to "PAUSE",
+    "stop" to "STOP",
+    "volume" to "VOLUME",
+    "mute" to "MUTE",
+    "unmute" to "UNMUTE"
+)
+
 class KtorSignageServer(context: Context, private val port: Int) {
     private val applicationContext = context.applicationContext
     private var engine: ApplicationEngine? = null
@@ -126,6 +137,42 @@ class KtorSignageServer(context: Context, private val port: Int) {
                     }
                 }
                 get("/api/device") { call.respondJson(deviceJson()) }
+                post("/api/device/pair") {
+                    val body = runCatching { JSONObject(call.receiveText()) }.getOrNull()
+                    val pairingCredential = body?.stringOrNull("pairingCredential")
+                        ?: body?.stringOrNull("pairingToken")
+                        ?: body?.stringOrNull("pairingCode")
+                    val pairingCode = normalizedPairingCode(pairingCredential)
+                    val retryAfterMs = if (pairingCode != null) pairingAttemptLimiter.retryAfterMs() else 0L
+                    if (retryAfterMs > 0L) {
+                        call.response.headers.append(HttpHeaders.RetryAfter, ((retryAfterMs + 999L) / 1_000L).toString())
+                        call.respondJson(errorJson("PAIRING_RATE_LIMITED"), HttpStatusCode.TooManyRequests)
+                        return@post
+                    }
+                    val valid = if (pairingCode != null) {
+                        SignageRuntime.consumePairingCode(pairingCode)
+                    } else {
+                        SignageRuntime.consumePairingToken(pairingCredential)
+                    }
+                    if (!valid) {
+                        val blockedForMs = if (pairingCode != null) pairingAttemptLimiter.recordFailure() else 0L
+                        if (blockedForMs > 0L) {
+                            call.response.headers.append(HttpHeaders.RetryAfter, ((blockedForMs + 999L) / 1_000L).toString())
+                        }
+                        call.respondJson(
+                            errorJson(if (blockedForMs > 0L) "PAIRING_RATE_LIMITED" else "PAIRING_TOKEN_INVALID"),
+                            if (blockedForMs > 0L) HttpStatusCode.TooManyRequests else HttpStatusCode.Unauthorized
+                        )
+                        return@post
+                    }
+                    if (pairingCode != null) pairingAttemptLimiter.reset()
+                    val state = SignageRuntime.state()
+                    call.response.headers.append(HttpHeaders.CacheControl, "no-store")
+                    call.respondJson(
+                        "{\"deviceId\":${quote(state.deviceId)},\"deviceName\":${quote(state.deviceName)}," +
+                            "\"deviceToken\":${quote(SignageRuntime.controlToken())}}"
+                    )
+                }
                 get("/api/pairing") {
                     if (!call.authorized(requireSession = false)) return@get
                     call.respondPairing(SignageRuntime.pairingToken())
@@ -248,13 +295,23 @@ class KtorSignageServer(context: Context, private val port: Int) {
                             ?: throw IllegalArgumentException("DEVICE_HOST_REQUIRED")
                         val port = body.optInt("port", -1)
                         require(host == discovered.host && port == discovered.port) { "DEVICE_ADDRESS_MISMATCH" }
-                        val device = PairedDevice(
+                        val temporaryDevice = PairedDevice(
                             deviceId = deviceId,
                             deviceName = body.optString("deviceName").ifBlank { discovered.deviceName },
                             host = host,
                             port = port,
                             token = body.optString("token").takeIf { it.isNotBlank() } ?: throw IllegalArgumentException("DEVICE_TOKEN_REQUIRED"),
                             pairedAt = System.currentTimeMillis()
+                        )
+                        val pairing = withContext(Dispatchers.IO) {
+                            com.wkq.localsignage.feature.app.device.LocalDeviceClient(temporaryDevice)
+                                .exchangePairingCredential()
+                        }
+                        require(pairing.success && pairing.deviceToken != null) { "DEVICE_PAIRING_FAILED" }
+                        require(pairing.deviceId == discovered.deviceId) { "DEVICE_ID_MISMATCH" }
+                        val device = temporaryDevice.copy(
+                            deviceName = pairing.deviceName ?: temporaryDevice.deviceName,
+                            token = pairing.deviceToken
                         )
                         call.respondJson(pairedDeviceJson(SignageRuntime.savePairedDevice(device)), HttpStatusCode.Created)
                     } catch (error: Exception) {
@@ -459,11 +516,11 @@ class KtorSignageServer(context: Context, private val port: Int) {
                         }
                     } catch (error: IllegalArgumentException) {
                         createdPlaylistId?.let(SignageRuntime::deletePlaylist)
-                        createdIds.forEach(SignageRuntime::deleteResource)
+                        rollbackCreatedResources(createdIds)
                         call.respondJson(errorJson(error.message ?: "INVALID_UPLOAD"), HttpStatusCode.BadRequest)
                     } catch (_: Exception) {
                         createdPlaylistId?.let(SignageRuntime::deletePlaylist)
-                        createdIds.forEach(SignageRuntime::deleteResource)
+                        rollbackCreatedResources(createdIds)
                         call.respondJson(errorJson("UPLOAD_FAILED"), HttpStatusCode.InternalServerError)
                     }
                 }
@@ -536,11 +593,11 @@ class KtorSignageServer(context: Context, private val port: Int) {
                         )
                     } catch (error: IllegalArgumentException) {
                         createdPlaylistId?.let(SignageRuntime::deletePlaylist)
-                        createdIds.forEach(SignageRuntime::deleteResource)
+                        rollbackCreatedResources(createdIds)
                         call.respondJson(errorJson(error.message ?: "REMOTE_MEDIA_INVALID"), HttpStatusCode.BadRequest)
                     } catch (_: Exception) {
                         createdPlaylistId?.let(SignageRuntime::deletePlaylist)
-                        createdIds.forEach(SignageRuntime::deleteResource)
+                        rollbackCreatedResources(createdIds)
                         call.respondJson(errorJson("REMOTE_DOWNLOAD_FAILED"), HttpStatusCode.InternalServerError)
                     }
                 }
@@ -633,11 +690,11 @@ class KtorSignageServer(context: Context, private val port: Int) {
                         )
                     } catch (error: IllegalArgumentException) {
                         createdPlaylistId?.let(SignageRuntime::deletePlaylist)
-                        createdIds.forEach(SignageRuntime::deleteResource)
+                        rollbackCreatedResources(createdIds)
                         call.respondJson(errorJson(error.message ?: "TEXT_SEQUENCE_INVALID"), HttpStatusCode.BadRequest)
                     } catch (_: Exception) {
                         createdPlaylistId?.let(SignageRuntime::deletePlaylist)
-                        createdIds.forEach(SignageRuntime::deleteResource)
+                        rollbackCreatedResources(createdIds)
                         call.respondJson(errorJson("TEXT_SEQUENCE_FAILED"), HttpStatusCode.InternalServerError)
                     }
                 }
@@ -793,12 +850,12 @@ class KtorSignageServer(context: Context, private val port: Int) {
                         call.respondJson(errorJson(error.message ?: "INVALID_PLAYLIST_SYNC"), HttpStatusCode.BadRequest)
                     }
                 }
-                post("/api/devices/play") { call.respondFleetCommand("PLAY") }
                 post("/api/devices/play-playlist") { call.respondFleetPlaylistCommand() }
-                post("/api/devices/pause") { call.respondFleetCommand("PAUSE") }
-                post("/api/devices/stop") { call.respondFleetCommand("STOP") }
-                post("/api/devices/volume") { call.respondFleetCommand("VOLUME", jsonValue = true) }
-                post("/api/devices/mute") { call.respondFleetCommand("MUTE") }
+                FLEET_COMMAND_ACTIONS.forEach { (route, action) ->
+                    post("/api/devices/$route") {
+                        call.respondFleetCommand(action, jsonValue = action == "VOLUME")
+                    }
+                }
                 post("/api/scenes") {
                     if (!call.authorized()) return@post
                     try {
@@ -862,8 +919,16 @@ class KtorSignageServer(context: Context, private val port: Int) {
                 }
                 delete("/api/resources/{id}") {
                     if (!call.authorized()) return@delete
-                    val deleted = SignageRuntime.deleteResource(call.parameters["id"].orEmpty())
-                    call.respondJson("{\"deleted\":$deleted}", if (deleted) HttpStatusCode.OK else HttpStatusCode.NotFound)
+                    try {
+                        val deleted = SignageRuntime.deleteResource(call.parameters["id"].orEmpty())
+                        call.respondJson("{\"deleted\":$deleted}", if (deleted) HttpStatusCode.OK else HttpStatusCode.NotFound)
+                    } catch (error: IllegalArgumentException) {
+                        if (error.message == "RESOURCE_IN_USE") {
+                            call.respondJson(errorJson("RESOURCE_IN_USE"), HttpStatusCode.Conflict)
+                        } else {
+                            call.respondJson(errorJson(error.message ?: "RESOURCE_DELETE_FAILED"), HttpStatusCode.BadRequest)
+                        }
+                    }
                 }
             }
         }
@@ -914,13 +979,7 @@ class KtorSignageServer(context: Context, private val port: Int) {
     private fun ApplicationCall.hasDeviceToken(): Boolean {
         val supplied = request.headers["X-Local-Signage-Device-Token"] ?: return false
         val suppliedBytes = supplied.toByteArray()
-        if (MessageDigest.isEqual(suppliedBytes, SignageRuntime.controlToken().toByteArray())) return true
-        if (SignageRuntime.hasWebAccessToken(supplied)) return true
-        val pairing = SignageRuntime.pairingToken()
-        if (pairing.expiresAt >= System.currentTimeMillis() && MessageDigest.isEqual(suppliedBytes, pairing.token.toByteArray())) return true
-        val accessCode = SignageRuntime.pairingCodeToken()
-        if (accessCode.expiresAt >= System.currentTimeMillis() && MessageDigest.isEqual(suppliedBytes, accessCode.token.toByteArray())) return true
-        return false
+        return MessageDigest.isEqual(suppliedBytes, SignageRuntime.controlToken().toByteArray())
     }
 
     private suspend fun ApplicationCall.authorizedOrDevice(requireSession: Boolean = true): Boolean =
@@ -1022,6 +1081,15 @@ class KtorSignageServer(context: Context, private val port: Int) {
     private fun pairedTargets(ids: List<String>): List<PairedDevice> {
         val paired = SignageRuntime.pairedDevices().associateBy { it.deviceId }
         return ids.distinct().mapNotNull { paired[it] }
+    }
+
+    private fun rollbackCreatedResources(resourceIds: Collection<String>) {
+        resourceIds.forEach { resourceId ->
+            SignageRuntime.scenes()
+                .filter { it.resourceId == resourceId }
+                .forEach { scene -> SignageRuntime.deleteScene(scene.id) }
+            SignageRuntime.deleteResource(resourceId)
+        }
     }
 
     private fun ApplicationCall.sessionId(): String? =

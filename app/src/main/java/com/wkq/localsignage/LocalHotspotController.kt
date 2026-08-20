@@ -1,10 +1,14 @@
 package com.wkq.localsignage
 
+import android.Manifest
 import android.content.Context
+import android.content.pm.PackageManager
 import android.net.wifi.WifiManager
 import android.os.Build
 import android.os.Handler
 import android.os.Looper
+import androidx.annotation.RequiresApi
+import androidx.core.content.ContextCompat
 
 /** 管理应用提供的本地热点。热点只提供本地连接，不共享公网。 */
 object LocalHotspotController {
@@ -30,12 +34,30 @@ object LocalHotspotController {
             info?.let(onStarted)
             return
         }
+        val permission = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+            Manifest.permission.NEARBY_WIFI_DEVICES
+        } else {
+            Manifest.permission.ACCESS_FINE_LOCATION
+        }
+        if (ContextCompat.checkSelfPermission(context, permission) != PackageManager.PERMISSION_GRANTED) {
+            onFailed("HOTSPOT_PERMISSION_REQUIRED")
+            return
+        }
         val wifiManager = context.applicationContext.getSystemService(WifiManager::class.java)
         if (wifiManager == null) {
             onFailed("WIFI_SERVICE_UNAVAILABLE")
             return
         }
-        runCatching {
+        startApi26(wifiManager, onStarted, onFailed)
+    }
+
+    @RequiresApi(Build.VERSION_CODES.O)
+    private fun startApi26(
+        wifiManager: WifiManager,
+        onStarted: (HotspotInfo) -> Unit,
+        onFailed: (String) -> Unit
+    ) {
+        try {
             wifiManager.startLocalOnlyHotspot(
                 object : WifiManager.LocalOnlyHotspotCallback() {
                     override fun onStarted(value: WifiManager.LocalOnlyHotspotReservation) {
@@ -58,17 +80,22 @@ object LocalHotspotController {
                 },
                 Handler(Looper.getMainLooper())
             )
-        }.onFailure { error ->
+        } catch (error: SecurityException) {
+            onFailed(error.message ?: "HOTSPOT_PERMISSION_REQUIRED")
+        } catch (error: RuntimeException) {
             onFailed(error.message ?: "HOTSPOT_START_FAILED")
         }
     }
 
     fun stop() {
-        reservation?.close()
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+            reservation?.close()
+        }
         reservation = null
         info = null
     }
 
+    @RequiresApi(Build.VERSION_CODES.O)
     private fun WifiManager.LocalOnlyHotspotReservation.toHotspotInfo(): HotspotInfo {
         return when {
             Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU -> {
@@ -83,6 +110,7 @@ object LocalHotspotController {
         }
     }
 
+    @RequiresApi(Build.VERSION_CODES.R)
     @Suppress("DEPRECATION")
     private fun WifiManager.LocalOnlyHotspotReservation.toAndroidRHotspotInfo(): HotspotInfo {
         val configuration = softApConfiguration
@@ -92,6 +120,7 @@ object LocalHotspotController {
         )
     }
 
+    @RequiresApi(Build.VERSION_CODES.O)
     @Suppress("DEPRECATION")
     private fun WifiManager.LocalOnlyHotspotReservation.toLegacyHotspotInfo(): HotspotInfo {
         val configuration = wifiConfiguration

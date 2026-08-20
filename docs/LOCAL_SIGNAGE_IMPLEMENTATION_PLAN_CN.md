@@ -32,10 +32,10 @@ feature/feature_app         本地 Server、领域模型、播放器、状态和
 ### S2：视频和可靠性
 
 - 接入 AndroidX Media3，支持本地视频和基础网络视频。
-- 实现 Foreground Service、BOOT_COMPLETED、播放 Activity 恢复和 Keep Screen Awake。
+- 实现 Foreground Service、兼容平台限制的 BOOT_COMPLETED 恢复策略、播放 Activity 恢复和 Keep Screen Awake。
 - 完成失败策略、错误状态、重试/跳过/fallback 和资源释放。
 
-验收：重启设备后本地 Playlist 自动恢复，播放器错误不终止 Service。
+验收：Android 14 及以下或专用设备自启动环境在重启后自动恢复本地 Playlist；Android 15 及以上普通设备在用户首次打开应用后恢复。播放器错误不终止 Service。
 
 ### S3：控制安全与多控制端
 

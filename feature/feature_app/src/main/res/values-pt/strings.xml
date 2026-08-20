@@ -130,4 +130,5 @@
     <item quantity="one">Teste completo de 7 dias · cerca de %1$d dia restante</item>
     <item quantity="other">Teste completo de 7 dias · cerca de %1$d dias restantes</item>
   </plurals>
+  <string name="help_autostart_body_android15">O Local Signage restaura o último estado de reprodução depois que o aplicativo é iniciado. O Android 15 e versões posteriores não permitem que um aplicativo comum inicie diretamente um serviço em primeiro plano de reprodução de mídia a partir de BOOT_COMPLETED. Em hardware dedicado, configure o início automático, o modo quiosque/launcher ou Device Owner do fabricante. Em celulares e tablets comuns, abra o Local Signage uma vez após cada reinicialização.\n\nUse o botão abaixo para abrir as configurações disponíveis e defina o uso da bateria como “Sem restrições” quando possível.</string>
 </resources>

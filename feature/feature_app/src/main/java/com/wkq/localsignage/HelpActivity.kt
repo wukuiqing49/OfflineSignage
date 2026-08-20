@@ -5,7 +5,7 @@ import com.wkq.localsignage.feature.app.databinding.ActivityHelpBinding
 
 class HelpActivity : BaseActivity<ActivityHelpBinding>() {
     override fun initView() {
-        enableEdgeToEdgeSystemBars()
+        enableEdgeToEdgeSystemBars(binding.toolbarContainer)
         binding.toolbarContainer.applySystemBarPadding(horizontal = true)
         binding.helpScroll.applySystemBarPadding(bottom = true, horizontal = true)
         binding.toolbar.setNavigationOnClickListener { finish() }

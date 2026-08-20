@@ -1237,6 +1237,8 @@ Activity 负责：
 
 ## 33. 开机自动恢复
 
+平台约束：Android 15 及以上禁止普通应用从 `BOOT_COMPLETED` 直接启动 `mediaPlayback` 前台服务。普通 Play 设备应在用户首次打开应用后恢复；无人值守自动恢复需要厂商自启动、Kiosk/Launcher、Device Owner 或等效的专用设备能力。
+
 目标：
 
 > Android 设备断电 /

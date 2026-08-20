@@ -130,4 +130,5 @@
     <item quantity="one">7-tägige Vollversion-Testphase · noch etwa %1$d Tag</item>
     <item quantity="other">7-tägige Vollversion-Testphase · noch etwa %1$d Tage</item>
   </plurals>
+  <string name="help_autostart_body_android15">Local Signage stellt den letzten Wiedergabestatus wieder her, nachdem die App gestartet wurde. Android 15 und neuer erlauben normalen Apps nicht, einen Medienwiedergabe-Vordergrunddienst direkt über BOOT_COMPLETED zu starten. Konfigurieren Sie auf spezieller Signage-Hardware den Autostart-, Kiosk/Launcher- oder Device-Owner-Modus des Herstellers. Öffnen Sie die App auf normalen Geräten nach jedem Neustart einmal.\n\nÜber die Schaltfläche unten gelangen Sie zu den verfügbaren App- oder Autostart-Einstellungen. Stellen Sie die Akkunutzung nach Möglichkeit auf „Nicht eingeschränkt“.</string>
 </resources>

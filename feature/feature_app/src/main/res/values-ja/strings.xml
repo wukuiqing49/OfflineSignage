@@ -130,4 +130,5 @@
     <item quantity="one">7日間の全機能体験 · 残り約%1$d日</item>
     <item quantity="other">7日間の全機能体験 · 残り約%1$d日</item>
   </plurals>
+  <string name="help_autostart_body_android15">Local Signage はアプリ起動後に前回の再生状態を復元します。Android 15 以降では、通常のアプリが BOOT_COMPLETED からメディア再生フォアグラウンドサービスを直接開始することはできません。専用サイネージ端末では、メーカーの自動起動、Kiosk/Launcher、または Device Owner モードを設定してください。通常のスマートフォンやタブレットでは、端末の再起動後に Local Signage を一度開いてください。\n\n下のボタンから利用可能なアプリ設定または自動起動設定を開き、対応端末ではバッテリー使用を「制限なし」に設定してください。</string>
 </resources>

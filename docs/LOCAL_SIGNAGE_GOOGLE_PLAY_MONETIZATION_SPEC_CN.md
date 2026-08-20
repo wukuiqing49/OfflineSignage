@@ -58,8 +58,8 @@ Local Signage
 
 | Play 商品类型 | 建议商品 ID | 用途 |
 | --- | --- | --- |
-| Subscription | `local_signage_pro` | Pro 月度或年度订阅 |
-| One-time product | `local_signage_lifetime` | 永久买断 |
+| Subscription | `pro_subscription` | Pro 月度或年度订阅；基础方案为 `pro-mouth`、`pro-yearly` |
+| One-time product | `pro_lifetime` | 永久买断；购买选项为 `lifetime` |
 
 订阅商品下创建自动续订的 `monthly` 和 `yearly` Base Plan。两个方案提供相同 Pro 权益，只改变计费周期；价格、币种和周期均以 Google Play 返回信息为准。
 
@@ -368,8 +368,8 @@ val entitlement: StateFlow<EntitlementState>
 
 1. 在 Play 创建应用前确认最终 `applicationId`；当前开发包名不能在首次发布后更换。
 2. 配置 Play App Signing。
-3. 创建 `local_signage_pro` 订阅商品及 `monthly`、`yearly` Base Plan。
-4. 创建并激活 `local_signage_lifetime` 一次性商品。
+3. 创建 `pro_subscription` 订阅商品及 `pro-mouth`、`pro-yearly` Base Plan。
+4. 创建并激活 `pro_lifetime` 一次性商品及 `lifetime` 购买选项。
 5. 配置销售国家、税务、币种和本地化价格。
 6. 添加 License Testing 测试账号。
 7. 上传使用正式包名和签名的 AAB 到内部测试轨道。

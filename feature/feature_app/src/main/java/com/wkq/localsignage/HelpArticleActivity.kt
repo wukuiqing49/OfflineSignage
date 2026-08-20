@@ -12,7 +12,7 @@ import com.wkq.localsignage.feature.app.databinding.ActivityLegalDocumentBinding
 
 class HelpArticleActivity : BaseActivity<ActivityLegalDocumentBinding>() {
     override fun initView() {
-        enableEdgeToEdgeSystemBars()
+        enableEdgeToEdgeSystemBars(binding.toolbarContainer)
         binding.toolbarContainer.applySystemBarPadding(horizontal = true)
         binding.documentScroll.applySystemBarPadding(bottom = true, horizontal = true)
         binding.toolbar.setNavigationOnClickListener { finish() }
@@ -90,7 +90,7 @@ class HelpArticleActivity : BaseActivity<ActivityLegalDocumentBinding>() {
         )
         ARTICLE_AUTOSTART -> HelpArticle(
             R.string.help_autostart_title,
-            R.string.help_autostart_body,
+            R.string.help_autostart_body_android15,
             R.drawable.illustration_help_devices,
             R.string.help_visual_autostart_caption
         )

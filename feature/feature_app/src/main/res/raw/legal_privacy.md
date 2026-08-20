@@ -1,5 +1,5 @@
-Effective date: August 18, 2026
-Document version: 1.0
+Effective date: August 20, 2026
+Document version: 1.1
 
 1. About the product
 
@@ -11,7 +11,7 @@ The app stores locally the images, videos, live-stream addresses, web pages, and
 
 3. Google services
 
-Purchases and license verification use Google Play Billing. Google handles payment accounts, orders, and payment methods under its own policies; this app does not receive complete payment details. The project includes Firebase components, but Firebase Analytics is disabled by default. Advertising is not enabled, and the app does not intentionally use advertising identifiers.
+Purchases and license verification use Google Play Billing. Google handles payment accounts, orders, and payment methods under its own policies; this app does not receive complete payment details. Release builds enable Firebase Analytics to collect app interactions and app/device diagnostic information for product improvement; local debug builds disable it. The Google Mobile Ads SDK is included as an unused shared capability, but advertising is disabled and the app does not request the Google advertising ID permission or display ads.
 
 4. Permission use
 

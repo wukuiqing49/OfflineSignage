@@ -1,5 +1,5 @@
-生效日期：2026 年 8 月 18 日
-文档版本：1.0
+生效日期：2026 年 8 月 20 日
+文档版本：1.1
 
 1. 产品说明
 
@@ -11,7 +11,7 @@ Local Signage 是本地优先的广告屏播放工具。应用不要求创建 Lo
 
 3. Google 服务
 
-购买与授权验证使用 Google Play Billing，相关付款账号、订单和付款方式由 Google 按其政策处理，本应用不会获取完整付款信息。项目集成 Firebase 组件，但 Firebase Analytics 当前默认关闭。应用不启用广告功能，也不主动使用广告标识符。
+购买与授权验证使用 Google Play Billing，相关付款账号、订单和付款方式由 Google 按其政策处理，本应用不会获取完整付款信息。正式 Release 安装包启用 Firebase Analytics，用于收集应用交互及应用/设备诊断信息并改进产品；本地 Debug 安装包关闭该能力。项目包含作为共享能力但当前未使用的 Google Mobile Ads SDK，广告功能保持关闭，应用不申请 Google 广告 ID 权限，也不展示广告。
 
 4. 权限用途
 

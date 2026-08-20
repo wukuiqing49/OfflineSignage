@@ -27,8 +27,8 @@ GoogleKit.initialize(
     context = applicationContext,
     config = GoogleKitConfig(
         serverClientId = googleServerClientId,
-        billingInAppProductIds = listOf("local_signage_lifetime"),
-        billingSubscriptionIds = listOf("local_signage_pro"),
+        billingInAppProductIds = listOf("pro_lifetime"),
+        billingSubscriptionIds = listOf("pro_subscription"),
         billingRequireAppAccount = false,
         enableFirebaseAnalytics = !debug
     )

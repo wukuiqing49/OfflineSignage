@@ -3,6 +3,7 @@ package com.wkq.localsignage
 import android.content.BroadcastReceiver
 import android.content.Context
 import android.content.Intent
+import android.os.Build
 import android.util.Log
 import androidx.core.content.ContextCompat
 
@@ -10,6 +11,10 @@ class SignageBootReceiver : BroadcastReceiver() {
     override fun onReceive(context: Context, intent: Intent) {
         val action = intent.action ?: return
         if (action in SUPPORTED_BOOT_ACTIONS) {
+            if (BootRestorePolicy.shouldDeferUntilUserLaunch(action, Build.VERSION.SDK_INT)) {
+                Log.i(TAG, "Android 15+ defers media playback restore until the user opens the app.")
+                return
+            }
             runCatching {
                 ContextCompat.startForegroundService(context, Intent(context, SignageService::class.java))
             }.onFailure { error ->
@@ -35,5 +40,14 @@ class SignageBootReceiver : BroadcastReceiver() {
             "com.htc.intent.action.QUICKBOOT_POWERON"
         )
         const val TAG = "SignageBootReceiver"
+    }
+}
+
+internal object BootRestorePolicy {
+    private const val ANDROID_15_API = 35
+    private const val ACTION_PACKAGE_REPLACED = "android.intent.action.MY_PACKAGE_REPLACED"
+
+    fun shouldDeferUntilUserLaunch(action: String, sdkInt: Int): Boolean {
+        return sdkInt >= ANDROID_15_API && action != ACTION_PACKAGE_REPLACED
     }
 }

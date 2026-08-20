@@ -130,4 +130,5 @@
     <item quantity="one">Essai complet de 7 jours · environ %1$d jour restant</item>
     <item quantity="other">Essai complet de 7 jours · environ %1$d jours restants</item>
   </plurals>
+  <string name="help_autostart_body_android15">Local Signage restaure le dernier état de lecture après le démarrage de l’application. Android 15 et versions ultérieures n’autorisent pas une application ordinaire à démarrer directement un service de premier plan de lecture multimédia depuis BOOT_COMPLETED. Sur un matériel d’affichage dédié, configurez le démarrage automatique, le mode kiosque/launcher ou Device Owner du fabricant. Sur un téléphone ou une tablette standard, ouvrez Local Signage une fois après chaque redémarrage.\n\nUtilisez le bouton ci-dessous pour ouvrir les réglages disponibles et choisissez une utilisation de la batterie sans restriction si possible.</string>
 </resources>

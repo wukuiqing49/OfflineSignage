@@ -113,9 +113,22 @@
                     </LinearLayout>
 
                     <TextView
+                        android:id="@+id/pro_benefits"
                         android:layout_width="match_parent"
                         android:layout_height="wrap_content"
                         android:layout_marginTop="@dimen/app_spacing_large"
+                        android:background="@drawable/bg_billing_plan"
+                        android:padding="@dimen/app_spacing_large"
+                        android:text="@string/billing_pro_benefits"
+                        android:textColor="@color/billing_text_secondary"
+                        android:textSize="14sp"
+                        android:lineSpacingExtra="4dp" />
+
+                    <TextView
+                        android:id="@+id/plan_section_title"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:layout_marginTop="@dimen/app_spacing_medium"
                         android:text="@string/billing_choose_plan"
                         android:textColor="@color/billing_text_primary"
                         android:textSize="18sp"

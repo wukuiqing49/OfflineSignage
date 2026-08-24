@@ -28,6 +28,7 @@ data class EntitlementState(
 data class MonetizationUiState(
     val entitlement: EntitlementState,
     val catalog: GoogleBillingCatalog = GoogleBillingCatalog(),
+    val catalogLoaded: Boolean = false,
     val loading: Boolean = false,
     val errorMessage: String = ""
 )

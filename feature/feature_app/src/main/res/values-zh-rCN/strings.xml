@@ -38,7 +38,7 @@
   <string name="welcome_step_play">3　上传内容并开始全屏播放</string>
   <string name="welcome_start">开始设置</string>
   <string name="welcome_offline_note">完成配对后，本地内容可在离线状态下继续播放</string>
-  <string name="trial_expired_badge">试用已结束 · 查看版本</string>
+  <string name="trial_expired_badge">免费模式 · 升级专业版</string>
   <string name="open_billing">版本与购买</string>
   <string name="device_license_label">授权状态</string>
   <plurals name="entitlement_trial_entry">
@@ -73,7 +73,8 @@
     <item quantity="other">7 天完整试用 · 剩余约 %1$d 天</item>
   </plurals>
   <string name="billing_status_trial">7 天完整试用 · 剩余约 %1$d 天</string>
-  <string name="billing_status_trial_ended">试用已结束，播放功能仍可继续使用</string>
+  <string name="billing_status_trial_ended">已进入免费模式，现有内容继续播放</string>
+  <string name="billing_pro_benefits">专业版包含：不限资源与播放列表、文字/直播/网页/HTML 内容、图片切换效果、播放速度以及多屏设备管理。</string>
   <string name="billing_status_subscription">订阅已生效</string>
   <string name="billing_status_subscription_grace">订阅暂未联网验证，当前处于离线宽限期</string>
   <string name="billing_status_lifetime">永久版本已生效</string>
@@ -91,6 +92,9 @@
   <string name="billing_restore">恢复购买</string>
   <string name="billing_manage_subscription">管理订阅</string>
   <string name="billing_price_unavailable">价格暂不可用</string>
+  <string name="billing_price_currency_format">%1$s %2$s</string>
+  <string name="billing_price_monthly_format">%1$s/月</string>
+  <string name="billing_price_yearly_format">%1$s/年</string>
   <string name="billing_pending_notice">付款正在处理中。Google Play 确认完成前不会发放付费授权。</string>
   <string name="billing_unavailable">暂时无法连接 Google Play，请检查网络后重试。</string>
   <string name="billing_purchase_unavailable">暂时无法发起购买，请稍后重试。</string>
@@ -129,6 +133,6 @@
   <string name="help_multi_device_body">多设备功能运行在同一局域网内，不依赖云端账号。\n\n1. 在 Web 控制台打开“设备”。\n\n2. 添加局域网内发现的另一台广告屏，输入目标设备屏幕上的 6 位配对码，也可粘贴配对 Token。\n\n3. 配对成功后查看每台设备的在线状态、当前内容和播放状态。\n\n4. 进入目标设备管理页，可以为不同设备选择不同的已发送内容，也可以同步内容后播放，并分别调整播放、静音和音量。\n\n一台设备离线不会阻止其他设备继续播放。</string>
   <string name="help_autostart_body">商用广告机与 Android 电视盒子：\nLocal Signage 已内置完整的开机广播监听（BOOT_COMPLETED 与快速唤醒）。在专用广告机与工控屏硬件上，通电开机即可全自动启动并恢复全屏 4K 循环播放，无需任何手动操作。\n\n主流手机品牌开机自启与后台保活配置：\n普通智能手机因厂商激进的省电策略，初次安装后需在系统设置中开启对应权限：\n\n1. 小米 / 红米（HyperOS / MIUI）：\n长按 App 图标 >「应用信息」> 开启「自启动」>「省电策略」设为「无限制」>「权限管理」开启「后台弹出界面」。\n\n2. 华为 / 荣耀（HarmonyOS / MagicOS）：\n系统「设置」>「应用和服务」>「应用启动管理」> 找到 Local Signage 改为「手动管理」> 勾选「允许自启动」、「允许关联启动」和「允许后台活动」。\n\n3. OPPO / 一加 / 真我（ColorOS）：\n长按 App 图标 >「应用信息」>「应用耗电管理」> 开启「允许完全后台行为」与「允许自启动」>「权限」开启「悬浮窗 / 后台弹出界面」。\n\n4. vivo / iQOO（OriginOS）：\n系统「设置」>「应用与权限」>「权限管理」>「自启动」开启本应用 >「电池」>「后台高耗电」设为允许。\n\n5. 三星（One UI）：\n系统「设置」>「应用程序」> Local Signage >「电池」设为「不受限制」>「设备关怀」>「电池」>「后台使用限制」将本应用加入「从不休眠的应用程序」。</string>
   <string name="help_troubleshooting_body">没有显示二维码：确认设备已连接 Wi-Fi、以太网或已启动本机热点，等待局域网地址出现。\n\n浏览器无法打开控制台：确认控制端和广告屏位于同一局域网，并关闭可能隔离本地网络的 VPN 或访客网络。\n\n图片或视频发送失败：检查文件格式、文件大小和设备剩余存储空间。\n\n直播无法播放：确认直播地址有效，协议为 HLS、DASH 或 RTSP，并且广告屏网络可以访问该来源。\n\nHTML 无法发送：移除脚本、外链资源和嵌入页面后重试。\n\n仍然异常时，可在 Web 控制台“记录”页面查看最近操作和播放异常。</string>
-  <string name="help_purchase_body">购买只能在安装 Local Signage App 的 Android 手机、平板或广告机上完成，局域网 Web 控制台不会处理付款。\n\n首次成功启动后提供 7 天完整本地试用，不会自动扣费。试用结束后继续播放，但会显示“试用已结束”标签。\n\n在 Android 设备中心打开“版本与授权”，可以选择 Google Play 月度或年度订阅，也可购买一次性永久版本。价格、币种和计费周期以 Google Play 结算页面为准。\n\n已经购买时，使用相同 Google Play 账号点击“恢复购买”。订阅可在 Google Play 的“付款和订阅”中管理或取消。卸载应用不会自动取消订阅。</string>
+  <string name="help_purchase_body">购买只能在安装 Local Signage App 的 Android 手机、平板或广告机上完成，局域网 Web 控制台不会处理付款。\n\n首次成功启动后提供 7 天完整本地试用，不会自动扣费。试用结束后进入免费模式，现有内容继续播放，可保留少量图片/视频资源和一个播放列表。专业版解锁不限内容、高级内容与播放设置以及多屏管理。\n\n在 Android 设备中心打开“版本与授权”，可以选择 Google Play 月度或年度订阅，也可购买一次性永久版本。价格、币种和计费周期以 Google Play 结算页面为准。\n\n已经购买时，使用相同 Google Play 账号点击“恢复购买”。订阅可在 Google Play 的“付款和订阅”中管理或取消。卸载应用不会自动取消订阅。</string>
   <string name="help_autostart_body_android15">Local Signage 会在应用启动后恢复上次播放状态。Android 15 及以上不允许普通应用直接从 BOOT_COMPLETED 启动媒体播放前台服务。专用广告机请配置设备厂商提供的自启动、Kiosk/Launcher 或 Device Owner 模式；普通手机和平板在设备重启后需要手动打开一次 Local Signage。\n\n可使用下方按钮打开当前设备支持的应用或自启动设置，并在系统允许时将电池策略设为“不受限制”。</string>
 </resources>

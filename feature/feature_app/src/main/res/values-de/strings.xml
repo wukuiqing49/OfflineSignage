@@ -55,7 +55,8 @@
   <string name="entitlement_lifetime">Pro · Lebenslange Lizenz</string>
   <string name="billing_title">Tarife und Lizenzen</string>
   <string name="billing_current_version">Aktuelle Lizenz</string>
-  <string name="billing_status_trial_ended">Testphase beendet (Wiedergabe verfügbar)</string>
+  <string name="billing_status_trial_ended">Kostenloser Modus aktiv; bestehende Wiedergabe läuft weiter</string>
+  <string name="billing_pro_benefits">Pro bietet unbegrenzte Ressourcen und Wiedergabelisten, Text, Livestreams, Web und HTML, Übergänge, Wiedergabegeschwindigkeit und Verwaltung mehrerer Bildschirme.</string>
   <string name="billing_status_subscription">Abonnement aktiv</string>
   <string name="billing_status_subscription_grace">Offline-Kulanzzeitraum aktiv</string>
   <string name="billing_status_lifetime">Lebenslange Lizenz aktiv</string>
@@ -91,6 +92,9 @@
   <string name="billing_monthly_description">Flexibler monatlicher Pro-Zugang mit automatischer Verlängerung über Google Play.</string>
   <string name="billing_subscribe_monthly">Monatlich abonnieren</string>
   <string name="billing_price_unavailable">Preis nicht verfügbar</string>
+  <string name="billing_price_currency_format">%1$s %2$s</string>
+  <string name="billing_price_monthly_format">%1$s/Monat</string>
+  <string name="billing_price_yearly_format">%1$s/Jahr</string>
   <string name="billing_pending_notice">Die Zahlung ist ausstehend. Der kostenpflichtige Zugang beginnt erst, wenn Google Play den Kauf bestätigt.</string>
   <string name="billing_unavailable">Google Play ist nicht verfügbar. Netzwerk prüfen und erneut versuchen.</string>
   <string name="billing_purchase_unavailable">Der Kauf kann derzeit nicht gestartet werden. Bitte später erneut versuchen.</string>

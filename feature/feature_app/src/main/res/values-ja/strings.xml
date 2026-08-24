@@ -55,7 +55,8 @@
   <string name="entitlement_lifetime">Pro · 永久ライセンス</string>
   <string name="billing_title">プランとライセンス</string>
   <string name="billing_current_version">現在のライセンス</string>
-  <string name="billing_status_trial_ended">試用終了（再生機能は継続利用可能）</string>
+  <string name="billing_status_trial_ended">無料モードです。既存コンテンツの再生は継続します</string>
+  <string name="billing_pro_benefits">Proでは、無制限のリソースとプレイリスト、テキスト、ライブ配信、Web/HTML、画像切替、再生速度、複数画面管理を利用できます。</string>
   <string name="billing_status_subscription">サブスクリプション有効</string>
   <string name="billing_status_subscription_grace">サブスクリプション認証待機中（オフライン猶予期間中）</string>
   <string name="billing_status_lifetime">永久ライセンス有効</string>
@@ -91,6 +92,9 @@
   <string name="billing_monthly_description">Google Playで自動更新される柔軟な月額Proアクセスです。</string>
   <string name="billing_subscribe_monthly">月額プランに登録</string>
   <string name="billing_price_unavailable">価格を取得できません</string>
+  <string name="billing_price_currency_format">%1$s %2$s</string>
+  <string name="billing_price_monthly_format">%1$s/月</string>
+  <string name="billing_price_yearly_format">%1$s/年</string>
   <string name="billing_pending_notice">お支払いは保留中です。Google Playが購入を確認した後に有料アクセスが開始されます。</string>
   <string name="billing_unavailable">Google Playを利用できません。ネットワークを確認してもう一度お試しください。</string>
   <string name="billing_purchase_unavailable">現在購入を開始できません。しばらくしてからもう一度お試しください。</string>

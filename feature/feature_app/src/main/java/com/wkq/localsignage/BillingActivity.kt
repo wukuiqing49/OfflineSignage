@@ -8,6 +8,7 @@ import android.view.ViewGroup
 import android.widget.LinearLayout
 import android.widget.Toast
 import androidx.activity.viewModels
+import androidx.core.os.ConfigurationCompat
 import androidx.core.view.doOnLayout
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.lifecycleScope
@@ -22,6 +23,10 @@ import com.wkq.localsignage.monetization.EntitlementType
 import com.wkq.localsignage.monetization.MonetizationRepository
 import com.wkq.localsignage.monetization.MonetizationUiState
 import kotlinx.coroutines.launch
+import java.math.BigDecimal
+import java.text.NumberFormat
+import java.util.Currency
+import java.util.Locale
 import java.util.concurrent.TimeUnit
 import kotlin.math.max
 
@@ -92,22 +97,24 @@ class BillingActivity : BaseActivity<ActivityBillingBinding>() {
         lifetimeProduct = state.catalog.oneTimeProducts.firstOrNull {
             it.baseProductId == MonetizationRepository.LIFETIME_PRODUCT_ID
         }
+        val catalogReady = monthlyProduct != null &&
+            subscriptionProduct != null &&
+            lifetimeProduct != null &&
+            state.errorMessage.isBlank()
+        val showLoading = state.loading || !state.catalogLoaded
 
         binding.entitlementStatus.text = entitlementText(state.entitlement)
-        binding.monthlyPrice.text = monthlyProduct?.displayPrice()
-            ?.takeIf(String::isNotBlank)
-            ?: getString(R.string.billing_price_unavailable)
-        binding.subscriptionPrice.text = subscriptionProduct?.displayPrice()
-            ?.takeIf(String::isNotBlank)
-            ?: getString(R.string.billing_price_unavailable)
-        binding.lifetimePrice.text = lifetimeProduct?.displayPrice()
-            ?.takeIf(String::isNotBlank)
-            ?: getString(R.string.billing_price_unavailable)
+        binding.monthlyPrice.text = monthlyProduct?.displayPrice().orEmpty()
+        binding.subscriptionPrice.text = subscriptionProduct?.displayPrice().orEmpty()
+        binding.lifetimePrice.text = lifetimeProduct?.displayPrice().orEmpty()
         binding.monthlyButton.isEnabled = monthlyProduct != null && !state.loading
         binding.subscriptionButton.isEnabled = subscriptionProduct != null && !state.loading
         binding.lifetimeButton.isEnabled = lifetimeProduct != null && !state.loading
         binding.restoreButton.isEnabled = !state.loading
-        binding.progressIndicator.visibility = if (state.loading) View.VISIBLE else View.GONE
+        binding.contentScroll.visibility = if (showLoading) View.INVISIBLE else View.VISIBLE
+        binding.progressIndicator.visibility = if (showLoading) View.VISIBLE else View.GONE
+        binding.planSectionTitle.visibility = if (catalogReady) View.VISIBLE else View.GONE
+        binding.planContainer.visibility = if (catalogReady) View.VISIBLE else View.GONE
         binding.billingError.visibility = if (state.errorMessage.isBlank()) View.GONE else View.VISIBLE
         binding.billingError.setText(R.string.billing_unavailable)
         binding.pendingNotice.visibility = if (state.entitlement.pendingProductIds.isEmpty()) View.GONE else View.VISIBLE
@@ -149,7 +156,31 @@ class BillingActivity : BaseActivity<ActivityBillingBinding>() {
     }
 
     private fun GoogleProduct.displayPrice(): String {
-        return formattedPrice.trim()
+        val currencyCode = priceCurrencyCode.trim().uppercase(Locale.ROOT)
+        val amount = priceAmountMicros
+            .takeIf { it > 0L && currencyCode.isNotBlank() }
+            ?.let { formatPriceAmount(it, currencyCode) }
+        val price = if (amount != null) {
+            getString(R.string.billing_price_currency_format, currencyCode, amount)
+        } else {
+            formattedPrice.trim()
+        }
+        return when (billingPeriod) {
+            "P1M" -> getString(R.string.billing_price_monthly_format, price)
+            "P1Y" -> getString(R.string.billing_price_yearly_format, price)
+            else -> price
+        }
+    }
+
+    private fun formatPriceAmount(priceAmountMicros: Long, currencyCode: String): String {
+        val locale = ConfigurationCompat.getLocales(resources.configuration)[0] ?: Locale.getDefault()
+        val fractionDigits = runCatching {
+            Currency.getInstance(currencyCode).defaultFractionDigits
+        }.getOrDefault(2).coerceAtLeast(0)
+        return NumberFormat.getNumberInstance(locale).apply {
+            minimumFractionDigits = fractionDigits
+            maximumFractionDigits = fractionDigits
+        }.format(BigDecimal.valueOf(priceAmountMicros, 6))
     }
 
     private fun openSubscriptionManagement() {

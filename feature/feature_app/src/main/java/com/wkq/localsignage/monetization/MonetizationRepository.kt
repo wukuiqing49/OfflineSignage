@@ -86,20 +86,28 @@ object MonetizationRepository {
 
     private suspend fun refreshNow(loadCatalog: Boolean) = refreshMutex.withLock {
         _uiState.value = _uiState.value.copy(loading = true, errorMessage = "")
+        var catalogError: Throwable? = null
         val catalog = if (loadCatalog) {
             GoogleKit.billing.queryConfiguredCatalog().getOrElse {
-                _uiState.value.catalog
+                catalogError = it
+                GoogleBillingCatalog()
             }
         } else {
             _uiState.value.catalog
         }
+        if (loadCatalog && catalogError == null && !catalog.hasAllConfiguredProducts()) {
+            catalogError = IllegalStateException("Configured Google Play products are unavailable.")
+        }
         val subscriptionResult = GoogleKit.billing.queryActivePurchases(GoogleProductType.SUBS)
         val lifetimeResult = GoogleKit.billing.queryActivePurchases(GoogleProductType.IN_APP)
-        if (subscriptionResult.isFailure || lifetimeResult.isFailure) {
-            val error = subscriptionResult.exceptionOrNull() ?: lifetimeResult.exceptionOrNull()
+        if (catalogError != null || subscriptionResult.isFailure || lifetimeResult.isFailure) {
+            val error = catalogError
+                ?: subscriptionResult.exceptionOrNull()
+                ?: lifetimeResult.exceptionOrNull()
             _uiState.value = MonetizationUiState(
                 entitlement = policy.evaluateLocal(store.snapshot()),
                 catalog = catalog,
+                catalogLoaded = loadCatalog || _uiState.value.catalogLoaded,
                 loading = false,
                 errorMessage = error?.message.orEmpty()
             )
@@ -126,8 +134,20 @@ object MonetizationRepository {
                 pendingProductIds = pendingIds
             ),
             catalog = catalog,
+            catalogLoaded = loadCatalog || _uiState.value.catalogLoaded,
             loading = false
         )
+    }
+
+    private fun GoogleBillingCatalog.hasAllConfiguredProducts(): Boolean {
+        val hasMonthly = subscriptions.any {
+            it.baseProductId == PRO_SUBSCRIPTION_ID && it.basePlanId == MONTHLY_BASE_PLAN_ID
+        }
+        val hasYearly = subscriptions.any {
+            it.baseProductId == PRO_SUBSCRIPTION_ID && it.basePlanId == YEARLY_BASE_PLAN_ID
+        }
+        val hasLifetime = oneTimeProducts.any { it.baseProductId == LIFETIME_PRODUCT_ID }
+        return hasMonthly && hasYearly && hasLifetime
     }
 
     private suspend fun processPurchaseUpdate(purchases: List<GooglePurchase>) {

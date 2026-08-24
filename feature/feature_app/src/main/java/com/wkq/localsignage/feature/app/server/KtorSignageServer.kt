@@ -23,6 +23,9 @@ import com.wkq.localsignage.feature.app.security.PairingAttemptLimiter
 import com.wkq.localsignage.feature.app.storage.TemporaryPairingToken
 import com.wkq.localsignage.feature.app.security.CommandRequestFingerprint
 import com.wkq.localsignage.feature.app.R
+import com.wkq.localsignage.monetization.CommercialAccessPolicy
+import com.wkq.localsignage.monetization.CommercialAccessState
+import com.wkq.localsignage.monetization.MonetizationRepository
 import io.ktor.http.ContentType
 import io.ktor.http.HttpHeaders
 import io.ktor.http.HttpStatusCode
@@ -248,6 +251,7 @@ class KtorSignageServer(context: Context, private val port: Int) {
                 }
                 put("/api/devices/{id}/assignment") {
                     if (!call.authorized()) return@put
+                    if (!call.requireProAccess()) return@put
                     try {
                         val deviceId = call.parameters["id"].orEmpty()
                         val body = JSONObject(call.receiveText())
@@ -285,6 +289,7 @@ class KtorSignageServer(context: Context, private val port: Int) {
                 }
                 post("/api/devices/pair") {
                     if (!call.authorized()) return@post
+                    if (!call.requireProAccess()) return@post
                     try {
                         val body = JSONObject(call.receiveText())
                         val deviceId = body.optString("deviceId").takeIf { it.isNotBlank() }
@@ -441,6 +446,7 @@ class KtorSignageServer(context: Context, private val port: Int) {
                 post("/api/resources/upload") {
                     val deviceRequest = call.hasDeviceToken()
                     if (!deviceRequest && !call.authorized()) return@post
+                    if (deviceRequest && !call.requireProAccess()) return@post
                     val existingIds = SignageRuntime.resources().mapTo(mutableSetOf()) { it.id }
                     val createdIds = linkedSetOf<String>()
                     var createdPlaylistId: String? = null
@@ -489,6 +495,17 @@ class KtorSignageServer(context: Context, private val port: Int) {
                             require(resources.size == uploadedIds.size) { "UPLOAD_INCOMPLETE" }
                             require(resources.all { it.isImage } || resources.all { it.isVideo }) {
                                 "UPLOAD_BATCH_TYPE_INVALID"
+                            }
+                            val access = commercialAccess()
+                            require(access.unrestricted || access.resourceCount <= CommercialAccessPolicy.FREE_RESOURCE_LIMIT) {
+                                "FREE_RESOURCE_LIMIT"
+                            }
+                            require(access.unrestricted || resources.size == 1 || access.canCreatePlaylist) {
+                                "FREE_PLAYLIST_LIMIT"
+                            }
+                            if (!access.unrestricted) {
+                                transitionEffect = ImageTransitionPolicy.NONE
+                                videoPlaybackSpeed = PlaybackTimingPolicy.DEFAULT_VIDEO_PLAYBACK_SPEED
                             }
                             SignageRuntime.updateDefaultSceneFit(uploadedIds, fitMode, cropGravity)
                             if (resources.all { it.isImage }) {
@@ -568,12 +585,25 @@ class KtorSignageServer(context: Context, private val port: Int) {
                         require(resources.all { if (mediaType == "IMAGE") it.isImage else it.isVideo }) {
                             "REMOTE_MEDIA_TYPE_MISMATCH"
                         }
+                        val access = commercialAccess()
+                        require(access.unrestricted || access.resourceCount <= CommercialAccessPolicy.FREE_RESOURCE_LIMIT) {
+                            "FREE_RESOURCE_LIMIT"
+                        }
+                        require(access.unrestricted || resources.size == 1 || access.canCreatePlaylist) {
+                            "FREE_PLAYLIST_LIMIT"
+                        }
+                        val allowedTransition = if (access.unrestricted) transitionEffect else ImageTransitionPolicy.NONE
+                        val allowedPlaybackSpeed = if (access.unrestricted) {
+                            videoPlaybackSpeed
+                        } else {
+                            PlaybackTimingPolicy.DEFAULT_VIDEO_PLAYBACK_SPEED
+                        }
                         SignageRuntime.updateDefaultSceneFit(resources.map { it.id }, fitMode, cropGravity)
                         if (mediaType == "IMAGE") {
-                            SignageRuntime.updateDefaultSceneTransition(resources.map { it.id }, transitionEffect)
+                            SignageRuntime.updateDefaultSceneTransition(resources.map { it.id }, allowedTransition)
                         }
                         if (mediaType == "VIDEO") {
-                            SignageRuntime.updateDefaultScenePlaybackSpeed(resources.map { it.id }, videoPlaybackSpeed)
+                            SignageRuntime.updateDefaultScenePlaybackSpeed(resources.map { it.id }, allowedPlaybackSpeed)
                         }
                         val playlist = if (resources.size > 1) {
                             if (mediaType == "IMAGE") {
@@ -603,6 +633,10 @@ class KtorSignageServer(context: Context, private val port: Int) {
                 }
                 post("/api/resources/remote") {
                     if (!call.authorized()) return@post
+                    if (!commercialAccess().canAddBasicMedia) {
+                        call.respondJson(errorJson("FREE_RESOURCE_LIMIT"), HttpStatusCode.Forbidden)
+                        return@post
+                    }
                     try {
                         val body = JSONObject(call.receiveText())
                         val shouldPlay = body.optBoolean("play", call.request.queryParameters["play"]?.toBooleanStrictOrNull() ?: true)
@@ -610,6 +644,12 @@ class KtorSignageServer(context: Context, private val port: Int) {
                             ?: throw IllegalArgumentException("REMOTE_URL_REQUIRED")
                         val name = body.optString("name").takeIf { it.isNotBlank() }
                         val resource = withContext(Dispatchers.IO) { SignageRuntime.saveRemote(url, name) }
+                        if (!commercialAccess().unrestricted && resource.isImage) {
+                            SignageRuntime.updateDefaultSceneTransition(
+                                listOf(resource.id),
+                                ImageTransitionPolicy.NONE
+                            )
+                        }
                         if (shouldPlay) {
                             SignagePlaybackController.applyCommand("PLAY", resourceId = resource.id)
                         }
@@ -620,6 +660,7 @@ class KtorSignageServer(context: Context, private val port: Int) {
                 }
                 post("/api/resources/virtual") {
                     if (!call.authorized()) return@post
+                    if (!call.requireProAccess()) return@post
                     try {
                         val body = JSONObject(call.receiveText())
                         val shouldPlay = body.optBoolean("play", call.request.queryParameters["play"]?.toBooleanStrictOrNull() ?: true)
@@ -647,6 +688,7 @@ class KtorSignageServer(context: Context, private val port: Int) {
                 }
                 post("/api/resources/text-batch") {
                     if (!call.authorized()) return@post
+                    if (!call.requireProAccess()) return@post
                     val existingIds = SignageRuntime.resources().mapTo(mutableSetOf()) { it.id }
                     val createdIds = linkedSetOf<String>()
                     var createdPlaylistId: String? = null
@@ -746,6 +788,7 @@ class KtorSignageServer(context: Context, private val port: Int) {
                 }
                 post("/api/internal/sync/scene") {
                     if (!call.hasDeviceToken()) return@post
+                    if (!call.requireProAccess()) return@post
                     try {
                         val body = call.receiveText()
                         val scene = SignageScene(
@@ -769,6 +812,7 @@ class KtorSignageServer(context: Context, private val port: Int) {
                 }
                 post("/api/internal/sync/resource") {
                     if (!call.hasDeviceToken()) return@post
+                    if (!call.requireProAccess()) return@post
                     try {
                         val body = JSONObject(call.receiveText())
                         val kind = ResourceKind.valueOf(body.optString("kind").uppercase())
@@ -792,6 +836,7 @@ class KtorSignageServer(context: Context, private val port: Int) {
                 }
                 post("/api/internal/sync/playlist") {
                     if (!call.hasDeviceToken()) return@post
+                    if (!call.requireProAccess()) return@post
                     try {
                         val body = JSONObject(call.receiveText())
                         val items = body.optJSONArray("items") ?: JSONArray()
@@ -818,6 +863,7 @@ class KtorSignageServer(context: Context, private val port: Int) {
                 }
                 post("/api/devices/sync") {
                     if (!call.authorized()) return@post
+                    if (!call.requireProAccess()) return@post
                     try {
                         val body = JSONObject(call.receiveText())
                         val resource = SignageRuntime.resource(jsonString(body.toString(), "resourceId"))
@@ -835,6 +881,7 @@ class KtorSignageServer(context: Context, private val port: Int) {
                 }
                 post("/api/devices/sync-playlist") {
                     if (!call.authorized()) return@post
+                    if (!call.requireProAccess()) return@post
                     try {
                         val body = JSONObject(call.receiveText())
                         val playlist = SignageRuntime.playlist(body.optString("playlistId"))
@@ -858,6 +905,7 @@ class KtorSignageServer(context: Context, private val port: Int) {
                 }
                 post("/api/scenes") {
                     if (!call.authorized()) return@post
+                    if (!call.requireProAccess()) return@post
                     try {
                         val body = call.receiveText()
                         val scene = SignageScene(
@@ -886,6 +934,7 @@ class KtorSignageServer(context: Context, private val port: Int) {
                 }
                 post("/api/playlists") {
                     if (!call.authorized()) return@post
+                    if (!call.requireProAccess()) return@post
                     try {
                         val body = call.receiveText()
                         val bodyJson = JSONObject(body)
@@ -984,6 +1033,18 @@ class KtorSignageServer(context: Context, private val port: Int) {
 
     private suspend fun ApplicationCall.authorizedOrDevice(requireSession: Boolean = true): Boolean =
         hasDeviceToken() || authorized(requireSession)
+
+    private fun commercialAccess(): CommercialAccessState = CommercialAccessPolicy.evaluate(
+        entitlement = MonetizationRepository.uiState.value.entitlement,
+        resourceCount = SignageRuntime.resources().size,
+        playlistCount = SignageRuntime.playlists().size
+    )
+
+    private suspend fun ApplicationCall.requireProAccess(): Boolean {
+        if (commercialAccess().unrestricted) return true
+        respondJson(errorJson("PRO_REQUIRED"), HttpStatusCode.Forbidden)
+        return false
+    }
 
     private suspend fun ApplicationCall.respondFleetCommand(action: String, jsonValue: Boolean = false) {
         if (!authorized()) return
@@ -1214,6 +1275,7 @@ class KtorSignageServer(context: Context, private val port: Int) {
 
     private fun statusJson(): String {
         val state = SignageRuntime.state()
+        val access = commercialAccess()
         val playlist = SignageRuntime.playlist(state.currentPlaylistId)
         val playlistIndex = playlist?.items?.indexOfFirst { it.sceneId == state.currentSceneId } ?: -1
         val resource = SignageRuntime.resource(state.currentResourceId)
@@ -1236,9 +1298,21 @@ class KtorSignageServer(context: Context, private val port: Int) {
             "\"currentResourceTextBackgroundColor\":${resource?.textBackgroundColor?.let(::quote) ?: "null"}," +
             "\"currentResourceFontFamily\":${resource?.fontFamily?.let(::quote) ?: "null"}," +
             "\"currentResourceFitMode\":${scene?.fitMode?.let(::quote) ?: "null"}," +
-            "\"currentResourceUrl\":${if (resource?.isLocalFile == true) quote("/media/${resource.id}") else "null"}" +
+            "\"currentResourceUrl\":${if (resource?.isLocalFile == true) quote("/media/${resource.id}") else "null"}," +
+            "\"commercialAccess\":${commercialAccessJson(access)}" +
             "}"
     }
+
+    private fun commercialAccessJson(access: CommercialAccessState): String = "{" +
+        "\"mode\":${quote(access.mode.name)}," +
+        "\"advancedEnabled\":${access.canUseAdvancedContent}," +
+        "\"multiDeviceEnabled\":${access.canUseMultiDevice}," +
+        "\"resourceCount\":${access.resourceCount}," +
+        "\"resourceLimit\":${access.resourceLimit ?: "null"}," +
+        "\"playlistCount\":${access.playlistCount}," +
+        "\"playlistLimit\":${access.playlistLimit ?: "null"}," +
+        "\"canAddBasicMedia\":${access.canAddBasicMedia}" +
+        "}"
 
     private fun deviceStatusEventJson(): String = "{\"type\":\"DEVICE_STATUS\",\"state\":${statusJson()}}"
     private fun controlSessionEventJson(): String =
@@ -1338,6 +1412,9 @@ class KtorSignageServer(context: Context, private val port: Int) {
         "REMOTE_URL_PROTOCOL_NOT_ALLOWED" -> "Only approved remote URL protocols are supported"
         "REMOTE_HOST_NOT_ALLOWED" -> "The remote host is not allowed"
         "REMOTE_RESOURCE_TOO_LARGE" -> "The remote resource exceeds the size limit"
+        "PRO_REQUIRED" -> "This feature requires Local Signage Pro"
+        "FREE_RESOURCE_LIMIT" -> "Free mode supports up to 5 image or video resources"
+        "FREE_PLAYLIST_LIMIT" -> "Free mode supports one playlist"
         else -> code.replace('_', ' ').lowercase().replaceFirstChar { it.uppercase() }
     }
     private fun quote(value: String): String = JSONObject.quote(value)

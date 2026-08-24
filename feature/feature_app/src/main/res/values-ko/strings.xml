@@ -55,7 +55,8 @@
   <string name="entitlement_lifetime">Pro · 평생 라이선스</string>
   <string name="billing_title">플랜 및 라이선스</string>
   <string name="billing_current_version">현재 라이선스</string>
-  <string name="billing_status_trial_ended">체험 종료 (재생 기능 계속 이용 가능)</string>
+  <string name="billing_status_trial_ended">무료 모드 사용 중 · 기존 콘텐츠 재생은 계속됩니다</string>
+  <string name="billing_pro_benefits">Pro에는 무제한 리소스와 재생목록, 텍스트, 라이브 스트림, Web/HTML, 전환 효과, 재생 속도 및 다중 화면 관리가 포함됩니다.</string>
   <string name="billing_status_subscription">구독 활성</string>
   <string name="billing_status_subscription_grace">구독 온라인 인증 대기 중 (오프라인 유예 기간)</string>
   <string name="billing_status_lifetime">평생 라이선스 활성</string>
@@ -91,6 +92,9 @@
   <string name="billing_monthly_description">Google Play에서 자동 갱신되는 유연한 월간 Pro 이용권입니다.</string>
   <string name="billing_subscribe_monthly">월간 구독 시작</string>
   <string name="billing_price_unavailable">가격을 확인할 수 없음</string>
+  <string name="billing_price_currency_format">%1$s %2$s</string>
+  <string name="billing_price_monthly_format">%1$s/월</string>
+  <string name="billing_price_yearly_format">%1$s/년</string>
   <string name="billing_pending_notice">결제가 보류 중입니다. Google Play에서 구매를 확인한 후 유료 이용이 시작됩니다.</string>
   <string name="billing_unavailable">Google Play를 사용할 수 없습니다. 네트워크를 확인하고 다시 시도하세요.</string>
   <string name="billing_purchase_unavailable">현재 구매를 시작할 수 없습니다. 나중에 다시 시도하세요.</string>

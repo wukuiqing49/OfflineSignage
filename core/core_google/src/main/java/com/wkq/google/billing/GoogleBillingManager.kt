@@ -33,8 +33,6 @@ import kotlin.coroutines.resume
 object GoogleBillingManager : GoogleBillingGateway {
 
     private const val TAG = "GoogleBilling"
-    private const val PREF_NAME = "google_billing_state"
-    private const val KEY_SANDBOX_PURCHASED_PRODUCT_ID = "sandbox_purchased_product_id"
     private const val CONNECTION_TIMEOUT_MS = 15_000L
 
     private val productCache = ConcurrentHashMap<String, ProductDetails>()
@@ -395,29 +393,8 @@ object GoogleBillingManager : GoogleBillingGateway {
             )
         activeSubscriptionPurchase = subscriptions.maxByOrNull { it.purchaseTimeMillis }
 
-        val activeSubscriptionIds = subscriptions.flatMap { it.products }.distinct().toMutableList()
-        val ownedOneTimeProductIds = oneTimeProducts.flatMap { it.products }.distinct().toMutableList()
-
-        // 加上本地沙盒模拟的数据兜底，方便调试
-        val sandboxProduct = if (sandboxFallbackEnabled) {
-            appContext?.getSharedPreferences(PREF_NAME, Context.MODE_PRIVATE)
-                ?.getString(KEY_SANDBOX_PURCHASED_PRODUCT_ID, "")
-                .orEmpty()
-        } else {
-            ""
-        }
-        if (sandboxProduct.isNotEmpty()) {
-            val cleanSandboxProductId = sandboxProduct.substringBefore(":")
-            if (config.billingInAppProductIds.contains(cleanSandboxProductId)) {
-                if (!ownedOneTimeProductIds.contains(cleanSandboxProductId)) {
-                    ownedOneTimeProductIds.add(cleanSandboxProductId)
-                }
-            } else {
-                if (!activeSubscriptionIds.contains(cleanSandboxProductId)) {
-                    activeSubscriptionIds.add(cleanSandboxProductId)
-                }
-            }
-        }
+        val activeSubscriptionIds = subscriptions.flatMap { it.products }.distinct()
+        val ownedOneTimeProductIds = oneTimeProducts.flatMap { it.products }.distinct()
 
         return GoogleBillingEntitlement(
             state = if (activeSubscriptionIds.isNotEmpty() || ownedOneTimeProductIds.isNotEmpty()) {
@@ -429,7 +406,7 @@ object GoogleBillingManager : GoogleBillingGateway {
             hasLifetimeUnlock = ownedOneTimeProductIds.isNotEmpty(),
             activeSubscriptionIds = activeSubscriptionIds,
             ownedOneTimeProductIds = ownedOneTimeProductIds,
-            source = if (sandboxProduct.isNotEmpty()) "sandbox_simulation" else "google_play"
+            source = "google_play"
         )
     }
 
@@ -541,6 +518,7 @@ private fun ProductDetails.toGoogleProducts(): List<GoogleProduct> {
                 description = description,
                 formattedPrice = offer?.formattedPrice.orEmpty(),
                 priceCurrencyCode = offer?.priceCurrencyCode.orEmpty(),
+                priceAmountMicros = offer?.priceAmountMicros ?: 0L,
                 offerToken = offer?.offerToken.orEmpty(),
                 baseProductId = productId
             )
@@ -567,6 +545,7 @@ private fun ProductDetails.toGoogleProducts(): List<GoogleProduct> {
             GooglePricingPhase(
                 formattedPrice = phase.formattedPrice,
                 priceCurrencyCode = phase.priceCurrencyCode,
+                priceAmountMicros = phase.priceAmountMicros,
                 billingPeriod = phase.billingPeriod,
                 recurrenceMode = phase.recurrenceMode,
                 billingCycleCount = phase.billingCycleCount
@@ -580,6 +559,7 @@ private fun ProductDetails.toGoogleProducts(): List<GoogleProduct> {
             description = description,
             formattedPrice = recurringPhase?.formattedPrice.orEmpty(),
             priceCurrencyCode = recurringPhase?.priceCurrencyCode.orEmpty(),
+            priceAmountMicros = recurringPhase?.priceAmountMicros ?: 0L,
             offerToken = offer.offerToken,
             baseProductId = productId,
             basePlanId = basePlanId,

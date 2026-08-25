@@ -26,6 +26,10 @@
   <string name="pairing_qr_content_description">控制台配对二维码</string>
   <string name="pairing_computer_code">电脑配对码</string>
   <string name="pairing_computer_code_content_description">电脑浏览器一次性配对码</string>
+  <string name="enterprise_contact_title">企业部署与定制支持</string>
+  <string name="enterprise_contact_email">wukuiqing@gmail.com</string>
+  <string name="enterprise_contact_subject">Local Signage 企业部署咨询</string>
+  <string name="enterprise_contact_unavailable">此设备没有可用的邮件应用。联系邮箱：%1$s</string>
   <string name="show_pairing">设备中心</string>
   <string name="return_to_playback">返回播放</string>
   <string name="exit_app">退出应用</string>
@@ -131,4 +135,7 @@
   <string name="help_troubleshooting_body">没有显示二维码：确认设备已连接 Wi-Fi、以太网或已启动本机热点，等待局域网地址出现。\n\n浏览器无法打开控制台：确认控制端和广告屏位于同一局域网，并关闭可能隔离本地网络的 VPN 或访客网络。\n\n图片或视频发送失败：检查文件格式、文件大小和设备剩余存储空间。\n\n直播无法播放：确认直播地址有效，协议为 HLS、DASH 或 RTSP，并且广告屏网络可以访问该来源。\n\nHTML 无法发送：移除脚本、外链资源和嵌入页面后重试。\n\n仍然异常时，可在 Web 控制台“记录”页面查看最近操作和播放异常。</string>
   <string name="help_purchase_body">购买只能在安装 Local Signage App 的 Android 手机、平板或广告机上完成，局域网 Web 控制台不会处理付款。\n\n首次成功启动后提供 7 天完整本地试用，不会自动扣费。试用结束后继续播放，但会显示“试用已结束”标签。\n\n在 Android 设备中心打开“版本与授权”，可以选择 Google Play 月度或年度订阅，也可购买一次性永久版本。价格、币种和计费周期以 Google Play 结算页面为准。\n\n已经购买时，使用相同 Google Play 账号点击“恢复购买”。订阅可在 Google Play 的“付款和订阅”中管理或取消。卸载应用不会自动取消订阅。</string>
   <string name="help_autostart_body_android15">Local Signage 会在应用启动后恢复上次播放状态。Android 15 及以上不允许普通应用直接从 BOOT_COMPLETED 启动媒体播放前台服务。专用广告机请配置设备厂商提供的自启动、Kiosk/Launcher 或 Device Owner 模式；普通手机和平板在设备重启后需要手动打开一次 Local Signage。\n\n可使用下方按钮打开当前设备支持的应用或自启动设置，并在系统允许时将电池策略设为“不受限制”。</string>
+  <string name="enterprise_contact_action">发送邮件咨询</string>
+  <string name="help_enterprise_deployment_body">Local Signage 可根据现场需求提供企业部署与定制咨询。\n\n可协商的内容：\n- 离线内容包、U 盘导入与现场交付流程\n- 局域网多设备控制、定时播放与分组管理\n- 网络版本或客户自管私有网络的部署方案\n- 广告机与电视盒子硬件适配、开机自启和 Kiosk 配置\n- 品牌标识、界面文案与业务功能定制\n\n为便于评估，请说明设备数量、使用场景、是否联网、内容类型和计划交付时间。具体方案、交付范围与报价以沟通确认结果为准。\n\n邮箱：wukuiqing@gmail.com\n电话：+86 18538537389</string>
+  <string name="help_visual_enterprise_caption">按现场需求确认部署方式、定制范围与交付流程。</string>
 </resources>

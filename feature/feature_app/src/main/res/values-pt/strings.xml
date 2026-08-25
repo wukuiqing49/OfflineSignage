@@ -26,6 +26,10 @@
   <string name="pairing_qr_content_description">QR code de pareamento</string>
   <string name="pairing_computer_code">Código para PC</string>
   <string name="pairing_computer_code_content_description">Código de uso único para PC</string>
+  <string name="enterprise_contact_title">Implantação empresarial e suporte personalizado</string>
+  <string name="enterprise_contact_email">wukuiqing@gmail.com</string>
+  <string name="enterprise_contact_subject">Consulta de implantação empresarial do Local Signage</string>
+  <string name="enterprise_contact_unavailable">Não há aplicativo de e-mail disponível. Contato: %1$s</string>
   <string name="show_pairing">Central de dispositivos</string>
   <string name="return_to_playback">Voltar à reprodução</string>
   <string name="exit_app">Sair do aplicativo</string>
@@ -131,4 +135,7 @@
     <item quantity="other">Teste completo de 7 dias · cerca de %1$d dias restantes</item>
   </plurals>
   <string name="help_autostart_body_android15">O Local Signage restaura o último estado de reprodução depois que o aplicativo é iniciado. O Android 15 e versões posteriores não permitem que um aplicativo comum inicie diretamente um serviço em primeiro plano de reprodução de mídia a partir de BOOT_COMPLETED. Em hardware dedicado, configure o início automático, o modo quiosque/launcher ou Device Owner do fabricante. Em celulares e tablets comuns, abra o Local Signage uma vez após cada reinicialização.\n\nUse o botão abaixo para abrir as configurações disponíveis e defina o uso da bateria como “Sem restrições” quando possível.</string>
+  <string name="enterprise_contact_action">Enviar e-mail ao desenvolvedor</string>
+  <string name="help_enterprise_deployment_body">O Local Signage oferece implantação empresarial e consultoria personalizada para uso no local.\n\nItens para consultar:\n- Pacotes de conteúdo offline, importação por USB e entrega no local\n- Controle de várias telas na rede local, programação e grupos de dispositivos\n- Plano para uma edição em rede ou rede privada gerenciada pelo cliente\n- Adaptação de hardware para telas de sinalização e TV Box, inicialização automática e modo quiosque\n- Marca, textos da interface e funções empresariais personalizadas\n\nPara a avaliação, informe a quantidade de dispositivos, o caso de uso, a disponibilidade de rede, os tipos de conteúdo e a data prevista de entrega. A solução, o escopo de entrega e o orçamento são confirmados após a consulta.\n\nE-mail: wukuiqing@gmail.com\nTelefone: +86 18538537389</string>
+  <string name="help_visual_enterprise_caption">A implantação, o escopo personalizado e a entrega são definidos para cada local.</string>
 </resources>

@@ -320,8 +320,16 @@ class KtorSignageServer(context: Context, private val port: Int) {
                 }
                 delete("/api/devices/paired/{id}") {
                     if (!call.authorized()) return@delete
-                    val deleted = SignageRuntime.deletePairedDevice(call.parameters["id"].orEmpty())
-                    call.respondJson("{\"deleted\":$deleted}", if (deleted) HttpStatusCode.OK else HttpStatusCode.NotFound)
+                    val deviceId = call.parameters["id"].orEmpty().trim()
+                    if (deviceId.isBlank()) {
+                        call.respondJson(errorJson("DEVICE_ID_REQUIRED"), HttpStatusCode.BadRequest)
+                        return@delete
+                    }
+                    val deleted = SignageRuntime.deletePairedDevice(deviceId)
+                    call.respondJson(
+                        "{\"deleted\":$deleted,\"deviceId\":${quote(deviceId)}}",
+                        if (deleted) HttpStatusCode.OK else HttpStatusCode.NotFound
+                    )
                 }
                 get("/api/status") {
                     if (!call.authorizedOrDevice(requireSession = false)) return@get
@@ -912,6 +920,20 @@ class KtorSignageServer(context: Context, private val port: Int) {
                         call.respondJson(errorJson(error.message ?: "INVALID_PLAYLIST"), HttpStatusCode.BadRequest)
                     }
                 }
+                post("/api/playlists/{id}/default") {
+                    if (!call.authorized()) return@post
+                    val playlist = SignageRuntime.playlist(call.parameters["id"])
+                    if (playlist == null) {
+                        call.respondJson(errorJson("PLAYLIST_NOT_FOUND"), HttpStatusCode.NotFound)
+                        return@post
+                    }
+                    if (playlist.items.none { item -> item.enabled && SignageRuntime.scene(item.sceneId) != null }) {
+                        call.respondJson(errorJson("PLAYLIST_EMPTY"), HttpStatusCode.Conflict)
+                        return@post
+                    }
+                    SignageRuntime.selectPlaylist(playlist.id)
+                    call.respondJson(statusJson())
+                }
                 delete("/api/playlists/{id}") {
                     if (!call.authorized()) return@delete
                     val deleted = SignageRuntime.deletePlaylist(call.parameters["id"].orEmpty())
@@ -1310,12 +1332,15 @@ class KtorSignageServer(context: Context, private val port: Int) {
         response.headers.append(HttpHeaders.CacheControl, "public, max-age=86400")
         respondBytes(applicationContext.resources.openRawResource(resourceId).use { it.readBytes() }, ContentType.parse("font/ttf"))
     }
-    private fun resourceJson(resource: com.wkq.localsignage.feature.app.model.SignageResource): String =
-        "{\"id\":${quote(resource.id)},\"name\":${quote(resource.name)},\"kind\":${quote(resource.kind)},\"mimeType\":${quote(resource.mimeType)},\"hash\":${quote(resource.hash)},\"sizeBytes\":${resource.sizeBytes}," +
+    private fun resourceJson(resource: com.wkq.localsignage.feature.app.model.SignageResource): String {
+        val details = SignageRuntime.mediaDetails(resource)
+        return "{\"id\":${quote(resource.id)},\"name\":${quote(resource.name)},\"kind\":${quote(resource.kind)},\"mimeType\":${quote(resource.mimeType)},\"hash\":${quote(resource.hash)},\"sizeBytes\":${resource.sizeBytes}," +
             "\"sourceUri\":${resource.sourceUri?.let(::quote) ?: "null"},\"content\":${resource.content?.let(::quote) ?: "null"},\"refreshIntervalMs\":${resource.refreshIntervalMs ?: "null"}," +
+            "\"width\":${details.width ?: "null"},\"height\":${details.height ?: "null"},\"durationMs\":${details.durationMs ?: "null"}," +
             "\"textSizeSp\":${resource.textSizeSp},\"textColor\":${quote(resource.textColor)},\"textBackgroundColor\":${quote(resource.textBackgroundColor)},\"fontFamily\":${quote(resource.fontFamily)}," +
             "\"textSpeedDpPerSecond\":${resource.textSpeedDpPerSecond},\"textRepeatCount\":${resource.textRepeatCount}," +
             "\"url\":${if (resource.isLocalFile) quote("/media/${resource.id}") else "null"}}"
+    }
 
     private fun scenesJson(): String = jsonArray(SignageRuntime.scenes(), ::sceneJson)
     private fun sceneJson(scene: SignageScene): String = "{\"id\":${quote(scene.id)},\"name\":${quote(scene.name)},\"resourceId\":${quote(scene.resourceId)},\"fitMode\":${quote(scene.fitMode)},\"cropGravity\":${quote(scene.cropGravity)},\"backgroundType\":${quote(scene.backgroundType)},\"backgroundColor\":${scene.backgroundColor?.let(::quote) ?: "null"},\"volume\":${scene.volume ?: "null"},\"muted\":${scene.muted},\"playbackSpeed\":${PlaybackTimingPolicy.normalizeVideoPlaybackSpeed(scene.playbackSpeed)},\"transitionEffect\":${quote(ImageTransitionPolicy.normalize(scene.transitionEffect))},\"overlays\":${overlaysJson(scene.overlays)}}"

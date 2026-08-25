@@ -84,7 +84,7 @@
             android:id="@+id/pairing_content_card"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:layout_gravity="center_horizontal"
+            android:layout_gravity="start"
             android:layout_marginStart="@dimen/pairing_screen_padding"
             android:layout_marginTop="@dimen/pairing_screen_padding"
             android:layout_marginEnd="@dimen/pairing_screen_padding"
@@ -253,6 +253,25 @@
                         android:text="@string/pairing_scan_phone"
                         android:textColor="@color/pairing_text_secondary"
                         android:textSize="13sp" />
+
+                    <com.google.android.material.button.MaterialButton
+                        android:id="@+id/enterprise_contact_button"
+                        style="@style/Widget.Material3.Button.OutlinedButton"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:layout_marginTop="@dimen/app_spacing_small"
+                        android:ellipsize="end"
+                        android:gravity="center_vertical|start"
+                        android:maxLines="2"
+                        android:minHeight="48dp"
+                        android:minWidth="0dp"
+                        android:text="@string/enterprise_contact_title"
+                        android:textColor="@color/pairing_text_primary"
+                        android:textSize="13sp"
+                        app:icon="@drawable/ic_help_24"
+                        app:iconGravity="textStart"
+                        app:iconTint="@color/pairing_text_secondary"
+                        app:strokeColor="@color/pairing_surface_stroke" />
                 </LinearLayout>
 
                 <LinearLayout

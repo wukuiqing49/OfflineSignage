@@ -26,6 +26,10 @@
   <string name="pairing_qr_content_description">Código QR para emparejamiento</string>
   <string name="pairing_computer_code">Código para PC</string>
   <string name="pairing_computer_code_content_description">Código de un solo uso para PC</string>
+  <string name="enterprise_contact_title">Implementación empresarial y soporte personalizado</string>
+  <string name="enterprise_contact_email">wukuiqing@gmail.com</string>
+  <string name="enterprise_contact_subject">Consulta de implementación empresarial de Local Signage</string>
+  <string name="enterprise_contact_unavailable">No hay una aplicación de correo disponible. Contacto: %1$s</string>
   <string name="show_pairing">Centro de dispositivos</string>
   <string name="return_to_playback">Volver a la reproducción</string>
   <string name="exit_app">Salir de la aplicación</string>
@@ -131,4 +135,7 @@
     <item quantity="other">Prueba completa de 7 días · quedan aproximadamente %1$d días</item>
   </plurals>
   <string name="help_autostart_body_android15">Local Signage restaura el último estado de reproducción después de iniciar la aplicación. Android 15 y versiones posteriores no permiten que una aplicación normal inicie un servicio en primer plano de reproducción multimedia directamente desde BOOT_COMPLETED. En hardware de señalización dedicado, configure el inicio automático, el modo kiosco/launcher o Device Owner del fabricante. En teléfonos y tabletas normales, abra Local Signage una vez después de cada reinicio.\n\nUse el botón inferior para abrir los ajustes disponibles y establezca el uso de batería en «Sin restricciones» cuando sea posible.</string>
+  <string name="enterprise_contact_action">Enviar correo al desarrollador</string>
+  <string name="help_enterprise_deployment_body">Local Signage ofrece implementación empresarial y consultas personalizadas para uso en sitio.\n\nTemas para consultar:\n- Paquetes de contenido sin conexión, importación por USB y entrega en sitio\n- Control de varias pantallas en red local, programación y grupos de dispositivos\n- Plan para una edición en red o una red privada administrada por el cliente\n- Adaptación de hardware para pantallas publicitarias y TV Box, inicio automático y modo quiosco\n- Marca, textos de interfaz y funciones empresariales personalizadas\n\nPara la evaluación, indica la cantidad de dispositivos, el caso de uso, la disponibilidad de red, los tipos de contenido y la fecha de entrega prevista. La solución, el alcance de entrega y la cotización se confirman después de la consulta.\n\nCorreo: wukuiqing@gmail.com\nTeléfono: +86 18538537389</string>
+  <string name="help_visual_enterprise_caption">La implementación, el alcance personalizado y la entrega se confirman para cada sitio.</string>
 </resources>

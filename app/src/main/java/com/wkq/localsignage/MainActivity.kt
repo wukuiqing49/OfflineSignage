@@ -116,6 +116,14 @@ class MainActivity : BaseActivity<ActivityMainBinding>(), PlaybackListener {
         binding.openBillingRow.setOnClickListener {
             startActivity(Intent(this, BillingActivity::class.java))
         }
+        binding.enterpriseContactButton.setOnClickListener {
+            startActivity(
+                HelpArticleActivity.intent(
+                    this,
+                    HelpArticleActivity.ARTICLE_ENTERPRISE_DEPLOYMENT
+                )
+            )
+        }
         binding.trialExpiredBadge.setOnClickListener {
             startActivity(Intent(this, BillingActivity::class.java))
         }
@@ -172,7 +180,7 @@ class MainActivity : BaseActivity<ActivityMainBinding>(), PlaybackListener {
             (binding.pairingContentCard.layoutParams as ViewGroup.MarginLayoutParams).apply {
                 width = contentWidth
                 height = contentHeight
-                setMargins(0, padding, 0, padding)
+                setMargins(padding, padding, padding, padding)
             }
         binding.pairingContent.setPadding(padding, padding, padding, padding)
         binding.pairingPanel.scrollTo(0, 0)
@@ -199,6 +207,9 @@ class MainActivity : BaseActivity<ActivityMainBinding>(), PlaybackListener {
 
     override fun onStateChanged(state: SignageState) {
         runOnUiThread {
+            if (state.playing && state.currentResourceId != null) {
+                pairingManuallyOpened = false
+            }
             binding.pauseResumeButton.setIconResource(
                 if (state.playing) android.R.drawable.ic_media_pause else android.R.drawable.ic_media_play
             )

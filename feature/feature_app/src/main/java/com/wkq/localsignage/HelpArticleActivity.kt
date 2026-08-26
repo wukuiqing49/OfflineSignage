@@ -6,6 +6,7 @@ import android.content.Intent
 import android.net.Uri
 import android.provider.Settings
 import android.view.View
+import android.widget.Toast
 import com.wkq.base.activity.BaseActivity
 import com.wkq.localsignage.feature.app.R
 import com.wkq.localsignage.feature.app.databinding.ActivityLegalDocumentBinding
@@ -24,12 +25,20 @@ class HelpArticleActivity : BaseActivity<ActivityLegalDocumentBinding>() {
         binding.documentVisual.setImageResource(article.visual)
         binding.documentVisualCaption.setText(article.visualCaption)
 
-        if (articleType == ARTICLE_AUTOSTART) {
-            binding.documentActionButton.visibility = View.VISIBLE
-            binding.documentActionButton.setText(R.string.help_open_autostart_settings)
-            binding.documentActionButton.setOnClickListener { openSystemAutoStartSettings() }
-        } else {
-            binding.documentActionButton.visibility = View.GONE
+        when (articleType) {
+            ARTICLE_AUTOSTART -> {
+                binding.documentActionButton.visibility = View.VISIBLE
+                binding.documentActionButton.setText(R.string.help_open_autostart_settings)
+                binding.documentActionButton.setOnClickListener { openSystemAutoStartSettings() }
+            }
+            ARTICLE_ENTERPRISE_DEPLOYMENT -> {
+                binding.documentActionButton.visibility = View.VISIBLE
+                binding.documentActionButton.setText(R.string.enterprise_contact_action)
+                binding.documentActionButton.setOnClickListener { contactDeveloper() }
+            }
+            else -> {
+                binding.documentActionButton.visibility = View.GONE
+            }
         }
     }
 
@@ -61,6 +70,23 @@ class HelpArticleActivity : BaseActivity<ActivityLegalDocumentBinding>() {
             }.getOrDefault(false)
             if (launched) return
         }
+    }
+
+    private fun contactDeveloper() {
+        val email = getString(R.string.enterprise_contact_email)
+        val contactIntent = Intent(Intent.ACTION_SENDTO).apply {
+            data = Uri.parse("mailto:$email")
+            putExtra(Intent.EXTRA_SUBJECT, getString(R.string.enterprise_contact_subject))
+        }
+        if (contactIntent.resolveActivity(packageManager) == null) {
+            Toast.makeText(
+                this,
+                getString(R.string.enterprise_contact_unavailable, email),
+                Toast.LENGTH_LONG
+            ).show()
+            return
+        }
+        startActivity(contactIntent)
     }
 
     private fun articleResources(article: String?): HelpArticle = when (article) {
@@ -106,6 +132,12 @@ class HelpArticleActivity : BaseActivity<ActivityLegalDocumentBinding>() {
             R.drawable.illustration_help_billing,
             R.string.help_visual_billing_caption
         )
+        ARTICLE_ENTERPRISE_DEPLOYMENT -> HelpArticle(
+            R.string.enterprise_contact_title,
+            R.string.help_enterprise_deployment_body,
+            R.drawable.illustration_help_devices,
+            R.string.help_visual_enterprise_caption
+        )
         else -> HelpArticle(
             R.string.help_quick_start_title,
             R.string.help_quick_start_body,
@@ -130,6 +162,7 @@ class HelpArticleActivity : BaseActivity<ActivityLegalDocumentBinding>() {
         const val ARTICLE_AUTOSTART = "autostart"
         const val ARTICLE_TROUBLESHOOTING = "troubleshooting"
         const val ARTICLE_PURCHASE = "purchase"
+        const val ARTICLE_ENTERPRISE_DEPLOYMENT = "enterprise_deployment"
         private const val EXTRA_ARTICLE = "article"
 
         fun intent(context: Context, article: String): Intent =

@@ -26,6 +26,10 @@
   <string name="pairing_qr_content_description">제어 콘솔 페어링 QR 코드</string>
   <string name="pairing_computer_code">컴퓨터 페어링 코드</string>
   <string name="pairing_computer_code_content_description">컴퓨터 브라우저 일회용 페어링 코드</string>
+  <string name="enterprise_contact_title">기업 배포 및 맞춤 지원</string>
+  <string name="enterprise_contact_email">wukuiqing@gmail.com</string>
+  <string name="enterprise_contact_subject">Local Signage 기업 배포 문의</string>
+  <string name="enterprise_contact_unavailable">이 기기에서는 사용할 수 있는 이메일 앱이 없습니다. 연락처: %1$s</string>
   <string name="show_pairing">기기 센터</string>
   <string name="return_to_playback">재생으로 돌아가기</string>
   <string name="exit_app">앱 종료</string>
@@ -135,4 +139,7 @@
     <item quantity="other">7일 전체 기능 체험 · 약 %1$d일 남음</item>
   </plurals>
   <string name="help_autostart_body_android15">Local Signage는 앱이 시작된 후 마지막 재생 상태를 복원합니다. Android 15 이상에서는 일반 앱이 BOOT_COMPLETED에서 미디어 재생 포그라운드 서비스를 직접 시작할 수 없습니다. 전용 사이니지 장치에서는 제조업체의 자동 시작, Kiosk/Launcher 또는 Device Owner 모드를 설정하세요. 일반 휴대전화와 태블릿에서는 기기를 재부팅한 후 Local Signage를 한 번 열어야 합니다.\n\n아래 버튼으로 사용 가능한 앱 또는 자동 시작 설정을 열고, 지원되는 경우 배터리 사용을 ‘제한 없음’으로 설정하세요.</string>
+  <string name="enterprise_contact_action">개발자에게 이메일 문의</string>
+  <string name="help_enterprise_deployment_body">Local Signage는 현장 사용을 위한 기업 배포 및 맞춤 상담을 제공합니다.\n\n상담 가능 항목:\n- 오프라인 콘텐츠 패키지, USB 가져오기 및 현장 납품\n- 로컬 네트워크 다중 화면 제어, 예약 재생 및 기기 그룹\n- 네트워크 버전 또는 고객 관리형 사설 네트워크 배포 계획\n- 사이니지 화면 및 TV Box 하드웨어 맞춤, 자동 시작 및 키오스크 설정\n- 브랜드 표시, 화면 문구 및 업무 기능 맞춤\n\n검토를 위해 기기 수, 사용 환경, 네트워크 사용 여부, 콘텐츠 유형 및 희망 납기를 알려 주세요. 솔루션, 납품 범위 및 견적은 상담 후 확정됩니다.\n\n이메일: wukuiqing@gmail.com\n전화: +86 18538537389</string>
+  <string name="help_visual_enterprise_caption">현장별 배포 방식, 맞춤 범위 및 납품 방식을 확인합니다.</string>
 </resources>

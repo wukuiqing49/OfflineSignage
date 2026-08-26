@@ -4,6 +4,8 @@ import android.content.ContentValues
 import android.content.Context
 import android.database.sqlite.SQLiteDatabase
 import android.database.sqlite.SQLiteOpenHelper
+import android.graphics.BitmapFactory
+import android.media.MediaMetadataRetriever
 import android.net.Uri
 import android.os.StatFs
 import android.util.Log
@@ -23,6 +25,7 @@ import com.wkq.localsignage.feature.app.model.PlaybackTimingPolicy
 import com.wkq.localsignage.feature.app.model.ImageTransitionPolicy
 import com.wkq.localsignage.feature.app.model.PlaylistPolicy
 import com.wkq.localsignage.feature.app.model.ResourceKind
+import com.wkq.localsignage.feature.app.model.ResourceMediaDetails
 import com.wkq.localsignage.feature.app.model.SecondPhasePolicy
 import com.wkq.localsignage.feature.app.model.SignageOverlay
 import com.wkq.localsignage.feature.app.model.TextStylePolicy
@@ -298,9 +301,11 @@ class SignageStore(context: Context) {
     }
 
     fun deletePairedDevice(deviceId: String): Boolean = synchronized(lock) {
+        val normalizedDeviceId = deviceId.trim()
+        if (normalizedDeviceId.isBlank()) return@synchronized false
         database.writableDatabase.inTransaction {
-            delete("device_assignments", "device_id = ?", arrayOf(deviceId))
-            delete("paired_devices", "device_id = ?", arrayOf(deviceId)) > 0
+            delete("device_assignments", "device_id = ?", arrayOf(normalizedDeviceId))
+            delete("paired_devices", "device_id = ?", arrayOf(normalizedDeviceId)) > 0
         }
     }
 
@@ -446,6 +451,42 @@ class SignageStore(context: Context) {
             "Resource path is outside the managed directory"
         }
         return file
+    }
+
+    fun mediaDetails(resource: SignageResource): ResourceMediaDetails {
+        if (!resource.isLocalFile) return ResourceMediaDetails()
+        val file = runCatching { fileFor(resource) }.getOrNull()?.takeIf(File::isFile)
+            ?: return ResourceMediaDetails()
+        return when {
+            resource.isImage -> imageDetails(file)
+            resource.isVideo -> videoDetails(file)
+            else -> ResourceMediaDetails()
+        }
+    }
+
+    private fun imageDetails(file: File): ResourceMediaDetails {
+        val options = BitmapFactory.Options().apply { inJustDecodeBounds = true }
+        BitmapFactory.decodeFile(file.path, options)
+        return ResourceMediaDetails(
+            width = options.outWidth.takeIf { it > 0 },
+            height = options.outHeight.takeIf { it > 0 }
+        )
+    }
+
+    private fun videoDetails(file: File): ResourceMediaDetails {
+        val retriever = MediaMetadataRetriever()
+        return try {
+            retriever.setDataSource(file.path)
+            ResourceMediaDetails(
+                width = retriever.extractMetadata(MediaMetadataRetriever.METADATA_KEY_VIDEO_WIDTH)?.toIntOrNull()?.takeIf { it > 0 },
+                height = retriever.extractMetadata(MediaMetadataRetriever.METADATA_KEY_VIDEO_HEIGHT)?.toIntOrNull()?.takeIf { it > 0 },
+                durationMs = retriever.extractMetadata(MediaMetadataRetriever.METADATA_KEY_DURATION)?.toLongOrNull()?.takeIf { it >= 0L }
+            )
+        } catch (_: RuntimeException) {
+            ResourceMediaDetails()
+        } finally {
+            retriever.release()
+        }
     }
 
     fun scenes(): List<SignageScene> = synchronized(lock) { readScenes(database.readableDatabase) }

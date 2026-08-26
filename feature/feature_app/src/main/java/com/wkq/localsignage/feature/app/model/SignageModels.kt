@@ -28,6 +28,12 @@ data class SignageResource(
     val isText: Boolean get() = kind == ResourceKind.TEXT.name
 }
 
+data class ResourceMediaDetails(
+    val width: Int? = null,
+    val height: Int? = null,
+    val durationMs: Long? = null
+)
+
 enum class ResourceKind { LOCAL_FILE, REMOTE_FILE, WEB, STREAM, TEXT }
 
 data class SignageOverlay(

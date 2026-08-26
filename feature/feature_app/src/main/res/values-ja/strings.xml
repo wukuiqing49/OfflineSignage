@@ -26,6 +26,10 @@
   <string name="pairing_qr_content_description">管理画面ペアリング用QRコード</string>
   <string name="pairing_computer_code">PCペアリングコード</string>
   <string name="pairing_computer_code_content_description">PC用ワンタイムペアリングコード</string>
+  <string name="enterprise_contact_title">法人導入とカスタムサポート</string>
+  <string name="enterprise_contact_email">wukuiqing@gmail.com</string>
+  <string name="enterprise_contact_subject">Local Signage 法人導入に関するお問い合わせ</string>
+  <string name="enterprise_contact_unavailable">この端末ではメールアプリを利用できません。連絡先：%1$s</string>
   <string name="show_pairing">デバイスセンター</string>
   <string name="return_to_playback">再生に戻る</string>
   <string name="exit_app">アプリを終了</string>
@@ -135,4 +139,7 @@
     <item quantity="other">7日間の全機能体験 · 残り約%1$d日</item>
   </plurals>
   <string name="help_autostart_body_android15">Local Signage はアプリ起動後に前回の再生状態を復元します。Android 15 以降では、通常のアプリが BOOT_COMPLETED からメディア再生フォアグラウンドサービスを直接開始することはできません。専用サイネージ端末では、メーカーの自動起動、Kiosk/Launcher、または Device Owner モードを設定してください。通常のスマートフォンやタブレットでは、端末の再起動後に Local Signage を一度開いてください。\n\n下のボタンから利用可能なアプリ設定または自動起動設定を開き、対応端末ではバッテリー使用を「制限なし」に設定してください。</string>
+  <string name="enterprise_contact_action">開発者にメールで相談</string>
+  <string name="help_enterprise_deployment_body">Local Signage では、現場向けの法人導入とカスタム相談に対応します。\n\n相談できる内容：\n- オフラインコンテンツパッケージ、USB インポート、現場納品\n- ローカルネットワーク上の複数画面制御、スケジュール再生、端末グループ\n- ネットワーク版またはお客様管理のプライベートネットワーク導入計画\n- サイネージ画面・TV Box のハードウェア適合、自動起動、キオスク設定\n- ブランド表示、画面文言、業務機能のカスタマイズ\n\n評価のため、端末台数、利用場面、ネットワークの有無、コンテンツ種別、希望納期をお知らせください。導入案、納品範囲、見積もりは相談後に確定します。\n\nメール：wukuiqing@gmail.com\n電話：+86 18538537389</string>
+  <string name="help_visual_enterprise_caption">現場ごとに導入方法、カスタム範囲、納品方法を確認します。</string>
 </resources>

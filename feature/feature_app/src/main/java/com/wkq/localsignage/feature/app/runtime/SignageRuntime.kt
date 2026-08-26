@@ -16,6 +16,7 @@ import com.wkq.localsignage.feature.app.model.PairedDevice
 import com.wkq.localsignage.feature.app.model.DeviceAssignment
 import com.wkq.localsignage.feature.app.model.PlaybackTimingPolicy
 import com.wkq.localsignage.feature.app.model.ResourceKind
+import com.wkq.localsignage.feature.app.model.ResourceMediaDetails
 import com.wkq.localsignage.feature.app.pairing.PairingCode
 import com.wkq.localsignage.feature.app.pairing.PairingCodeProvider
 import com.wkq.localsignage.feature.app.storage.SignageStore
@@ -56,6 +57,7 @@ object SignageRuntime {
     fun resource(id: String?): SignageResource? = requireStore().resource(id)
     fun resourceByHash(hash: String?): SignageResource? = requireStore().resourceByHash(hash)
     fun fileFor(resource: SignageResource) = requireStore().fileFor(resource)
+    fun mediaDetails(resource: SignageResource): ResourceMediaDetails = requireStore().mediaDetails(resource)
     fun scenes(): List<SignageScene> = requireStore().scenes()
     fun scene(id: String?): SignageScene? = requireStore().scene(id)
     fun playlists(): List<SignagePlaylist> = requireStore().playlists()

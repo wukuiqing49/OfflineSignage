@@ -26,6 +26,10 @@
   <string name="pairing_qr_content_description">QR-Code für Konsole</string>
   <string name="pairing_computer_code">PC-Kopplungscode</string>
   <string name="pairing_computer_code_content_description">Einmaliger PC-Kopplungscode</string>
+  <string name="enterprise_contact_title">Unternehmensbereitstellung und individueller Support</string>
+  <string name="enterprise_contact_email">wukuiqing@gmail.com</string>
+  <string name="enterprise_contact_subject">Anfrage zur Unternehmensbereitstellung von Local Signage</string>
+  <string name="enterprise_contact_unavailable">Auf diesem Gerät ist keine E-Mail-App verfügbar. Kontakt: %1$s</string>
   <string name="show_pairing">Geräte-Center</string>
   <string name="return_to_playback">Zurück zur Wiedergabe</string>
   <string name="exit_app">App beenden</string>
@@ -135,4 +139,7 @@
     <item quantity="other">7-tägige Vollversion-Testphase · noch etwa %1$d Tage</item>
   </plurals>
   <string name="help_autostart_body_android15">Local Signage stellt den letzten Wiedergabestatus wieder her, nachdem die App gestartet wurde. Android 15 und neuer erlauben normalen Apps nicht, einen Medienwiedergabe-Vordergrunddienst direkt über BOOT_COMPLETED zu starten. Konfigurieren Sie auf spezieller Signage-Hardware den Autostart-, Kiosk/Launcher- oder Device-Owner-Modus des Herstellers. Öffnen Sie die App auf normalen Geräten nach jedem Neustart einmal.\n\nÜber die Schaltfläche unten gelangen Sie zu den verfügbaren App- oder Autostart-Einstellungen. Stellen Sie die Akkunutzung nach Möglichkeit auf „Nicht eingeschränkt“.</string>
+  <string name="enterprise_contact_action">Entwickler per E-Mail kontaktieren</string>
+  <string name="help_enterprise_deployment_body">Local Signage bietet Unternehmensbereitstellung und individuelle Beratung für den Einsatz vor Ort.\n\nMögliche Themen:\n- Offline-Inhaltspakete, USB-Import und Vor-Ort-Auslieferung\n- Steuerung mehrerer Bildschirme im lokalen Netzwerk, Zeitplanung und Gerätegruppen\n- Planung einer Netzwerkedition oder eines kundenseitig verwalteten privaten Netzwerks\n- Hardware-Anpassung für Werbedisplays und TV-Boxen, Autostart und Kiosk-Einrichtung\n- Markenauftritt, Oberflächentexte und individuelle Geschäftsfunktionen\n\nFür eine Einschätzung nennen Sie bitte Geräteanzahl, Einsatzbereich, Netzverfügbarkeit, Inhaltstypen und gewünschten Liefertermin. Lösung, Lieferumfang und Angebot werden nach der Abstimmung bestätigt.\n\nE-Mail: wukuiqing@gmail.com\nTelefon: +86 18538537389</string>
+  <string name="help_visual_enterprise_caption">Bereitstellung, Anpassungsumfang und Auslieferung werden für den Einsatzort abgestimmt.</string>
 </resources>

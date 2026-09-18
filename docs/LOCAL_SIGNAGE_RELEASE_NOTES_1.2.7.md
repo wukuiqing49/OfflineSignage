@@ -1,6 +1,3 @@
-# Local Signage 1.2.7 更新说明
-
-```text
 <en-US>
 • 100% Offline Signage: Turn Android TV and tablets into digital menu boards with no cloud fees.
 • Local Wi-Fi Web Control: Send 4K videos and photos from any browser on the same network.
@@ -64,4 +61,3 @@
 • Synchronisation multi-écrans : gérez et synchronisez les écrans locaux de votre magasin.
 • Amélioration de la stabilité de lecture et du contrôle des appareils.
 </fr-FR>
-```

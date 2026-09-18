@@ -9,5 +9,10 @@ app/build/
 core/*/build/
 feature/*/build/
 # Local Android signing material
+/keystore.properties
+*.jks
+*.keystore
+*.p12
+*.pfx
 /.idea/
 .idea/

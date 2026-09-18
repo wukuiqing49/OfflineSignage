@@ -29,9 +29,9 @@ import java.util.concurrent.CopyOnWriteArraySet
 object SignageRuntime {
     const val SERVER_PORT = 8080
 
-    private var store: SignageStore? = null
-    private var listener: PlaybackListener? = null
-    private var contentListener: (() -> Unit)? = null
+    @Volatile private var store: SignageStore? = null
+    @Volatile private var listener: PlaybackListener? = null
+    @Volatile private var contentListener: (() -> Unit)? = null
     private val stateListeners = CopyOnWriteArraySet<() -> Unit>()
 
     @Synchronized
@@ -248,8 +248,7 @@ object SignageRuntime {
     fun setError(value: String?) { requireStore().setError(value); notifyState() }
 
     fun notifyState() {
-        val currentState = state()
-        listener?.onStateChanged(currentState)
+        listener?.onStateChanged(state())
         stateListeners.forEach { callback -> runCatching { callback() } }
     }
 

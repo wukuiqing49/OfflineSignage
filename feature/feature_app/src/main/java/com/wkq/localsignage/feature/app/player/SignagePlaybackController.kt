@@ -3,8 +3,6 @@ package com.wkq.localsignage.feature.app.player
 import android.annotation.SuppressLint
 import android.animation.ObjectAnimator
 import android.graphics.Color
-import android.graphics.Bitmap
-import android.graphics.BitmapFactory
 import android.graphics.Paint
 import android.graphics.RenderEffect
 import android.graphics.Shader
@@ -24,6 +22,8 @@ import android.webkit.WebView
 import android.webkit.WebViewClient
 import android.widget.FrameLayout
 import android.widget.TextView
+import coil.load
+import coil.dispose
 import androidx.core.view.setPadding
 import androidx.media3.common.AudioAttributes
 import androidx.media3.common.C
@@ -41,10 +41,12 @@ import com.wkq.localsignage.feature.app.model.PlaybackTimingPolicy
 import com.wkq.localsignage.feature.app.model.SignageResource
 import com.wkq.localsignage.feature.app.model.SignageScene
 import com.wkq.localsignage.feature.app.runtime.SignageRuntime
-import java.util.concurrent.CountDownLatch
+import java.util.concurrent.FutureTask
+import java.util.concurrent.TimeoutException
 import java.util.concurrent.TimeUnit
 import kotlin.math.max
 
+@androidx.annotation.OptIn(androidx.media3.common.util.UnstableApi::class)
 object SignagePlaybackController {
     private enum class ContentMode { NONE, IMAGE, VIDEO, STREAM, WEB, TEXT }
 
@@ -71,7 +73,6 @@ object SignagePlaybackController {
     private val tickerAnimators = mutableListOf<ObjectAnimator>()
     private val htmlOverlayViews = mutableListOf<WebView>()
     private var textAnimator: ObjectAnimator? = null
-    private var blurBitmap: Bitmap? = null
 
     private val sceneTimeout = Runnable { if (desiredPlaying) advance(1, fromFailure = false) }
     private val webLoadTimeout = Runnable { handleSceneFailure("WEB_TIMEOUT") }
@@ -143,6 +144,8 @@ object SignagePlaybackController {
 
     fun attach(playbackViews: SignagePlaybackViews, listener: PlaybackListener) {
         check(Looper.myLooper() == Looper.getMainLooper()) { "Playback views must be attached on the main thread" }
+        check(!playbackViews.released) { "Playback views have been released" }
+        views?.takeUnless { it === playbackViews }?.let(::detach)
         this.listener = listener
         views = playbackViews
         slideshowRenderer = ImageSlideshowRenderer(playbackViews.imageSlideshow)
@@ -158,8 +161,11 @@ object SignagePlaybackController {
     }
 
     fun detach(playbackViews: SignagePlaybackViews) {
+        if (playbackViews.released) return
+        playbackViews.released = true
         if (playbackViews.playerView.player === player) playbackViews.playerView.player = null
-        releaseWebView(playbackViews.webView, destroy = false)
+        releaseWebView(playbackViews.webView, destroy = true)
+        if (views !== playbackViews) return
         clearOverlays(playbackViews.overlayContainer)
         textAnimator?.cancel()
         textAnimator = null
@@ -172,12 +178,9 @@ object SignagePlaybackController {
     }
 
     fun release() {
+        if (player != null) SignageRuntime.setPosition(currentPositionMs())
         mainHandler.removeCallbacksAndMessages(null)
-        views?.let {
-            it.playerView.player = null
-            releaseWebView(it.webView, destroy = true)
-            clearOverlays(it.overlayContainer)
-        }
+        views?.let(::detach)
         textAnimator?.cancel()
         textAnimator = null
         slideshowRenderer?.release()
@@ -198,11 +201,11 @@ object SignagePlaybackController {
     fun togglePause() = applyCommand("TOGGLE")
 
     fun refreshContent() {
-        if (player == null) return
         if (Looper.myLooper() != Looper.getMainLooper()) {
             mainHandler.post { refreshContent() }
             return
         }
+        if (player == null) return
         loadPlaylist(restorePosition = true, forceReload = true)
         publish()
     }
@@ -430,6 +433,7 @@ object SignagePlaybackController {
         requirePlayer().stop(); requirePlayer().clearMediaItems()
         showMode(ContentMode.WEB)
         val webView = views?.webView ?: return
+        configureWebView(webView)
         mainHandler.postDelayed(webLoadTimeout, WEB_LOAD_TIMEOUT_MS)
         val html = resource.content
         if (!html.isNullOrBlank()) {
@@ -461,6 +465,7 @@ object SignagePlaybackController {
     }
 
     private fun startTextTicker(text: TextView, resource: SignageResource, attempt: Int = 0) {
+        if (views?.textView !== text || currentScene()?.resourceId != resource.id || contentMode != ContentMode.TEXT) return
         textAnimator?.cancel()
         textAnimator = null
         val parentWidth = (text.parent as? View)?.width ?: return
@@ -766,6 +771,7 @@ object SignagePlaybackController {
             webView.onPause()
             webView.stopLoading()
             webView.loadUrl("about:blank")
+            (webView.parent as? ViewGroup)?.removeView(webView)
             webView.webViewClient = WebViewClient()
             webView.webChromeClient = null
             webView.removeAllViews()
@@ -820,15 +826,19 @@ object SignagePlaybackController {
             resource?.isLocalFile == true && resource.isImage
         ) {
             runCatching { SignageRuntime.fileFor(resource) }.getOrNull()?.takeIf { it.isFile }?.let { file ->
-                decodeSampledBitmap(file.absolutePath)?.let { bitmap ->
-                    blurBitmap = bitmap
-                    currentViews.blurBackgroundView.setImageBitmap(bitmap)
-                    currentViews.blurBackgroundView.visibility = View.VISIBLE
-                    currentViews.blurBackgroundView.setRenderEffect(
-                        RenderEffect.createBlurEffect(BLUR_RADIUS_PX, BLUR_RADIUS_PX, Shader.TileMode.CLAMP)
-                    )
-                    currentViews.playerView.setBackgroundColor(Color.TRANSPARENT)
-                    currentViews.playerView.setShutterBackgroundColor(Color.TRANSPARENT)
+                currentViews.blurBackgroundView.load(file) {
+                    size(MAX_BLUR_BITMAP_EDGE)
+                    allowHardware(false)
+                    listener(onSuccess = { _, _ ->
+                        if (views === currentViews && currentScene()?.id == scene.id) {
+                            currentViews.blurBackgroundView.visibility = View.VISIBLE
+                            currentViews.blurBackgroundView.setRenderEffect(
+                                RenderEffect.createBlurEffect(BLUR_RADIUS_PX, BLUR_RADIUS_PX, Shader.TileMode.CLAMP)
+                            )
+                            currentViews.playerView.setBackgroundColor(Color.TRANSPARENT)
+                            currentViews.playerView.setShutterBackgroundColor(Color.TRANSPARENT)
+                        }
+                    })
                 }
             }
         }
@@ -842,6 +852,9 @@ object SignagePlaybackController {
 
     private fun showMode(mode: ContentMode) {
         views?.let {
+            if (mode != ContentMode.WEB && it.webView.visibility == View.VISIBLE) {
+                releaseWebView(it.webView, destroy = false)
+            }
             it.imageSlideshow.visibility = if (mode == ContentMode.IMAGE) View.VISIBLE else View.GONE
             it.playerView.visibility = if (mode == ContentMode.VIDEO || mode == ContentMode.STREAM) View.VISIBLE else View.GONE
             it.webView.visibility = if (mode == ContentMode.WEB) View.VISIBLE else View.GONE
@@ -904,13 +917,21 @@ object SignagePlaybackController {
         if (Looper.myLooper() == Looper.getMainLooper()) return runCatching(block).getOrElse {
             SignageRuntime.setError("COMMAND_FAILED"); false
         }
-        var result = false
-        val latch = CountDownLatch(1)
-        mainHandler.post {
-            try { result = runCatching(block).getOrElse { SignageRuntime.setError("COMMAND_FAILED"); false } }
-            finally { latch.countDown() }
+        val command = FutureTask { runCatching(block).getOrElse { SignageRuntime.setError("COMMAND_FAILED"); false } }
+        mainHandler.post(command)
+        return try {
+            command.get(COMMAND_TIMEOUT_MS, TimeUnit.MILLISECONDS)
+        } catch (_: TimeoutException) {
+            // 超时且尚未开始的命令不能在稍后悄悄生效。
+            command.cancel(false)
+            mainHandler.removeCallbacks(command)
+            false
+        } catch (_: InterruptedException) {
+            command.cancel(false)
+            mainHandler.removeCallbacks(command)
+            Thread.currentThread().interrupt()
+            false
         }
-        return latch.await(COMMAND_TIMEOUT_MS, TimeUnit.MILLISECONDS) && result
     }
 
     private fun parseColor(value: String?, fallback: Int): Int =
@@ -921,25 +942,8 @@ object SignagePlaybackController {
 
     private fun dp(view: View, value: Int): Int = (value * view.resources.displayMetrics.density).toInt()
 
-    private fun decodeSampledBitmap(path: String): Bitmap? {
-        val bounds = BitmapFactory.Options().apply { inJustDecodeBounds = true }
-        BitmapFactory.decodeFile(path, bounds)
-        if (bounds.outWidth <= 0 || bounds.outHeight <= 0) return null
-        var sampleSize = 1
-        while (bounds.outWidth / sampleSize > MAX_BLUR_BITMAP_EDGE ||
-            bounds.outHeight / sampleSize > MAX_BLUR_BITMAP_EDGE
-        ) sampleSize *= 2
-        return runCatching {
-            BitmapFactory.decodeFile(path, BitmapFactory.Options().apply {
-                inSampleSize = sampleSize
-                inPreferredConfig = Bitmap.Config.RGB_565
-            })
-        }.getOrNull()
-    }
-
     private fun releaseBlurBitmap() {
-        blurBitmap?.takeUnless { it.isRecycled }?.recycle()
-        blurBitmap = null
+        views?.blurBackgroundView?.dispose()
     }
 
     private fun requirePlayer(): ExoPlayer = checkNotNull(player) { "SignagePlaybackController is not initialized" }

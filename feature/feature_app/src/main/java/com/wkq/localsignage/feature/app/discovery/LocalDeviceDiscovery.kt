@@ -17,7 +17,7 @@ object LocalDeviceDiscovery {
 
     private val nsdDevices = ConcurrentHashMap<String, DiscoveredDevice>()
     private val udpDevices = ConcurrentHashMap<String, DiscoveredDevice>()
-    private val resolvingServices = ConcurrentHashMap.newKeySet<String>()
+    private val resolvingServices = java.util.Collections.newSetFromMap(ConcurrentHashMap<String, Boolean>())
     private val serviceInfoCallbacks = ConcurrentHashMap<String, NsdManager.ServiceInfoCallback>()
     private val mainHandler = Handler(Looper.getMainLooper())
     private val callbackExecutor = Executor { command -> mainHandler.post(command) }
@@ -68,7 +68,8 @@ object LocalDeviceDiscovery {
 
     fun snapshot(): List<DiscoveredDevice> {
         val staleBefore = System.currentTimeMillis() - UDP_STALE_AFTER_MS
-        udpDevices.entries.removeIf { it.value.lastSeenAt < staleBefore }
+        udpDevices.entries.filter { it.value.lastSeenAt < staleBefore }
+            .forEach { udpDevices.remove(it.key, it.value) }
         return (udpDevices + nsdDevices).values.sortedBy { it.deviceName.lowercase() }
     }
 
@@ -105,7 +106,8 @@ object LocalDeviceDiscovery {
             override fun onServiceLost(serviceInfo: NsdServiceInfo) {
                 resolvingServices.remove(serviceInfo.serviceName)
                 unregisterServiceInfoCallback(manager, serviceInfo.serviceName)
-                nsdDevices.entries.removeIf { it.value.serviceName == serviceInfo.serviceName }
+                nsdDevices.entries.filter { it.value.serviceName == serviceInfo.serviceName }
+                    .forEach { nsdDevices.remove(it.key, it.value) }
             }
             override fun onDiscoveryStopped(serviceType: String) = Unit
             override fun onStartDiscoveryFailed(serviceType: String, errorCode: Int) { discoveryListener = null }

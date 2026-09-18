@@ -11,16 +11,18 @@ import kotlinx.coroutines.coroutineScope
 import java.io.File
 
 object SignageDeviceFleet {
+    private val controlDispatcher = Dispatchers.IO.limitedParallelism(4)
+    private val transferDispatcher = Dispatchers.IO.limitedParallelism(2)
     suspend fun statuses(targets: List<PairedDevice>): List<FleetStatus> = coroutineScope {
-        targets.map { target ->
-            async(Dispatchers.IO) {
+        targets.distinctBy { it.deviceId }.map { target ->
+            async(controlDispatcher) {
                 val checkedAt = System.currentTimeMillis()
                 val remote = LocalDeviceClient(target).status()
                 val state = when {
                     remote.status == 401 -> FleetStatusState.UNAUTHORIZED
                     remote.status == -1 -> FleetStatusState.TIMEOUT
                     remote.status !in 200..299 -> FleetStatusState.OFFLINE
-                    remote.deviceId == null -> FleetStatusState.INVALID_RESPONSE
+                    remote.deviceId != target.deviceId -> FleetStatusState.INVALID_RESPONSE
                     else -> FleetStatusState.ONLINE
                 }
                 FleetStatus(
@@ -54,8 +56,8 @@ object SignageDeviceFleet {
     }
 
     suspend fun sync(resource: SignageResource, file: File?, targets: List<PairedDevice>): List<FleetResult> = coroutineScope {
-        targets.map { target ->
-            async(Dispatchers.IO) {
+        targets.distinctBy { it.deviceId }.map { target ->
+            async(transferDispatcher) {
                 val client = LocalDeviceClient(target)
                 val exists = client.resourceExists(resource.hash)
                 if (exists.exists) {
@@ -73,8 +75,8 @@ object SignageDeviceFleet {
     }
 
     suspend fun command(action: String, resource: SignageResource?, playlist: SignagePlaylist?, value: Int?, targets: List<PairedDevice>): List<FleetResult> = coroutineScope {
-        targets.map { target ->
-            async(Dispatchers.IO) {
+        targets.distinctBy { it.deviceId }.map { target ->
+            async(controlDispatcher) {
                 val client = LocalDeviceClient(target)
                 val remoteResourceId = resource?.let {
                     val exists = client.resourceExists(it.hash)
@@ -92,8 +94,8 @@ object SignageDeviceFleet {
     }
 
     suspend fun syncPlaylist(playlist: SignagePlaylist, scenes: List<SignageScene>, resources: Map<String, SignageResource>, files: Map<String, File>, targets: List<PairedDevice>): List<FleetResult> = coroutineScope {
-        targets.map { target ->
-            async(Dispatchers.IO) {
+        targets.distinctBy { it.deviceId }.map { target ->
+            async(transferDispatcher) {
                 val client = LocalDeviceClient(target)
                 val remoteResourceIds = mutableMapOf<String, String>()
                 var failure: String? = null

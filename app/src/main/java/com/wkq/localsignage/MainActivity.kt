@@ -4,6 +4,7 @@ import android.content.Intent
 import android.content.res.ColorStateList
 import android.content.pm.ActivityInfo
 import android.content.pm.PackageManager
+import android.content.res.Configuration
 import android.os.Build
 import android.provider.Settings
 import android.os.Handler
@@ -146,6 +147,7 @@ class MainActivity : BaseActivity<ActivityMainBinding>(), PlaybackListener {
                 configurePairingLayout(width, height)
             }
         }
+        configureTvFocusTargets()
         hotspotInfo = LocalHotspotController.currentInfo()
         updateHotspotUi()
         updateContentMode()
@@ -179,9 +181,11 @@ class MainActivity : BaseActivity<ActivityMainBinding>(), PlaybackListener {
         binding.pairingContentCard.layoutParams =
             (binding.pairingContentCard.layoutParams as ViewGroup.MarginLayoutParams).apply {
                 width = contentWidth
-                height = contentHeight
+                // 内容超过屏幕时由外层 ScrollView 滚动，不能把底部操作裁在固定高度内。
+                height = ViewGroup.LayoutParams.WRAP_CONTENT
                 setMargins(padding, padding, padding, padding)
             }
+        binding.pairingContentCard.minimumHeight = contentHeight
         binding.pairingContent.setPadding(padding, padding, padding, padding)
         binding.pairingPanel.scrollTo(0, 0)
         binding.pairingQrSection.layoutParams =
@@ -207,6 +211,7 @@ class MainActivity : BaseActivity<ActivityMainBinding>(), PlaybackListener {
 
     override fun onStateChanged(state: SignageState) {
         runOnUiThread {
+            if (isFinishing || isDestroyed) return@runOnUiThread
             if (state.playing && state.currentResourceId != null) {
                 pairingManuallyOpened = false
             }
@@ -257,12 +262,45 @@ class MainActivity : BaseActivity<ActivityMainBinding>(), PlaybackListener {
             hidePlaybackControls.run()
             refreshPairingPanel()
         }
+        requestTvFocus(showPairing)
         renderMonetization()
+    }
+
+    private fun configureTvFocusTargets() {
+        listOf(
+            binding.openHelpButton,
+            binding.closePairingButton,
+            binding.openBillingRow,
+            binding.openHotspotSettingsButton,
+            binding.enterpriseContactButton,
+            binding.showPairingButton,
+            binding.pauseResumeButton,
+            binding.trialExpiredBadge
+        ).forEach { view ->
+            view.isFocusable = true
+            view.isFocusableInTouchMode = true
+        }
+        binding.pairingPanel.apply {
+            isFocusable = false
+            isFocusableInTouchMode = false
+            descendantFocusability = ViewGroup.FOCUS_AFTER_DESCENDANTS
+        }
+    }
+
+    private fun requestTvFocus(showPairing: Boolean) {
+        val isTelevision = (resources.configuration.uiMode and Configuration.UI_MODE_TYPE_MASK) ==
+            Configuration.UI_MODE_TYPE_TELEVISION
+        if (!isTelevision) return
+        val target = if (showPairing) binding.closePairingButton else binding.pauseResumeButton
+        target.post {
+            if (target.isShown && !target.hasFocus()) target.requestFocus()
+        }
     }
 
     private fun showPlaybackControls() {
         if (binding.pairingPanel.isVisible || SignageRuntime.resources().isEmpty()) return
         binding.playbackStatusBar.isVisible = true
+        requestTvFocus(showPairing = false)
         pairingHandler.removeCallbacks(hidePlaybackControls)
         pairingHandler.postDelayed(hidePlaybackControls, PLAYBACK_CONTROLS_TIMEOUT_MS)
     }

@@ -3,6 +3,7 @@ package com.wkq.localsignage
 import android.content.ComponentName
 import android.content.Context
 import android.content.Intent
+import android.content.res.Configuration
 import android.net.Uri
 import android.provider.Settings
 import android.view.View
@@ -20,6 +21,7 @@ class HelpArticleActivity : BaseActivity<ActivityLegalDocumentBinding>() {
         val articleType = intent.getStringExtra(EXTRA_ARTICLE)
         val article = articleResources(articleType)
         binding.toolbar.setTitle(article.title)
+        binding.toolbar.wrapTitle()
         binding.documentBody.setText(article.body)
         binding.documentVisualCard.visibility = View.VISIBLE
         binding.documentVisual.setImageResource(article.visual)
@@ -38,6 +40,19 @@ class HelpArticleActivity : BaseActivity<ActivityLegalDocumentBinding>() {
             }
             else -> {
                 binding.documentActionButton.visibility = View.GONE
+            }
+        }
+        if (resources.configuration.uiMode and Configuration.UI_MODE_TYPE_MASK ==
+            Configuration.UI_MODE_TYPE_TELEVISION
+        ) {
+            binding.documentScroll.isFocusable = true
+            binding.documentScroll.isFocusableInTouchMode = true
+            binding.documentActionButton.post {
+                if (binding.documentActionButton.visibility == View.VISIBLE) {
+                    binding.documentActionButton.requestFocus()
+                } else {
+                    binding.documentScroll.requestFocus()
+                }
             }
         }
     }

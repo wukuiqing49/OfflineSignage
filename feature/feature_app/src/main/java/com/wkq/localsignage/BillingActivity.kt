@@ -2,6 +2,7 @@ package com.wkq.localsignage
 
 import android.content.ActivityNotFoundException
 import android.content.Intent
+import android.content.res.Configuration
 import android.net.Uri
 import android.view.View
 import android.view.ViewGroup
@@ -38,12 +39,19 @@ class BillingActivity : BaseActivity<ActivityBillingBinding>() {
     private var hasPositionedContent = false
 
     override fun initView() {
+        binding.toolbar.wrapTitle()
         enableEdgeToEdgeSystemBars(binding.toolbarContainer)
         binding.toolbarContainer.applySystemBarPadding(horizontal = true)
         binding.contentScroll.applySystemBarPadding(bottom = true, horizontal = true)
-        binding.billingRoot.requestFocus()
+        if (resources.configuration.uiMode and Configuration.UI_MODE_TYPE_MASK ==
+            Configuration.UI_MODE_TYPE_TELEVISION
+        ) {
+            binding.restoreButton.post { binding.restoreButton.requestFocus() }
+        } else {
+            binding.billingRoot.requestFocus()
+        }
         binding.toolbar.setNavigationOnClickListener { finish() }
-        binding.planContainer.doOnLayout { configurePlanLayout(binding.billingRoot.width) }
+        binding.planContainer.doOnLayout { configurePlanLayout(it.width) }
         binding.monthlyButton.setOnClickListener { monthlyProduct?.let(::launchPurchase) }
         binding.subscriptionButton.setOnClickListener { subscriptionProduct?.let(::launchPurchase) }
         binding.lifetimeButton.setOnClickListener { lifetimeProduct?.let(::launchPurchase) }
@@ -67,7 +75,8 @@ class BillingActivity : BaseActivity<ActivityBillingBinding>() {
     }
 
     private fun configurePlanLayout(availableWidth: Int) {
-        val compact = availableWidth < resources.getDimensionPixelSize(R.dimen.billing_compact_breakpoint)
+        val compact = availableWidth / resources.configuration.fontScale.coerceAtLeast(1f) <
+            resources.getDimensionPixelSize(R.dimen.billing_compact_breakpoint)
         binding.planContainer.orientation = if (compact) LinearLayout.VERTICAL else LinearLayout.HORIZONTAL
         configurePlanPanel(binding.monthlyPanel, compact, first = true)
         configurePlanPanel(binding.subscriptionPanel, compact, first = false)

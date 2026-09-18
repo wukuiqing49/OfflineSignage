@@ -14,4 +14,6 @@ data class SignagePlaybackViews(
     val textView: TextView,
     val overlayContainer: FrameLayout,
     val blurBackgroundView: ImageView
-)
+) {
+    internal var released = false
+}

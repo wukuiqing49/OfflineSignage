@@ -2,6 +2,7 @@ package com.wkq.localsignage
 
 import android.content.Context
 import android.content.Intent
+import android.content.res.Configuration
 import com.wkq.base.activity.BaseActivity
 import com.wkq.localsignage.feature.app.R
 import com.wkq.localsignage.feature.app.databinding.ActivityLegalDocumentBinding
@@ -15,9 +16,19 @@ class LegalDocumentActivity : BaseActivity<ActivityLegalDocumentBinding>() {
         binding.toolbar.setNavigationOnClickListener { finish() }
         val (title, document) = documentResources(intent.getStringExtra(EXTRA_DOCUMENT))
         binding.toolbar.setTitle(title)
+        binding.toolbar.wrapTitle()
         binding.documentBody.text = resources.openRawResource(document)
             .bufferedReader(StandardCharsets.UTF_8)
             .use { it.readText() }
+        if (resources.configuration.uiMode and Configuration.UI_MODE_TYPE_MASK ==
+            Configuration.UI_MODE_TYPE_TELEVISION
+        ) {
+            binding.documentScroll.apply {
+                isFocusable = true
+                isFocusableInTouchMode = true
+                post { requestFocus() }
+            }
+        }
     }
 
     override fun initData() = Unit

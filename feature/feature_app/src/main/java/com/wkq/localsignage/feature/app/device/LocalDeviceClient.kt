@@ -17,6 +17,7 @@ import java.nio.charset.StandardCharsets
 
 /** Small blocking client used from IO dispatchers for paired signage devices. */
 class LocalDeviceClient(private val device: PairedDevice) {
+    private val transport = DeviceHttpTransport(::open)
     fun resourceExists(hash: String): RemoteResourceResult {
         val response = request("GET", "/api/resources/${urlEncode(hash)}/exists")
         if (response.status !in 200..299) return RemoteResourceResult(false, null, response.status)
@@ -57,25 +58,15 @@ class LocalDeviceClient(private val device: PairedDevice) {
     fun upload(resource: SignageResource, file: File): RemoteResourceResult {
         if (!file.isFile) return RemoteResourceResult(false, null, 404)
         val boundary = "----LocalSignage${System.currentTimeMillis()}"
-        val connection = open("POST", "/api/resources/upload")
-        connection.doOutput = true
-        connection.setRequestProperty("Content-Type", "multipart/form-data; boundary=$boundary")
         val safeName = resource.name.replace("\"", "_").replace("\r", "_").replace("\n", "_")
-        return runCatching {
-            connection.outputStream.use { output ->
-                output.write("--$boundary\r\n".toByteArray(StandardCharsets.UTF_8))
-                output.write("Content-Disposition: form-data; name=\"file\"; filename=\"$safeName\"\r\n".toByteArray(StandardCharsets.UTF_8))
-                output.write("Content-Type: ${resource.mimeType}\r\n\r\n".toByteArray(StandardCharsets.UTF_8))
-                file.inputStream().use { it.copyTo(output) }
-                output.write("\r\n--$boundary--\r\n".toByteArray(StandardCharsets.UTF_8))
-            }
-            val response = read(connection)
-            RemoteResourceResult(
-                response.status in 200..299,
-                uploadedResourceId(response.body),
-                response.status
-            )
-        }.getOrElse { RemoteResourceResult(false, null, -1) }
+        val response = transport.execute("POST", "/api/resources/upload", "multipart/form-data; boundary=$boundary") { output ->
+            output.write("--$boundary\r\n".toByteArray(StandardCharsets.UTF_8))
+            output.write("Content-Disposition: form-data; name=\"file\"; filename=\"$safeName\"\r\n".toByteArray(StandardCharsets.UTF_8))
+            output.write("Content-Type: ${resource.mimeType}\r\n\r\n".toByteArray(StandardCharsets.UTF_8))
+            file.inputStream().use { it.copyTo(output) }
+            output.write("\r\n--$boundary--\r\n".toByteArray(StandardCharsets.UTF_8))
+        }
+        return RemoteResourceResult(response.status in 200..299, uploadedResourceId(response.body), response.status)
     }
 
     fun exchangePairingCredential(): RemotePairingResult {
@@ -170,21 +161,18 @@ class LocalDeviceClient(private val device: PairedDevice) {
         return postJson("/api/internal/sync/playlist", body).status in 200..299
     }
 
-    private fun request(method: String, path: String, body: String? = null): HttpResponse {
-        val connection = open(method, path)
-        if (body != null) {
-            connection.doOutput = true
-            connection.setRequestProperty("Content-Type", "application/json; charset=UTF-8")
-            connection.outputStream.use { it.write(body.toByteArray(StandardCharsets.UTF_8)) }
-        }
-        return runCatching { read(connection) }.getOrElse { HttpResponse(-1, "") }
-    }
+    private fun request(method: String, path: String, body: String? = null) = transport.request(method, path, body)
 
-    private fun postJson(path: String, body: JSONObject): HttpResponse = request("POST", path, body.toString())
+    private fun postJson(path: String, body: JSONObject) = request("POST", path, body.toString())
 
     private fun open(method: String, path: String): HttpURLConnection {
-        require(isPrivateIpv4Host(device.host)) { "DEVICE_HOST_NOT_LOCAL" }
-        val connection = URL("http://${hostForUrl()}:${device.port}$path").openConnection() as HttpURLConnection
+        require(device.port in 1..65535) { "DEVICE_PORT_INVALID" }
+        val addresses = InetAddress.getAllByName(device.host)
+        require(addresses.isNotEmpty() && addresses.all {
+            it is Inet4Address && it.isSiteLocalAddress && !it.isLoopbackAddress && !it.isLinkLocalAddress
+        }) { "DEVICE_HOST_NOT_LOCAL" }
+        // 使用本次已验证的地址连接，避免再次解析主机名时改变网络边界。
+        val connection = URL("http://${addresses.first().hostAddress}:${device.port}$path").openConnection() as HttpURLConnection
         connection.requestMethod = method
         connection.connectTimeout = TIMEOUT_MS
         connection.readTimeout = TIMEOUT_MS
@@ -194,25 +182,7 @@ class LocalDeviceClient(private val device: PairedDevice) {
         return connection
     }
 
-    private fun read(connection: HttpURLConnection): HttpResponse {
-        val status = connection.responseCode
-        val stream = if (status in 200..299) connection.inputStream else connection.errorStream
-        val body = stream?.bufferedReader(StandardCharsets.UTF_8)?.use { it.readText() }.orEmpty()
-        connection.disconnect()
-        return HttpResponse(status, body)
-    }
-
-    private fun hostForUrl(): String = if (device.host.contains(":") && !device.host.startsWith("[")) "[${device.host}]" else device.host
     private fun urlEncode(value: String): String = URLEncoder.encode(value, StandardCharsets.UTF_8.name())
-
-    private fun isPrivateIpv4Host(host: String): Boolean = runCatching {
-        InetAddress.getAllByName(host).let { addresses ->
-            addresses.isNotEmpty() && addresses.all { address ->
-                address is Inet4Address && address.isSiteLocalAddress &&
-                    !address.isLoopbackAddress && !address.isLinkLocalAddress
-            }
-        }
-    }.getOrDefault(false)
 
     data class RemoteResourceResult(val exists: Boolean, val resourceId: String?, val status: Int)
     data class RemotePairingResult(
@@ -246,7 +216,6 @@ class LocalDeviceClient(private val device: PairedDevice) {
         val currentResourceUrl: String? = null
     )
     data class RemoteCommandResult(val success: Boolean, val status: Int, val body: String)
-    private data class HttpResponse(val status: Int, val body: String)
 
     private companion object {
         const val TIMEOUT_MS = 5_000

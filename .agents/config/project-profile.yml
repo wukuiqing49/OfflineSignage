@@ -24,6 +24,7 @@ modules:
   app: app
   coreBase: core/core_base
   coreUtils: core/core_utils
+  coreGoogle: core/core_google
   featureApp: feature/feature_app
   featureRes: feature/feature_res
   containerDirectories:
@@ -45,6 +46,12 @@ resources:
   localizedValueDirs:
     - values-en
     - values-zh-rCN
+    - values-de
+    - values-es
+    - values-fr
+    - values-ja
+    - values-ko
+    - values-pt
   sharedResourceModule: feature/feature_res
 
 sourceOfTruth:
@@ -59,4 +66,5 @@ sourceOfTruth:
 validation:
   agentStructure: python -X utf8 .agents/scripts/validate_agent_structure.py
   workflowAggregate: python -X utf8 .agents/scripts/validate_android_workflows.py --project-root . --skip-figma
+  commercialVerification: powershell -ExecutionPolicy Bypass -File .agents/scripts/verify_commercial.ps1
   debugBuild: .\gradlew.bat :app:assembleDebug

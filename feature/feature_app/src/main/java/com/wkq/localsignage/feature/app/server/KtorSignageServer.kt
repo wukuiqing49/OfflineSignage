@@ -48,6 +48,8 @@ import io.ktor.server.routing.get
 import io.ktor.server.routing.post
 import io.ktor.server.routing.put
 import io.ktor.server.routing.routing
+import io.ktor.server.routing.route
+import io.ktor.server.plugins.partialcontent.PartialContent
 import io.ktor.server.websocket.webSocket
 import io.ktor.websocket.CloseReason
 import io.ktor.websocket.Frame
@@ -66,6 +68,8 @@ import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+import kotlinx.coroutines.withTimeout
+import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 import org.json.JSONArray
@@ -73,7 +77,6 @@ import org.json.JSONObject
 import java.io.ByteArrayOutputStream
 import java.security.MessageDigest
 import java.util.concurrent.ConcurrentHashMap
-import java.util.concurrent.CopyOnWriteArraySet
 
 internal val FLEET_COMMAND_ACTIONS = linkedMapOf(
     "play" to "PLAY",
@@ -90,18 +93,28 @@ class KtorSignageServer(context: Context, private val port: Int) {
     private val applicationContext = context.applicationContext
     private var engine: ApplicationEngine? = null
     private var broadcastScope: CoroutineScope? = null
-    private val webSocketSessions = CopyOnWriteArraySet<WebSocketSession>()
+    private val webSocketSessions = ConcurrentHashMap<WebSocketSession, String>()
     private val commandMutex = Mutex()
     private val assignmentMutexes = ConcurrentHashMap<String, Mutex>()
     private val pairingAttemptLimiter = PairingAttemptLimiter()
-    private val stateListener: () -> Unit = { broadcastState() }
+    @Volatile private var stateUpdates: Channel<Unit>? = null
+    private val stateListener: () -> Unit = { stateUpdates?.trySend(Unit); Unit }
 
     fun start() {
         if (engine != null) return
         broadcastScope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
+        val updates = Channel<Unit>(Channel.CONFLATED)
+        stateUpdates = updates
+        broadcastScope?.launch {
+            for (ignored in updates) {
+                try { sendEvent(deviceStatusEventJson()) }
+                catch (error: CancellationException) { throw error }
+                catch (error: Exception) { android.util.Log.e("SignageServer", "STATE_BROADCAST_FAILED", error) }
+            }
+        }
         SignageRuntime.registerStateListener(stateListener)
         val server = embeddedServer(CIO, port = port, host = "0.0.0.0") {
-            install(WebSockets)
+            install(WebSockets) { maxFrameSize = 4_096 }
             routing {
                 get("/") {
                     val pairingToken = call.request.queryParameters["pairingToken"]
@@ -126,17 +139,21 @@ class KtorSignageServer(context: Context, private val port: Int) {
                         close(CloseReason(CloseReason.Codes.VIOLATED_POLICY, "Unauthorized"))
                         return@webSocket
                     }
-                    webSocketSessions += this
+                    webSocketSessions[this] = checkNotNull(token)
                     try {
                         send(Frame.Text(deviceStatusEventJson()))
                         send(Frame.Text(controlSessionEventJson()))
                         for (frame in incoming) {
+                            if (!SignageRuntime.hasWebAccessToken(token)) {
+                                close(CloseReason(CloseReason.Codes.VIOLATED_POLICY, "Unauthorized"))
+                                break
+                            }
                             if (frame is Frame.Text && frame.readText() == "PING") {
                                 send(Frame.Text("{\"type\":\"PONG\"}"))
                             }
                         }
                     } finally {
-                        webSocketSessions -= this
+                        webSocketSessions.remove(this)
                     }
                 }
                 get("/api/device") { call.respondJson(deviceJson()) }
@@ -235,6 +252,7 @@ class KtorSignageServer(context: Context, private val port: Int) {
                 post("/api/access/revoke") {
                     if (!call.authorized(requireSession = false)) return@post
                     SignageRuntime.revokeWebAccessToken()
+                    broadcastState()
                     call.respondJson("{\"revoked\":true}")
                 }
                 get("/api/devices") {
@@ -444,12 +462,16 @@ class KtorSignageServer(context: Context, private val port: Int) {
                     if (released) broadcastControlSession()
                     call.respondJson("{\"released\":$released}", if (released) HttpStatusCode.OK else HttpStatusCode.Conflict)
                 }
-                get("/media/{id}") {
-                    if (!call.authorized(requireSession = false)) return@get
-                    val resource = SignageRuntime.resource(call.parameters["id"])
-                    val file = resource?.takeIf { it.isLocalFile }?.let(SignageRuntime::fileFor)
-                    if (file?.isFile == true) call.respondFile(file)
-                    else call.respondJson(errorJson("RESOURCE_NOT_FOUND"), HttpStatusCode.NotFound)
+                route("/media/{id}") {
+                    // 浏览器视频拖动与断点读取；仍先执行原有媒体访问鉴权。
+                    install(PartialContent)
+                    get {
+                        if (!call.authorized(requireSession = false)) return@get
+                        val resource = SignageRuntime.resource(call.parameters["id"])
+                        val file = resource?.takeIf { it.isLocalFile }?.let(SignageRuntime::fileFor)
+                        if (file?.isFile == true) call.respondFile(file)
+                        else call.respondJson(errorJson("RESOURCE_NOT_FOUND"), HttpStatusCode.NotFound)
+                    }
                 }
                 post("/api/resources/upload") {
                     val deviceRequest = call.hasDeviceToken()
@@ -474,13 +496,18 @@ class KtorSignageServer(context: Context, private val port: Int) {
                                 if (part is PartData.FileItem) {
                                     fileCount += 1
                                     require(fileCount <= MAX_MEDIA_BATCH_SIZE) { "TOO_MANY_FILES" }
-                                    val resource = SignageRuntime.saveUpload(
-                                        part.originalFileName ?: "resource",
-                                        part.contentType?.toString() ?: "application/octet-stream",
-                                        part.provider().toInputStream()
-                                    )
-                                    uploadedIds += resource.id
-                                    if (resource.id !in existingIds) createdIds += resource.id
+                                    withContext(Dispatchers.IO) {
+                                        val resource = part.provider().toInputStream().use { input ->
+                                            SignageRuntime.saveUpload(
+                                                part.originalFileName ?: "resource",
+                                                part.contentType?.toString() ?: "application/octet-stream",
+                                                input
+                                            )
+                                        }
+                                        // 返回请求协程前登记回滚对象，避免取消时丢失已提交资源。
+                                        uploadedIds += resource.id
+                                        if (resource.id !in existingIds) createdIds += resource.id
+                                    }
                                 } else if (part is PartData.FormItem) {
                                     when (part.name) {
                                         "play" -> shouldPlay = part.value.toBooleanStrictOrNull() ?: shouldPlay
@@ -543,6 +570,10 @@ class KtorSignageServer(context: Context, private val port: Int) {
                         createdPlaylistId?.let(SignageRuntime::deletePlaylist)
                         rollbackCreatedResources(createdIds)
                         call.respondJson(errorJson(error.message ?: "INVALID_UPLOAD"), HttpStatusCode.BadRequest)
+                    } catch (error: CancellationException) {
+                        createdPlaylistId?.let(SignageRuntime::deletePlaylist)
+                        rollbackCreatedResources(createdIds)
+                        throw error
                     } catch (_: Exception) {
                         createdPlaylistId?.let(SignageRuntime::deletePlaylist)
                         rollbackCreatedResources(createdIds)
@@ -1003,13 +1034,24 @@ class KtorSignageServer(context: Context, private val port: Int) {
                 }
             }
         }
-        server.start(wait = false)
+        try {
+            server.start(wait = false)
+        } catch (error: Exception) {
+            SignageRuntime.unregisterStateListener(stateListener)
+            stateUpdates?.close()
+            stateUpdates = null
+            broadcastScope?.cancel()
+            broadcastScope = null
+            throw error
+        }
         engine = server.engine
         broadcastScope?.launch { retryDeviceAssignments() }
     }
 
     fun stop() {
         SignageRuntime.unregisterStateListener(stateListener)
+        stateUpdates?.close()
+        stateUpdates = null
         webSocketSessions.clear()
         broadcastScope?.cancel()
         broadcastScope = null
@@ -1018,7 +1060,7 @@ class KtorSignageServer(context: Context, private val port: Int) {
     }
 
     private fun broadcastState() {
-        broadcastEvent(deviceStatusEventJson())
+        stateUpdates?.trySend(Unit)
     }
 
     private fun broadcastControlSession() {
@@ -1026,12 +1068,27 @@ class KtorSignageServer(context: Context, private val port: Int) {
     }
 
     private fun broadcastEvent(event: String) {
-        broadcastScope?.launch {
-            webSocketSessions.toList().forEach { session ->
-                runCatching { session.send(Frame.Text(event)) }
-                    .onFailure { webSocketSessions.remove(session) }
+        broadcastScope?.launch { sendEvent(event) }
+    }
+
+    private suspend fun sendEvent(event: String) = coroutineScope {
+        webSocketSessions.entries.toList().map { (session, token) ->
+            async {
+                try {
+                    withTimeout(2_000) {
+                        if (SignageRuntime.hasWebAccessToken(token)) session.send(Frame.Text(event))
+                        else {
+                            webSocketSessions.remove(session)
+                            session.close(CloseReason(CloseReason.Codes.VIOLATED_POLICY, "Unauthorized"))
+                        }
+                    }
+                } catch (error: Exception) {
+                    webSocketSessions.remove(session)
+                    session.cancel()
+                    if (error is CancellationException && error !is kotlinx.coroutines.TimeoutCancellationException) throw error
+                }
             }
-        }
+        }.awaitAll()
     }
 
     private suspend fun ApplicationCall.authorized(requireSession: Boolean = true): Boolean {
@@ -1085,7 +1142,7 @@ class KtorSignageServer(context: Context, private val port: Int) {
     }
 
     private suspend fun deployAssignment(assignment: DeviceAssignment) {
-        assignmentMutexes.computeIfAbsent(assignment.deviceId) { Mutex() }.withLock {
+        assignmentMutexes.getOrPut(assignment.deviceId) { Mutex() }.withLock {
             val current = SignageRuntime.deviceAssignment(assignment.deviceId) ?: return@withLock
             if (current.desiredRevision != assignment.desiredRevision || current.state == "APPLIED") return@withLock
             deployCurrentAssignment(current)

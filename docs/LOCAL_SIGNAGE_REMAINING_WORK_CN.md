@@ -1,8 +1,8 @@
 # Local Signage 剩余工作
 
-> 更新日期：2026-08-14
+> 更新日期：2026-09-18
 >
-> 本文只记录尚未实现、尚未完成物理验收或明确延期的内容。支付不在当前范围。
+> 本文只记录尚未实现、尚未完成物理验收或明确延期的内容。商业化代码已包含试用、订阅和永久购买；真实 Google Play 交易验收仍待执行。
 
 ## 1. 当前结论
 
@@ -62,7 +62,7 @@
 | Blur 背景 | 已实现，待真机验收 | Android 12+ 本地图片使用降采样 Bitmap + RenderEffect；低版本、视频、流和 Web 明确降级为背景色，不做高成本实时模糊 |
 | UDP Discovery fallback | 已实现，待双真机验收 | UDP 18080 广播探测，与 NSD 结果合并；报文不含 Token，只接受站点本地 IPv4，60 秒淘汰过期结果 |
 | Web 管理页扩展 | 已实现，待浏览器验收 | 可创建 Remote Web、Local HTML、HLS/DASH/RTSP、Text，并可为 Scene 添加静态文本或跑马灯 Overlay |
-| SQLite schema v6 | 已实现，待升级验收 | 以新增列迁移 Resource kind/source/content/refresh 和 Scene overlays，不重建旧表 |
+| SQLite schema v12 | 已实现，待升级验收 | 包含资源文字样式、设备分配、操作记录与转场字段；已增加 v1→v12 桌面迁移测试，仍需真机覆盖升级 |
 
 第二阶段仍不能标记为商业发布通过。必须完成 HLS/DASH/RTSP 服务端兼容、目标设备 WebView、双真机 UDP、Activity 重建、弱网恢复和 24 小时混合 Playlist 测试。
 
@@ -70,9 +70,9 @@
 
 - 可视化复杂 Scene 编辑器、分屏、排期和统计。
 - TLS 或基于可信网络边界的局域网传输增强。
-- Web 控制台拆为独立前端工程、CSP 和完整多语言。
+- Web 控制台拆为独立前端工程、收紧现有 CSP 的内联脚本例外和完整多语言。
 - MDM/企业分发、远程升级编排和设备策略管理。
-- SQLite/Ktor/播放器的 Android instrumentation 与端到端自动化测试。
+- SQLite/Ktor/播放器的 Android instrumentation 与真机端到端自动化测试；本轮已增加 Robolectric 数据库和真实 HTTP 桌面集成测试。
 
 ## 6. 当前已知边界
 
@@ -80,8 +80,8 @@
 - 动态私网 IP 无法通过 Android Network Security Config 按固定域名或 CIDR 收窄，所以 Manifest 保留应用级明文 HTTP 例外；构建门禁会持续警告，TLS 升级前不得公网暴露。
 - Web Token 与到期时间位于同源 `localStorage`，用于在 8 小时有效期内恢复控制；存储不可用时降级到 `sessionStorage`。控制台仅在临近过期时轮换，服务端有界保留最近 32 个去重后的有效 Token。它仍无法达到 HttpOnly Cookie 的脚本隔离强度。
 - Android 12+ 对后台和开机启动的设备厂商限制需要目标硬件逐台确认。
-- 当前自动化测试集中在纯业务规则；SQLite、Ktor 路由、播放器和双设备链路仍需增加集成测试。
-- 内嵌 Web 管理页已对字符串模板中的业务名称、属性值和事件参数做上下文编码；拆为独立前端时仍应改为 DOM `textContent` 渲染并增加内容安全策略。
+- 当前自动化已覆盖纯规则、SQLite 事务/迁移/并发上传、Ktor HTTP 鉴权/Session/上传和超时命令；硬件解码、WebView 渲染、Android Keystore 和双设备链路仍需真机验证。
+- 内嵌 Web 管理页已对字符串模板中的业务名称、属性值和事件参数做上下文编码；已设置 CSP；拆为独立前端时仍应改为 DOM `textContent` 渲染并移除 `unsafe-inline` 例外。
 - Remote Web 允许 JavaScript 和 DOM Storage 以兼容看板页面，但不提供 JSBridge；页面自身供应链与 CSP 仍由内容提供方负责。
 - RTSP 允许局域网或明确配置的可信主机，当前校验协议、Host 和禁 URL 内嵌凭据；部署仍必须阻止设备访问非预期网络。
 - Android 12 以下和非图片内容的 Blur 降级为 Scene 背景色；这是性能与兼容策略，不属于实时视频模糊。
@@ -91,5 +91,11 @@
 
 1. 完成并留证第一阶段真机验收，修复所有阻断问题。
 2. 按商业清单完成第二阶段 WebView、HLS/DASH/RTSP、Overlay、Blur、UDP 双真机验收。
-3. 增加 SQLite/Ktor 集成测试和 Media3/WebView instrumented smoke test。
+3. 在桌面集成测试基础上补充 Media3/WebView instrumented smoke test、真实支付与设备升级验收。
 4. 在确认部署网络模型后决定 TLS、MDM 和升级编排方案。
+
+## 8. 稳定性优化与发布检查
+
+2026-09-18 的代码优化和验证记录见 `LOCAL_SIGNAGE_STABILITY_OPTIMIZATION_CN.md`。
+可重复的桌面门禁入口为 `.agents/scripts/verify_commercial.ps1`；默认包含签名 Release 构建，开发阶段可用 `-SkipRelease`。
+自动检查通过不代表现场商业验收通过。Git 历史签名材料的处置、目标设备恢复能力和真实支付需分别留证。

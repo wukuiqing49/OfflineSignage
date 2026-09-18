@@ -14,6 +14,7 @@ import android.os.Build
 import android.os.Handler
 import android.os.IBinder
 import android.os.Looper
+import android.util.Log
 import androidx.core.app.NotificationCompat
 import androidx.core.content.ContextCompat
 import com.wkq.localsignage.feature.app.runtime.SignageRuntime
@@ -52,7 +53,13 @@ class SignageService : Service() {
         LocalDeviceDiscovery.start(this, state.deviceId, state.deviceName, SignageRuntime.SERVER_PORT)
         registerNetworkCallback()
         SignagePlaybackController.initialize(this)
-        KtorSignageServerHolder.start(this)
+        try {
+            KtorSignageServerHolder.start(this)
+        } catch (error: Exception) {
+            Log.e(TAG, "LOCAL_SERVER_START_FAILED", error)
+            SignageRuntime.setError("LOCAL_SERVER_START_FAILED")
+            stopSelf()
+        }
     }
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int = START_STICKY
@@ -61,6 +68,7 @@ class SignageService : Service() {
         // 从最近任务移除 Activity 时，继续保持广告机服务；部分厂商会同时回收任务关联服务，
         // 因此主动请求一次前台服务恢复。用户在系统设置中“强行停止”应用时，Android 仍会阻止自动重启。
         runCatching { ContextCompat.startForegroundService(this, Intent(this, SignageService::class.java)) }
+            .onFailure { Log.w(TAG, "SERVICE_RESTART_REJECTED", it) }
         super.onTaskRemoved(rootIntent)
     }
 
@@ -91,7 +99,7 @@ class SignageService : Service() {
                     networkCallback
                 )
             }
-        }
+        }.onFailure { Log.w(TAG, "NETWORK_MONITOR_UNAVAILABLE", it) }
     }
 
     private fun scheduleDiscoveryRestart() {
@@ -115,6 +123,7 @@ class SignageService : Service() {
     }
 
     private companion object {
+        const val TAG = "SignageService"
         const val CHANNEL_ID = "local_signage_service"
         const val NOTIFICATION_ID = 1001
         const val NETWORK_RESTART_DEBOUNCE_MS = 1_500L

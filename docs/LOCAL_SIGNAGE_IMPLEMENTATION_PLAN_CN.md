@@ -6,7 +6,9 @@
 app                         应用壳、Application、Service、Manifest
 core/core_base              WKQ 基础能力包装
 core/core_utils             WKQ 工具能力包装
-feature/feature_res         共享资源和 Web 控制台资源
+core/core_google            Google Play 计费、评价与可选 Google 能力
+feature/feature_res         共享资源与多语言
+feature/feature_app/res/raw 内嵌 Web 控制台与法律文档
 feature/feature_app         本地 Server、领域模型、播放器、状态和页面编排
 ```
 
@@ -62,7 +64,7 @@ feature/feature_app         本地 Server、领域模型、播放器、状态和
 ## 当前模块依赖方向
 
 ```text
-app -> feature_app -> core_base/core_utils
+app -> feature_app -> core_base/core_utils/core_google
 feature_app -> feature_res
 core_* -/-> app 或 feature_app
 feature_res -/-> 功能模块
@@ -87,3 +89,10 @@ feature_res -/-> 功能模块
 - Media3 播放器、Surface 和 Service 生命周期释放。
 - 多 Gateway 下 revision、幂等和 Session 的一致性。
 - NSD 在不同网络、热点和 DHCP 变化下的发现稳定性。
+
+## 商业稳定性收敛（2026-09-18）
+
+沿用现有模块，优先拆职责而非增加模块：上传暂存由 ResourceUploadWriter 处理，进度写入由 CoalescingWriter 合并，遗留资源文件由 ResourceFileMaintenance 回收，设备 HTTP 生命周期由 DeviceHttpTransport 管理。
+主页面继续负责视图绑定，播放器控制器负责播放调度；进度落盘和 WebSocket 状态广播在后台执行。其余同步配置写入与大类拆分需结合性能证据持续推进，不宣称已全面改为异步 MVVM。
+
+测试按纯规则、Robolectric 数据库、真实 HTTP、真机播放分层。桌面测试不得替代设备厂商的后台限制、硬件解码和开机恢复验收。

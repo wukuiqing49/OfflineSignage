@@ -94,7 +94,8 @@
             <LinearLayout
                 android:id="@+id/pairing_header"
                 android:layout_width="match_parent"
-                android:layout_height="56dp"
+                android:layout_height="wrap_content"
+                android:minHeight="56dp"
                 android:gravity="center_vertical"
                 android:orientation="horizontal"
                 android:paddingStart="@dimen/app_spacing_medium"
@@ -140,7 +141,8 @@
                     android:id="@+id/close_pairing_button"
                     style="@style/Widget.Material3.Button.TextButton"
                     android:layout_width="wrap_content"
-                    android:layout_height="48dp"
+                    android:layout_height="wrap_content"
+                    android:minHeight="48dp"
                     android:layout_marginStart="4dp"
                     android:minWidth="0dp"
                     android:text="@string/return_to_playback"
@@ -158,8 +160,7 @@
             <LinearLayout
                 android:id="@+id/pairing_content"
                 android:layout_width="match_parent"
-                android:layout_height="0dp"
-                android:layout_weight="1"
+                android:layout_height="wrap_content"
                 android:baselineAligned="false"
                 android:gravity="center_vertical"
                 android:orientation="horizontal"
@@ -175,7 +176,8 @@
                     <LinearLayout
                         android:id="@+id/open_billing_row"
                         android:layout_width="match_parent"
-                        android:layout_height="48dp"
+                        android:layout_height="wrap_content"
+                        android:minHeight="48dp"
                         android:clickable="true"
                         android:focusable="true"
                         android:foreground="?attr/selectableItemBackground"
@@ -198,9 +200,7 @@
                             android:layout_height="wrap_content"
                             android:layout_marginStart="8dp"
                             android:layout_weight="1"
-                            android:ellipsize="end"
                             android:importantForAccessibility="no"
-                            android:maxLines="1"
                             android:textColor="@color/pairing_text_primary"
                             android:textSize="13sp"
                             android:textStyle="bold" />
@@ -249,29 +249,10 @@
                         android:layout_height="wrap_content"
                         android:layout_marginTop="8dp"
                         android:gravity="center"
-                        android:maxLines="1"
                         android:text="@string/pairing_scan_phone"
                         android:textColor="@color/pairing_text_secondary"
                         android:textSize="13sp" />
 
-                    <com.google.android.material.button.MaterialButton
-                        android:id="@+id/enterprise_contact_button"
-                        style="@style/Widget.Material3.Button.OutlinedButton"
-                        android:layout_width="match_parent"
-                        android:layout_height="wrap_content"
-                        android:layout_marginTop="@dimen/app_spacing_small"
-                        android:ellipsize="end"
-                        android:gravity="center_vertical|start"
-                        android:maxLines="2"
-                        android:minHeight="48dp"
-                        android:minWidth="0dp"
-                        android:text="@string/enterprise_contact_title"
-                        android:textColor="@color/pairing_text_primary"
-                        android:textSize="13sp"
-                        app:icon="@drawable/ic_help_24"
-                        app:iconGravity="textStart"
-                        app:iconTint="@color/pairing_text_secondary"
-                        app:strokeColor="@color/pairing_surface_stroke" />
                 </LinearLayout>
 
                 <LinearLayout
@@ -286,7 +267,6 @@
                     <TextView
                         android:layout_width="match_parent"
                         android:layout_height="wrap_content"
-                        android:maxLines="1"
                         android:text="@string/pairing_connect_title"
                         android:textColor="@color/pairing_text_primary"
                         android:textSize="24sp"
@@ -305,9 +285,7 @@
                         android:layout_width="match_parent"
                         android:layout_height="wrap_content"
                         android:layout_marginTop="2dp"
-                        android:ellipsize="end"
                         android:fontFamily="monospace"
-                        android:maxLines="1"
                         android:textColor="@color/pairing_text_primary"
                         android:textIsSelectable="true"
                         android:textSize="17sp" />
@@ -339,7 +317,6 @@
                         android:layout_width="match_parent"
                         android:layout_height="wrap_content"
                         android:layout_marginTop="2dp"
-                        android:maxLines="2"
                         android:text="@string/pairing_scan_hint"
                         android:textColor="@color/pairing_text_secondary"
                         android:textSize="13sp" />
@@ -355,7 +332,6 @@
                         android:layout_width="match_parent"
                         android:layout_height="wrap_content"
                         android:layout_marginTop="12dp"
-                        android:maxLines="1"
                         android:text="@string/pairing_network_connected"
                         android:textColor="@color/pairing_accent"
                         android:textSize="14sp"
@@ -366,7 +342,6 @@
                         android:layout_width="match_parent"
                         android:layout_height="wrap_content"
                         android:layout_marginTop="4dp"
-                        android:maxLines="2"
                         android:textColor="@color/pairing_text_secondary"
                         android:textIsSelectable="true"
                         android:textSize="13sp"
@@ -376,11 +351,29 @@
                         android:id="@+id/open_hotspot_settings_button"
                         style="@style/Widget.Material3.Button.OutlinedButton"
                         android:layout_width="wrap_content"
-                        android:layout_height="48dp"
+                        android:layout_height="wrap_content"
+                        android:minHeight="48dp"
                         android:layout_marginTop="8dp"
                         android:minWidth="0dp"
                         android:text="@string/open_hotspot_settings"
                         android:textColor="@color/pairing_text_primary"
+                        app:strokeColor="@color/pairing_surface_stroke" />
+
+                    <com.google.android.material.button.MaterialButton
+                        android:id="@+id/enterprise_contact_button"
+                        style="@style/Widget.Material3.Button.OutlinedButton"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:layout_marginTop="@dimen/app_spacing_small"
+                        android:gravity="center_vertical|start"
+                        android:minHeight="48dp"
+                        android:minWidth="0dp"
+                        android:text="@string/enterprise_contact_title"
+                        android:textColor="@color/pairing_text_primary"
+                        android:textSize="13sp"
+                        app:icon="@drawable/ic_help_24"
+                        app:iconGravity="textStart"
+                        app:iconTint="@color/pairing_text_secondary"
                         app:strokeColor="@color/pairing_surface_stroke" />
                 </LinearLayout>
             </LinearLayout>

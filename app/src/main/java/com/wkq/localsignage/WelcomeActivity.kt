@@ -57,6 +57,11 @@ class WelcomeActivity : BaseActivity<ActivityWelcomeBinding>() {
             markWelcomeCompleted()
             openPlayer()
         }
+        if (resources.configuration.uiMode and Configuration.UI_MODE_TYPE_MASK ==
+            Configuration.UI_MODE_TYPE_TELEVISION
+        ) {
+            binding.startButton.post { binding.startButton.requestFocus() }
+        }
     }
 
     override fun initData() = Unit

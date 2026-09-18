@@ -1,10 +1,12 @@
 package com.wkq.localsignage
 
+import android.content.res.Configuration
 import com.wkq.base.activity.BaseActivity
 import com.wkq.localsignage.feature.app.databinding.ActivityHelpBinding
 
 class HelpActivity : BaseActivity<ActivityHelpBinding>() {
     override fun initView() {
+        binding.toolbar.wrapTitle()
         enableEdgeToEdgeSystemBars(binding.toolbarContainer)
         binding.toolbarContainer.applySystemBarPadding(horizontal = true)
         binding.helpScroll.applySystemBarPadding(bottom = true, horizontal = true)
@@ -21,6 +23,11 @@ class HelpActivity : BaseActivity<ActivityHelpBinding>() {
         binding.purchaseButton.setOnClickListener { openArticle(HelpArticleActivity.ARTICLE_PURCHASE) }
         binding.legalButton.setOnClickListener {
             startActivity(android.content.Intent(this, LegalCenterActivity::class.java))
+        }
+        if (resources.configuration.uiMode and Configuration.UI_MODE_TYPE_MASK ==
+            Configuration.UI_MODE_TYPE_TELEVISION
+        ) {
+            binding.quickStartButton.post { binding.quickStartButton.requestFocus() }
         }
     }
 

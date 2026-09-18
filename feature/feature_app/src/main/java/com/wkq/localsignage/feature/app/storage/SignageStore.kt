@@ -45,25 +45,66 @@ import java.net.HttpURLConnection
 import java.net.InetAddress
 import java.net.URI
 import java.net.URL
-import java.nio.file.Files
-import java.nio.file.StandardCopyOption
+import java.io.IOException
 import java.security.MessageDigest
 import java.security.SecureRandom
 import java.util.UUID
+import java.util.concurrent.Executors
+import java.util.concurrent.TimeUnit
 
 data class TemporaryPairingToken(val token: String, val expiresAt: Long)
 data class ResourceStorageSummary(val usedBytes: Long, val availableBytes: Long, val quotaBytes: Long)
 
 /** Transactional local store for durable signage state and content metadata. */
-class SignageStore(context: Context) {
+class SignageStore(context: Context) : java.io.Closeable {
     private val appContext = context.applicationContext
     private val database = SignageDatabase(appContext)
     private val lock = Any()
     private val resourceDirectory = File(appContext.filesDir, "shared/resources").apply { mkdirs() }
     private val resourceRoot = resourceDirectory.canonicalFile
+    private var positionMs = 0L
+    private var positionRevision = 0L
+    private var checkpointError: String? = null
+    private val checkpointExecutor = Executors.newSingleThreadExecutor { task ->
+        Thread(task, "signage-checkpoint").apply { isDaemon = true }
+    }
+    private val positionWriter = CoalescingWriter<Pair<Long, Long>>(
+        checkpointExecutor,
+        write = { (revision, position) ->
+            synchronized(lock) {
+                if (revision == positionRevision) {
+                    setMeta(database.writableDatabase, KEY_POSITION, position.toString())
+                    checkpointError = null
+                }
+            }
+        },
+        onError = {
+            synchronized(lock) { checkpointError = "PLAYBACK_CHECKPOINT_WRITE_FAILED" }
+            Log.e(TAG, "PLAYBACK_CHECKPOINT_WRITE_FAILED", it)
+        }
+    )
 
     init {
         migrateLegacyPreferences()
+        positionMs = getMeta(database.readableDatabase, KEY_POSITION)?.toLongOrNull() ?: 0L
+        checkpointExecutor.execute {
+            try {
+                val referenced = synchronized(lock) {
+                    readResources(database.readableDatabase).filter { it.isLocalFile }
+                        .mapTo(mutableSetOf()) { File(it.path).canonicalPath }
+                }
+                ResourceFileMaintenance.clean(resourceDirectory, referenced)
+            } catch (error: Exception) {
+                Log.e(TAG, "RESOURCE_MAINTENANCE_FAILED", error)
+            }
+        }
+    }
+
+    /** 仅在不再接受读写后关闭；应用运行时的 Store 与进程同寿命。 */
+    override fun close() {
+        checkpointExecutor.shutdown()
+        check(checkpointExecutor.awaitTermination(5, TimeUnit.SECONDS)) { "Checkpoint writer did not stop" }
+        synchronized(lock) { database.close() }
     }
 
     fun ensureDefaultContent() = synchronized(lock) {
@@ -438,10 +479,10 @@ class SignageStore(context: Context) {
     fun commitCommandRevision(revision: Long?): Boolean = acceptCommandRevision(revision)
 
     fun resources(): List<SignageResource> = synchronized(lock) { readResources(database.readableDatabase) }
-    fun resource(id: String?): SignageResource? = synchronized(lock) { readResources(database.readableDatabase).firstOrNull { it.id == id } }
+    fun resource(id: String?): SignageResource? = synchronized(lock) { readResources(database.readableDatabase, "id = ?", arrayOf(id.orEmpty())).firstOrNull() }
     fun resourceByHash(hash: String?): SignageResource? = synchronized(lock) {
         val normalized = hash?.trim()?.lowercase()?.takeIf { it.matches(SHA256_PATTERN) } ?: return@synchronized null
-        readResources(database.readableDatabase).firstOrNull { it.hash == normalized }
+        readResources(database.readableDatabase, "hash = ?", arrayOf(normalized)).firstOrNull()
     }
 
     fun fileFor(resource: SignageResource): File {
@@ -490,7 +531,7 @@ class SignageStore(context: Context) {
     }
 
     fun scenes(): List<SignageScene> = synchronized(lock) { readScenes(database.readableDatabase) }
-    fun scene(id: String?): SignageScene? = synchronized(lock) { readScenes(database.readableDatabase).firstOrNull { it.id == id } }
+    fun scene(id: String?): SignageScene? = synchronized(lock) { readScenes(database.readableDatabase, "id = ?", arrayOf(id.orEmpty())).firstOrNull() }
     fun playlists(): List<SignagePlaylist> = synchronized(lock) { readPlaylists(database.readableDatabase) }
     fun playlist(id: String?): SignagePlaylist? = synchronized(lock) { readPlaylists(database.readableDatabase).firstOrNull { it.id == id } }
 
@@ -514,6 +555,8 @@ class SignageStore(context: Context) {
             setMeta(this, KEY_CURRENT_PLAYLIST, playlistId)
             setMeta(this, KEY_POSITION, "0")
         }
+        positionRevision += 1
+        positionMs = 0L
     }
 
     fun saveScene(scene: SignageScene): SignageScene = synchronized(lock) {
@@ -589,7 +632,7 @@ class SignageStore(context: Context) {
         val hash = MessageDigest.getInstance("SHA-256").digest(identity.toByteArray())
             .joinToString("") { "%02x".format(it) }
         database.writableDatabase.inTransaction {
-            val existing = readResources(this).firstOrNull { it.hash == hash }
+            val existing = readResources(this, "hash = ?", arrayOf(hash)).firstOrNull()
             if (existing != null) {
                 ensureDefaultScene(this, existing)
                 existing
@@ -683,7 +726,7 @@ class SignageStore(context: Context) {
             .digest("REMOTE_FILE\u0000$mimeType\u0000$normalizedUri".toByteArray())
             .joinToString("") { "%02x".format(it) }
         database.writableDatabase.inTransaction {
-            val existing = readResources(this).firstOrNull { it.hash == hash }
+            val existing = readResources(this, "hash = ?", arrayOf(hash)).firstOrNull()
             if (existing != null) {
                 ensureDefaultScene(this, existing)
                 existing
@@ -725,60 +768,45 @@ class SignageStore(context: Context) {
             saveUpload(name, mimeType, input)
         }
 
-    fun saveUpload(name: String, mimeType: String, input: InputStream): SignageResource = synchronized(lock) {
+    fun saveUpload(name: String, mimeType: String, input: InputStream): SignageResource {
         val normalizedMimeType = supportedUploadMimeType(name, mimeType)
         require(normalizedMimeType != null) {
             "Only image and video resources are supported"
         }
         val id = UUID.randomUUID().toString()
-        val safeName = name.replace(Regex("[^A-Za-z0-9._-]"), "_").ifBlank { "resource" }
-        val temporary = File(resourceDirectory, ".upload-$id.tmp")
-        var committedFile: File? = null
-        try {
-            val digest = MessageDigest.getInstance("SHA-256")
-            var size = 0L
-            temporary.outputStream().buffered().use { output ->
-                val buffer = ByteArray(DEFAULT_BUFFER_SIZE)
-                while (true) {
-                    val count = input.read(buffer)
-                    if (count < 0) break
-                    if (count == 0) continue
-                    size += count
-                    require(size <= MAX_RESOURCE_BYTES) { "Resource is too large" }
-                    digest.update(buffer, 0, count)
-                    output.write(buffer, 0, count)
+        // 展示名称保留国际化文字；磁盘文件名独立规范化，避免路径和文件名字节长度风险。
+        val displayName = name.substringAfterLast('/').substringAfterLast('\\')
+            .filterNot { it.isISOControl() }.trim().take(MAX_RESOURCE_NAME_LENGTH)
+            .trimEnd { it.isHighSurrogate() }.ifBlank { "resource" }
+        val safeName = displayName.replace(Regex("[^A-Za-z0-9._-]"), "_")
+        return ResourceUploadWriter(resourceDirectory, lock, MAX_RESOURCE_BYTES).save(input) { temporary, hash, size ->
+            var committedFile: File? = null
+            try {
+                database.writableDatabase.inTransaction {
+                    // 在提交锁内去重、复核配额，避免并发上传突破配额；重复文件不占新额度。
+                    val duplicate = readResources(this, "hash = ?", arrayOf(hash)).firstOrNull()
+                    if (duplicate != null) {
+                        ensureDefaultScene(this, duplicate)
+                        return@inTransaction duplicate
+                    }
+                    require(totalResourceBytes(this) + size <= MAX_TOTAL_RESOURCE_BYTES) {
+                        "Resource storage quota exceeded"
+                    }
+                    val resource = SignageResource(id, displayName, normalizedMimeType, File(resourceDirectory, "${id}_$safeName").absolutePath, hash, size, System.currentTimeMillis())
+                    // 同目录重命名避免复制半成品，并兼容 API 23-25。
+                    if (!temporary.renameTo(File(resource.path))) throw IOException("RESOURCE_COMMIT_FAILED")
+                    committedFile = File(resource.path)
+                    insertResource(this, resource)
+                    val scene = SignageScene(UUID.randomUUID().toString(), resource.name, resource.id)
+                    insertScene(this, scene)
+                    if (getMeta(this, KEY_CURRENT_RESOURCE) == null) setMeta(this, KEY_CURRENT_RESOURCE, resource.id)
+                    if (getMeta(this, KEY_CURRENT_SCENE) == null) setMeta(this, KEY_CURRENT_SCENE, scene.id)
+                    resource
                 }
+            } catch (error: Exception) {
+                committedFile?.delete()
+                throw error
             }
-            val hash = digest.digest().joinToString("") { "%02x".format(it) }
-            database.writableDatabase.inTransaction {
-                require(totalResourceBytes(this) - 0L + size <= MAX_TOTAL_RESOURCE_BYTES) {
-                    "Resource storage quota exceeded"
-                }
-                val duplicate = readResources(this).firstOrNull { it.hash == hash }
-                if (duplicate != null) {
-                    ensureDefaultScene(this, duplicate)
-                    return@inTransaction duplicate
-                }
-                val resource = SignageResource(id, safeName, normalizedMimeType, File(resourceDirectory, "${id}_$safeName").absolutePath, hash, size, System.currentTimeMillis())
-                try {
-                    Files.move(temporary.toPath(), File(resource.path).toPath(), StandardCopyOption.ATOMIC_MOVE)
-                } catch (_: java.nio.file.AtomicMoveNotSupportedException) {
-                    Files.move(temporary.toPath(), File(resource.path).toPath(), StandardCopyOption.REPLACE_EXISTING)
-                }
-                committedFile = File(resource.path)
-                insertResource(this, resource)
-                val scene = SignageScene(UUID.randomUUID().toString(), resource.name, resource.id)
-                insertScene(this, scene)
-                if (getMeta(this, KEY_CURRENT_RESOURCE) == null) setMeta(this, KEY_CURRENT_RESOURCE, resource.id)
-                if (getMeta(this, KEY_CURRENT_SCENE) == null) setMeta(this, KEY_CURRENT_SCENE, scene.id)
-                resource
-            }
-        } catch (error: Exception) {
-            temporary.delete()
-            committedFile?.delete()
-            throw error
-        } finally {
-            temporary.delete()
         }
     }
 
@@ -808,7 +836,7 @@ class SignageStore(context: Context) {
                         continue
                     }
                     if (status !in 200..299) throw IllegalArgumentException("REMOTE_HTTP_$status")
-                    val contentLength = connection.contentLengthLong
+                    val contentLength = connection.getHeaderField("Content-Length")?.toLongOrNull() ?: -1L
                     require(contentLength <= MAX_RESOURCE_BYTES) { "REMOTE_RESOURCE_TOO_LARGE" }
                     name = name ?: remoteFileName(current)
                     mimeType = remoteMimeType(connection.contentType, name, current)
@@ -870,8 +898,8 @@ class SignageStore(context: Context) {
             getMeta(database.readableDatabase, KEY_PLAYING)?.toBoolean() ?: false,
             getMeta(database.readableDatabase, KEY_VOLUME)?.toIntOrNull() ?: 80,
             getMeta(database.readableDatabase, KEY_MUTED)?.toBoolean() ?: false,
-            getMeta(database.readableDatabase, KEY_POSITION)?.toLongOrNull() ?: 0L,
-            getMeta(database.readableDatabase, KEY_ERROR), port,
+            positionMs,
+            checkpointError ?: getMeta(database.readableDatabase, KEY_ERROR), port,
             getMeta(database.readableDatabase, KEY_COMMAND_REVISION)?.toLongOrNull() ?: 0L
         )
     }
@@ -879,7 +907,11 @@ class SignageStore(context: Context) {
     fun setPlaying(value: Boolean) = synchronized(lock) { setMeta(database.writableDatabase, KEY_PLAYING, value.toString()) }
     fun setVolume(value: Int) = synchronized(lock) { setMeta(database.writableDatabase, KEY_VOLUME, value.coerceIn(0, 100).toString()) }
     fun setMuted(value: Boolean) = synchronized(lock) { setMeta(database.writableDatabase, KEY_MUTED, value.toString()) }
-    fun setPosition(value: Long) = synchronized(lock) { setMeta(database.writableDatabase, KEY_POSITION, value.coerceAtLeast(0L).toString()) }
+    fun setPosition(value: Long) = synchronized(lock) {
+        positionMs = value.coerceAtLeast(0L)
+        positionRevision += 1
+        positionWriter.submit(positionRevision to positionMs)
+    }
     fun setError(value: String?) = synchronized(lock) { setMeta(database.writableDatabase, KEY_ERROR, value) }
 
     fun settings(): SignageSettings = synchronized(lock) {
@@ -1062,8 +1094,8 @@ class SignageStore(context: Context) {
         }
     }
 
-    private fun readResources(db: SQLiteDatabase): List<SignageResource> = buildList {
-        db.query("resources", RESOURCE_COLUMNS, null, null, null, null, "created_at ASC").use { cursor ->
+    private fun readResources(db: SQLiteDatabase, selection: String? = null, args: Array<String>? = null): List<SignageResource> = buildList {
+        db.query("resources", RESOURCE_COLUMNS, selection, args, null, null, "created_at ASC").use { cursor ->
             while (cursor.moveToNext()) add(SignageResource(
                 id = cursor.getString(0),
                 name = cursor.getString(1),
@@ -1142,8 +1174,8 @@ class SignageStore(context: Context) {
         return replacement
     }
 
-    private fun readScenes(db: SQLiteDatabase): List<SignageScene> = buildList {
-        db.query("scenes", SCENE_COLUMNS, null, null, null, null, "created_at ASC").use { cursor ->
+    private fun readScenes(db: SQLiteDatabase, selection: String? = null, args: Array<String>? = null): List<SignageScene> = buildList {
+        db.query("scenes", SCENE_COLUMNS, selection, args, null, null, "created_at ASC").use { cursor ->
             while (cursor.moveToNext()) add(SignageScene(
                 id = cursor.getString(0),
                 name = cursor.getString(1),
@@ -1315,7 +1347,13 @@ class SignageStore(context: Context) {
         else -> "application/x-rtsp"
     }
     private fun getMeta(db: SQLiteDatabase, key: String): String? = db.query("meta", arrayOf("value"), "key = ?", arrayOf(key), null, null, null).use { if (it.moveToFirst()) it.getString(0) else null }
-    private fun setMeta(db: SQLiteDatabase, key: String, value: String?) { if (value == null) delete(db, "meta", "key = ?", arrayOf(key)) else db.insertWithOnConflict("meta", null, ContentValues().apply { put("key", key); put("value", value) }, SQLiteDatabase.CONFLICT_REPLACE) }
+    private fun setMeta(db: SQLiteDatabase, key: String, value: String?) {
+        if (getMeta(db, key) == value) return
+        if (value == null) delete(db, "meta", "key = ?", arrayOf(key))
+        else check(db.insertWithOnConflict("meta", null, ContentValues().apply {
+            put("key", key); put("value", value)
+        }, SQLiteDatabase.CONFLICT_REPLACE) != -1L) { "METADATA_WRITE_FAILED" }
+    }
     private fun delete(db: SQLiteDatabase, table: String, where: String, args: Array<String>) { db.delete(table, where, args) }
     private fun normalizeMimeType(value: String) = value.lowercase().substringBefore(';')
     private fun supportedUploadMimeType(name: String, mimeType: String): String? {

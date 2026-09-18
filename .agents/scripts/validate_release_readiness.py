@@ -27,6 +27,7 @@ def parse_args() -> argparse.Namespace:
         help="APK to inspect for packaged locales.",
     )
     parser.add_argument("--require-apk", action="store_true", help="Fail when the APK is missing.")
+    parser.add_argument("--require-tests", action="store_true", help="Require nonempty passing unit-test reports for app, feature_app and core_google.")
     return parser.parse_args()
 
 
@@ -82,13 +83,47 @@ def check_android_config(root: Path, errors: list[str]) -> None:
         errors.append("AndroidManifest.xml must declare dataExtractionRules")
 
 
-def check_apk_locales(apk: Path, errors: list[str], warnings: list[str]) -> None:
+def check_signing_material(root: Path, errors: list[str], warnings: list[str]) -> None:
+    """Only inspect tracked paths; never read or print signing credentials."""
+    if shutil.which("git") is None:
+        warnings.append("git not found, skipped tracked signing-material inspection")
+        return
+    result = subprocess.run(
+        ["git", "-C", str(root), "ls-files", "-z", "--",
+         "keystore.properties", "*.jks", "*.keystore", "*.p12", "*.pfx"],
+        capture_output=True, text=True, encoding="utf-8", errors="replace",
+    )
+    if result.returncode != 0:
+        errors.append("Unable to inspect tracked signing material with git ls-files")
+        return
+    tracked = [path for path in result.stdout.split("\0") if path]
+    if tracked:
+        errors.append("Signing material must not be tracked by Git: " + ", ".join(tracked))
+
+
+def check_test_results(root: Path, errors: list[str]) -> None:
+    for module in ("app", "feature/feature_app", "core/core_google"):
+        reports = list((root / module / "build/test-results/testDebugUnitTest").glob("TEST-*.xml"))
+        total = 0
+        for report in reports:
+            try:
+                suite = ET.parse(report).getroot()
+                total += int(suite.get("tests", "0"))
+                if any(int(suite.get(key, "0")) for key in ("failures", "errors", "skipped")):
+                    errors.append(f"Tests did not fully pass: {module}/{report.name}")
+            except (ET.ParseError, ValueError, OSError):
+                errors.append(f"Invalid test report: {module}/{report.name}")
+        if total == 0:
+            errors.append(f"No executed tests found for {module}; NO-SOURCE is not a passing test run")
+
+
+def check_apk_locales(apk: Path, errors: list[str], warnings: list[str], require_tools: bool = False) -> None:
     if not apk.is_file():
         warnings.append(f"APK not found, skipped packaged-locale inspection: {apk}")
         return
     aapt2 = find_aapt2()
     if aapt2 is None:
-        warnings.append("aapt2 not found, skipped packaged-locale inspection")
+        (errors if require_tools else warnings).append("aapt2 not found, skipped packaged-locale inspection")
         return
     result = subprocess.run(
         [str(aapt2), "dump", "resources", str(apk)],
@@ -112,11 +147,14 @@ def main() -> int:
     apk = (root / args.apk).resolve()
     errors: list[str] = []
     warnings: list[str] = []
+    check_signing_material(root, errors, warnings)
     check_android_config(root, errors)
+    if args.require_tests:
+        check_test_results(root, errors)
     if args.require_apk and not apk.is_file():
         errors.append(f"required APK does not exist: {apk}")
     else:
-        check_apk_locales(apk, errors, warnings)
+        check_apk_locales(apk, errors, warnings, require_tools=args.require_apk)
     for warning in warnings:
         print(f"WARN: {warning}")
     for error in errors:

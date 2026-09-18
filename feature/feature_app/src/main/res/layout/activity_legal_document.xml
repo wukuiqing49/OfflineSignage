@@ -16,7 +16,8 @@
         <com.google.android.material.appbar.MaterialToolbar
             android:id="@+id/toolbar"
             android:layout_width="match_parent"
-            android:layout_height="56dp"
+            android:layout_height="wrap_content"
+            android:minHeight="56dp"
             app:navigationIcon="@drawable/ic_arrow_back_24"
             app:titleTextColor="@color/billing_text_primary" />
     </FrameLayout>

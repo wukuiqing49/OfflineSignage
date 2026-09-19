@@ -76,9 +76,11 @@ class MainActivity : BaseActivity<ActivityMainBinding>(), PlaybackListener {
             pairingHandler.postDelayed(this, PAIRING_REFRESH_INTERVAL_MS)
         }
     }
+    private val trialExpiryRefresh = Runnable {
+        MonetizationRepository.refresh(loadCatalog = false)
+    }
 
     override fun initView() {
-        requestedOrientation = ActivityInfo.SCREEN_ORIENTATION_LANDSCAPE
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) {
             window.attributes = window.attributes.apply {
                 layoutInDisplayCutoutMode = WindowManager.LayoutParams.LAYOUT_IN_DISPLAY_CUTOUT_MODE_SHORT_EDGES
@@ -212,9 +214,6 @@ class MainActivity : BaseActivity<ActivityMainBinding>(), PlaybackListener {
     override fun onStateChanged(state: SignageState) {
         runOnUiThread {
             if (isFinishing || isDestroyed) return@runOnUiThread
-            if (state.playing && state.currentResourceId != null) {
-                pairingManuallyOpened = false
-            }
             binding.pauseResumeButton.setIconResource(
                 if (state.playing) android.R.drawable.ic_media_pause else android.R.drawable.ic_media_play
             )
@@ -226,7 +225,6 @@ class MainActivity : BaseActivity<ActivityMainBinding>(), PlaybackListener {
 
     override fun onResume() {
         super.onResume()
-        requestedOrientation = ActivityInfo.SCREEN_ORIENTATION_LANDSCAPE
         applyDisplaySettings()
         pairingHandler.removeCallbacks(pairingRefresh)
         pairingHandler.post(pairingRefresh)
@@ -236,6 +234,7 @@ class MainActivity : BaseActivity<ActivityMainBinding>(), PlaybackListener {
     override fun onPause() {
         pairingHandler.removeCallbacks(pairingRefresh)
         pairingHandler.removeCallbacks(hidePlaybackControls)
+        pairingHandler.removeCallbacks(trialExpiryRefresh)
         super.onPause()
     }
 
@@ -409,6 +408,12 @@ class MainActivity : BaseActivity<ActivityMainBinding>(), PlaybackListener {
 
     private fun applyDisplaySettings() {
         val settings = SignageRuntime.settings()
+        val targetOrientation = when (settings.orientation) {
+            "LANDSCAPE" -> ActivityInfo.SCREEN_ORIENTATION_LANDSCAPE
+            "PORTRAIT" -> ActivityInfo.SCREEN_ORIENTATION_PORTRAIT
+            else -> ActivityInfo.SCREEN_ORIENTATION_UNSPECIFIED
+        }
+        if (requestedOrientation != targetOrientation) requestedOrientation = targetOrientation
         if (appliedKeepScreenAwake != settings.keepScreenAwake) {
             if (settings.keepScreenAwake) {
                 window.addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
@@ -466,8 +471,9 @@ class MainActivity : BaseActivity<ActivityMainBinding>(), PlaybackListener {
 
     private fun renderMonetization() {
         val pairingVisible = binding.pairingPanel.isVisible
+        val trialExpired = entitlementState.type == EntitlementType.TRIAL_EXPIRED
         binding.trialExpiredBadge.isVisible =
-            entitlementState.type == EntitlementType.TRIAL_EXPIRED && !pairingVisible
+            trialExpired && !pairingVisible
         val (compactStatus, accessibleStatus, statusColor) = when (entitlementState.type) {
             EntitlementType.TRIAL_ACTIVE -> {
                 val remainingMillis = max(
@@ -511,6 +517,10 @@ class MainActivity : BaseActivity<ActivityMainBinding>(), PlaybackListener {
             )
         }
         binding.entitlementStatus.text = compactStatus
+        binding.entitlementUpgradeHint.isVisible = trialExpired
+        binding.openBillingRow.setBackgroundResource(
+            if (trialExpired) FeatureAppR.drawable.bg_entitlement_upgrade else android.R.color.transparent
+        )
         binding.entitlementIcon.imageTintList = ColorStateList.valueOf(
             ContextCompat.getColor(this, statusColor)
         )
@@ -518,11 +528,20 @@ class MainActivity : BaseActivity<ActivityMainBinding>(), PlaybackListener {
             FeatureAppR.string.device_license_status_action,
             accessibleStatus
         )
+        pairingHandler.removeCallbacks(trialExpiryRefresh)
+        if (entitlementState.type == EntitlementType.TRIAL_ACTIVE) {
+            val refreshDelay = max(
+                1_000L,
+                entitlementState.trialEndsAtEpochMillis - System.currentTimeMillis() + 1_000L
+            )
+            pairingHandler.postDelayed(trialExpiryRefresh, refreshDelay)
+        }
     }
 
     override fun onDestroy() {
         pairingHandler.removeCallbacks(pairingRefresh)
         pairingHandler.removeCallbacks(hidePlaybackControls)
+        pairingHandler.removeCallbacks(trialExpiryRefresh)
         SignagePlaybackController.detach(playbackViews)
         window.clearFlags(android.view.WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
         super.onDestroy()

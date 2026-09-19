@@ -24,6 +24,7 @@ data class SignageResource(
     val isLocalFile: Boolean get() = kind == ResourceKind.LOCAL_FILE.name
     val isRemoteFile: Boolean get() = kind == ResourceKind.REMOTE_FILE.name
     val isWeb: Boolean get() = kind == ResourceKind.WEB.name
+    val isLocalWebPackage: Boolean get() = isWeb && path.isNotBlank()
     val isStream: Boolean get() = kind == ResourceKind.STREAM.name
     val isText: Boolean get() = kind == ResourceKind.TEXT.name
 }
@@ -117,7 +118,8 @@ data class SignageSettings(
     val fallbackSceneId: String? = null,
     val keepScreenAwake: Boolean = true,
     val autoResume: Boolean = true,
-    val fullscreen: Boolean = true
+    val fullscreen: Boolean = true,
+    val orientation: String = "AUTO"
 )
 
 data class PlaybackErrorRecord(

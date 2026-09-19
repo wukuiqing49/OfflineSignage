@@ -33,9 +33,7 @@ import kotlin.math.max
 
 class BillingActivity : BaseActivity<ActivityBillingBinding>() {
     private val viewModel by viewModels<BillingViewModel>()
-    private var monthlyProduct: GoogleProduct? = null
     private var subscriptionProduct: GoogleProduct? = null
-    private var lifetimeProduct: GoogleProduct? = null
     private var hasPositionedContent = false
 
     override fun initView() {
@@ -52,9 +50,10 @@ class BillingActivity : BaseActivity<ActivityBillingBinding>() {
         }
         binding.toolbar.setNavigationOnClickListener { finish() }
         binding.planContainer.doOnLayout { configurePlanLayout(it.width) }
-        binding.monthlyButton.setOnClickListener { monthlyProduct?.let(::launchPurchase) }
         binding.subscriptionButton.setOnClickListener { subscriptionProduct?.let(::launchPurchase) }
-        binding.lifetimeButton.setOnClickListener { lifetimeProduct?.let(::launchPurchase) }
+        // Launch offer: annual only. Legacy monthly and lifetime purchases are still restored by the repository.
+        binding.monthlyPanel.visibility = View.GONE
+        binding.lifetimePanel.visibility = View.GONE
         binding.restoreButton.setOnClickListener { viewModel.refresh() }
         binding.manageSubscriptionButton.setOnClickListener { openSubscriptionManagement() }
         binding.legalCenterButton.setOnClickListener {
@@ -78,9 +77,7 @@ class BillingActivity : BaseActivity<ActivityBillingBinding>() {
         val compact = availableWidth / resources.configuration.fontScale.coerceAtLeast(1f) <
             resources.getDimensionPixelSize(R.dimen.billing_compact_breakpoint)
         binding.planContainer.orientation = if (compact) LinearLayout.VERTICAL else LinearLayout.HORIZONTAL
-        configurePlanPanel(binding.monthlyPanel, compact, first = true)
-        configurePlanPanel(binding.subscriptionPanel, compact, first = false)
-        configurePlanPanel(binding.lifetimePanel, compact, first = false)
+        configurePlanPanel(binding.subscriptionPanel, compact, first = true)
     }
 
     private fun configurePlanPanel(view: View, compact: Boolean, first: Boolean) {
@@ -93,32 +90,16 @@ class BillingActivity : BaseActivity<ActivityBillingBinding>() {
     }
 
     private fun render(state: MonetizationUiState) {
-        monthlyProduct = state.catalog.subscriptions.firstOrNull {
-            it.baseProductId == MonetizationRepository.PRO_SUBSCRIPTION_ID &&
-                it.basePlanId == MonetizationRepository.MONTHLY_BASE_PLAN_ID
-        }
         subscriptionProduct = state.catalog.subscriptions.firstOrNull {
             it.baseProductId == MonetizationRepository.PRO_SUBSCRIPTION_ID &&
                 it.basePlanId == MonetizationRepository.YEARLY_BASE_PLAN_ID
-        } ?: state.catalog.subscriptions.firstOrNull {
-            it.baseProductId == MonetizationRepository.PRO_SUBSCRIPTION_ID
         }
-        lifetimeProduct = state.catalog.oneTimeProducts.firstOrNull {
-            it.baseProductId == MonetizationRepository.LIFETIME_PRODUCT_ID
-        }
-        val catalogReady = monthlyProduct != null &&
-            subscriptionProduct != null &&
-            lifetimeProduct != null &&
-            state.errorMessage.isBlank()
+        val catalogReady = subscriptionProduct != null && state.errorMessage.isBlank()
         val showLoading = state.loading || !state.catalogLoaded
 
         binding.entitlementStatus.text = entitlementText(state.entitlement)
-        binding.monthlyPrice.text = monthlyProduct?.displayPrice().orEmpty()
         binding.subscriptionPrice.text = subscriptionProduct?.displayPrice().orEmpty()
-        binding.lifetimePrice.text = lifetimeProduct?.displayPrice().orEmpty()
-        binding.monthlyButton.isEnabled = monthlyProduct != null && !state.loading
         binding.subscriptionButton.isEnabled = subscriptionProduct != null && !state.loading
-        binding.lifetimeButton.isEnabled = lifetimeProduct != null && !state.loading
         binding.restoreButton.isEnabled = !state.loading
         binding.contentScroll.visibility = if (showLoading) View.INVISIBLE else View.VISIBLE
         binding.progressIndicator.visibility = if (showLoading) View.VISIBLE else View.GONE

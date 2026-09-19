@@ -57,6 +57,7 @@ object SignageRuntime {
     fun resource(id: String?): SignageResource? = requireStore().resource(id)
     fun resourceByHash(hash: String?): SignageResource? = requireStore().resourceByHash(hash)
     fun fileFor(resource: SignageResource) = requireStore().fileFor(resource)
+    fun webPackageFile(resource: SignageResource, relativePath: String) = requireStore().webPackageFile(resource, relativePath)
     fun mediaDetails(resource: SignageResource): ResourceMediaDetails = requireStore().mediaDetails(resource)
     fun scenes(): List<SignageScene> = requireStore().scenes()
     fun scene(id: String?): SignageScene? = requireStore().scene(id)
@@ -125,6 +126,9 @@ object SignageRuntime {
 
     fun saveUpload(name: String, mimeType: String, input: InputStream): SignageResource =
         requireStore().saveUpload(name, mimeType, input).also { notifyContentChanged() }
+
+    fun saveWebPackage(name: String, input: InputStream): SignageResource =
+        requireStore().saveWebPackage(name, input).also { notifyContentChanged() }
 
     fun saveRemote(url: String, name: String? = null): SignageResource =
         requireStore().saveRemote(url, name).also { notifyContentChanged() }

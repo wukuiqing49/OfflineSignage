@@ -40,12 +40,14 @@ import org.json.JSONArray
 import org.json.JSONObject
 import java.io.File
 import java.io.FileInputStream
+import java.io.BufferedInputStream
 import java.io.InputStream
 import java.net.HttpURLConnection
 import java.net.InetAddress
 import java.net.URI
 import java.net.URL
 import java.io.IOException
+import java.util.zip.ZipInputStream
 import java.security.MessageDigest
 import java.security.SecureRandom
 import java.util.UUID
@@ -494,6 +496,75 @@ class SignageStore(context: Context) : java.io.Closeable {
         return file
     }
 
+    fun webPackageFile(resource: SignageResource, relativePath: String): File {
+        require(resource.isLocalWebPackage) { "Resource is not a local web package" }
+        val root = File(resource.path).canonicalFile
+        require(root.path.startsWith(resourceRoot.path + File.separator)) { "Web package is outside the managed directory" }
+        val file = File(root, relativePath.ifBlank { "index.html" }).canonicalFile
+        require(file.path == root.path || file.path.startsWith(root.path + File.separator)) { "Invalid web package path" }
+        return file
+    }
+
+    fun saveWebPackage(name: String, input: InputStream): SignageResource = synchronized(lock) {
+        val id = UUID.randomUUID().toString()
+        val displayName = name.substringAfterLast('/').substringAfterLast('\\').removeSuffix(".zip")
+            .filterNot { it.isISOControl() }.trim().take(MAX_RESOURCE_NAME_LENGTH).ifBlank { "Web package" }
+        val root = File(resourceDirectory, "${id}_site")
+        var totalBytes = 0L
+        var entries = 0
+        try {
+            require(root.mkdirs()) { "WEB_PACKAGE_CREATE_FAILED" }
+            ZipInputStream(BufferedInputStream(input)).use { zip ->
+                while (true) {
+                    val entry = zip.nextEntry ?: break
+                    if (entry.isDirectory) continue
+                    entries += 1
+                    require(entries <= MAX_WEB_PACKAGE_FILES) { "WEB_PACKAGE_TOO_MANY_FILES" }
+                    val relative = entry.name.replace('\\', '/').trimStart('/')
+                    require(relative.isNotBlank() && !relative.split('/').contains("..")) { "WEB_PACKAGE_PATH_INVALID" }
+                    val target = File(root, relative).canonicalFile
+                    require(target.path.startsWith(root.canonicalPath + File.separator)) { "WEB_PACKAGE_PATH_INVALID" }
+                    target.parentFile?.mkdirs()
+                    target.outputStream().use { output ->
+                        val buffer = ByteArray(DEFAULT_BUFFER_SIZE)
+                        while (true) {
+                            val count = zip.read(buffer)
+                            if (count < 0) break
+                            totalBytes += count
+                            require(totalBytes <= MAX_WEB_PACKAGE_BYTES) { "WEB_PACKAGE_TOO_LARGE" }
+                            output.write(buffer, 0, count)
+                        }
+                    }
+                }
+            }
+            require(File(root, "index.html").isFile) { "WEB_PACKAGE_INDEX_REQUIRED" }
+            val digest = MessageDigest.getInstance("SHA-256")
+            root.walkTopDown().filter { it.isFile }.sortedBy { it.relativeTo(root).path }.forEach { file ->
+                digest.update(file.relativeTo(root).path.toByteArray())
+                file.inputStream().use { stream ->
+                    val buffer = ByteArray(DEFAULT_BUFFER_SIZE)
+                    while (true) {
+                        val count = stream.read(buffer)
+                        if (count < 0) break
+                        digest.update(buffer, 0, count)
+                    }
+                }
+            }
+            val hash = digest.digest().joinToString("") { "%02x".format(it) }
+            val resource = SignageResource(id, displayName, "text/html", root.absolutePath, hash, totalBytes,
+                System.currentTimeMillis(), ResourceKind.WEB.name, "$LOCAL_WEB_BASE/$id/index.html")
+            database.writableDatabase.inTransaction {
+                require(totalResourceBytes(this) + totalBytes <= MAX_TOTAL_RESOURCE_BYTES) { "Resource storage quota exceeded" }
+                insertResource(this, resource)
+                insertScene(this, SignageScene(UUID.randomUUID().toString(), resource.name, resource.id))
+            }
+            resource
+        } catch (error: Exception) {
+            root.deleteRecursively()
+            throw error
+        }
+    }
+
     fun mediaDetails(resource: SignageResource): ResourceMediaDetails {
         if (!resource.isLocalFile) return ResourceMediaDetails()
         val file = runCatching { fileFor(resource) }.getOrNull()?.takeIf(File::isFile)
@@ -885,6 +956,7 @@ class SignageStore(context: Context) : java.io.Closeable {
             true
         }
         if (deleted && resource.isLocalFile) fileFor(resource).delete()
+        if (deleted && resource.isLocalWebPackage) File(resource.path).deleteRecursively()
         deleted
     }
 
@@ -919,7 +991,8 @@ class SignageStore(context: Context) : java.io.Closeable {
             fallbackSceneId = getMeta(database.readableDatabase, KEY_FALLBACK_SCENE),
             keepScreenAwake = getMeta(database.readableDatabase, KEY_KEEP_SCREEN_AWAKE)?.toBoolean() ?: true,
             autoResume = getMeta(database.readableDatabase, KEY_AUTO_RESUME)?.toBoolean() ?: true,
-            fullscreen = getMeta(database.readableDatabase, KEY_FULLSCREEN)?.toBoolean() ?: true
+            fullscreen = getMeta(database.readableDatabase, KEY_FULLSCREEN)?.toBoolean() ?: true,
+            orientation = getMeta(database.readableDatabase, KEY_ORIENTATION)?.takeIf { it in SUPPORTED_ORIENTATIONS } ?: "AUTO"
         )
     }
 
@@ -933,6 +1006,7 @@ class SignageStore(context: Context) : java.io.Closeable {
             setMeta(this, KEY_KEEP_SCREEN_AWAKE, value.keepScreenAwake.toString())
             setMeta(this, KEY_AUTO_RESUME, value.autoResume.toString())
             setMeta(this, KEY_FULLSCREEN, value.fullscreen.toString())
+            setMeta(this, KEY_ORIENTATION, value.orientation.uppercase().takeIf { it in SUPPORTED_ORIENTATIONS } ?: "AUTO")
         }
     }
 
@@ -1591,6 +1665,7 @@ class SignageStore(context: Context) : java.io.Closeable {
         const val KEY_KEEP_SCREEN_AWAKE = "keep_screen_awake"
         const val KEY_AUTO_RESUME = "auto_resume"
         const val KEY_FULLSCREEN = "fullscreen"
+        const val KEY_ORIENTATION = "orientation"
         const val KEY_SESSION_ID = "session_id"
         const val KEY_SESSION_CLIENT = "session_client"
         const val KEY_SESSION_EXPIRES = "session_expires"
@@ -1603,6 +1678,9 @@ class SignageStore(context: Context) : java.io.Closeable {
         const val MAX_DEVICE_NAME_LENGTH = 80
         const val MAX_RESOURCE_NAME_LENGTH = 120
         const val MAX_VIRTUAL_CONTENT_LENGTH = 100_000
+        const val MAX_WEB_PACKAGE_FILES = 256
+        const val MAX_WEB_PACKAGE_BYTES = 50L * 1024L * 1024L
+        const val LOCAL_WEB_BASE = "https://local.signage/site"
         const val MAX_RESOURCE_BYTES = 200L * 1024L * 1024L
         const val MAX_TOTAL_RESOURCE_BYTES = 2L * 1024L * 1024L * 1024L
         const val REMOTE_CONNECT_TIMEOUT_MS = 10_000
@@ -1617,6 +1695,7 @@ class SignageStore(context: Context) : java.io.Closeable {
         const val MAX_OPERATION_ACTION_LENGTH = 160
         const val MAX_OPERATION_RESULT_LENGTH = 32
         val SUPPORTED_FIT_MODES = setOf("FIT", "FILL", "CROP", "STRETCH", "CENTER")
+        val SUPPORTED_ORIENTATIONS = setOf("AUTO", "LANDSCAPE", "PORTRAIT")
         val SUPPORTED_CROP_GRAVITIES = setOf("CENTER", "TOP", "BOTTOM", "LEFT", "RIGHT")
         val RESOURCE_COLUMNS = arrayOf("id", "name", "mime_type", "path", "hash", "size_bytes", "created_at", "kind", "source_uri", "content", "refresh_interval_ms", "text_size_sp", "text_color", "text_background_color", "font_family", "text_speed_dp_per_second", "text_repeat_count")
         val SCENE_COLUMNS = arrayOf("id", "name", "resource_id", "fit_mode", "crop_gravity", "background_type", "background_color", "volume", "muted", "created_at", "overlays_json", "playback_speed", "transition_effect")

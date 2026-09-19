@@ -127,6 +127,11 @@ class KtorSignageServer(context: Context, private val port: Int) {
                         .replace("__PAIRING_TOKEN__", quote(pairingToken.orEmpty()))
                     call.respondText(html, ContentType.Text.Html)
                 }
+                get("/help") {
+                    call.response.headers.append(HttpHeaders.CacheControl, "no-store")
+                    call.response.headers.append("Content-Security-Policy", "default-src 'none'; style-src 'unsafe-inline'; img-src 'self' data:")
+                    call.respondText(helpPage, ContentType.Text.Html)
+                }
                 get("/fonts/ma-shan-zheng.ttf") { call.respondFont(R.font.ma_shan_zheng) }
                 get("/fonts/zcool-xiaowei.ttf") { call.respondFont(R.font.zcool_xiaowei) }
                 get("/fonts/zcool-kuaile.ttf") { call.respondFont(R.font.zcool_kuaile) }
@@ -392,7 +397,8 @@ class KtorSignageServer(context: Context, private val port: Int) {
                             fallbackSceneId = jsonString(body, "fallbackSceneId"),
                             keepScreenAwake = jsonBoolean(body, "keepScreenAwake") ?: true,
                             autoResume = jsonBoolean(body, "autoResume") ?: true,
-                            fullscreen = jsonBoolean(body, "fullscreen") ?: true
+                            fullscreen = jsonBoolean(body, "fullscreen") ?: true,
+                            orientation = jsonString(body, "orientation") ?: "AUTO"
                         )
                         SignageRuntime.setSettings(settings)
                         call.respondJson(settingsJson())
@@ -578,6 +584,30 @@ class KtorSignageServer(context: Context, private val port: Int) {
                         createdPlaylistId?.let(SignageRuntime::deletePlaylist)
                         rollbackCreatedResources(createdIds)
                         call.respondJson(errorJson("UPLOAD_FAILED"), HttpStatusCode.InternalServerError)
+                    }
+                }
+                post("/api/resources/web-package") {
+                    if (!call.authorized()) return@post
+                    if (!call.requireProAccess()) return@post
+                    try {
+                        var resource: com.wkq.localsignage.feature.app.model.SignageResource? = null
+                        val multipart = call.receiveMultipart()
+                        while (true) {
+                            val part = multipart.readPart() ?: break
+                            try {
+                                if (part is PartData.FileItem) {
+                                    require(resource == null) { "WEB_PACKAGE_SINGLE_FILE_REQUIRED" }
+                                    val name = part.originalFileName ?: "web-package.zip"
+                                    require(name.lowercase().endsWith(".zip")) { "WEB_PACKAGE_ZIP_REQUIRED" }
+                                    resource = withContext(Dispatchers.IO) {
+                                        part.provider().toInputStream().use { SignageRuntime.saveWebPackage(name, it) }
+                                    }
+                                }
+                            } finally { part.dispose() }
+                        }
+                        call.respondJson(resourceJson(requireNotNull(resource) { "FILE_REQUIRED" }), HttpStatusCode.Created)
+                    } catch (error: IllegalArgumentException) {
+                        call.respondJson(errorJson(error.message ?: "INVALID_WEB_PACKAGE"), HttpStatusCode.BadRequest)
                     }
                 }
                 post("/api/resources/link") {
@@ -1400,7 +1430,8 @@ class KtorSignageServer(context: Context, private val port: Int) {
     private fun settingsJson(): String {
         val settings = SignageRuntime.settings()
         return "{\"fallbackSceneId\":${settings.fallbackSceneId?.let(::quote) ?: "null"}," +
-            "\"keepScreenAwake\":${settings.keepScreenAwake},\"autoResume\":${settings.autoResume},\"fullscreen\":${settings.fullscreen}}"
+            "\"keepScreenAwake\":${settings.keepScreenAwake},\"autoResume\":${settings.autoResume},\"fullscreen\":${settings.fullscreen}," +
+            "\"orientation\":${quote(settings.orientation)}}"
     }
 
     private fun errorsJson(): String = jsonArray(SignageRuntime.playbackErrors()) { error ->
@@ -1495,8 +1526,8 @@ class KtorSignageServer(context: Context, private val port: Int) {
         "REMOTE_HOST_NOT_ALLOWED" -> "The remote host is not allowed"
         "REMOTE_RESOURCE_TOO_LARGE" -> "The remote resource exceeds the size limit"
         "PRO_REQUIRED" -> "This feature requires Local Signage Pro"
-        "FREE_RESOURCE_LIMIT" -> "Free mode supports up to 5 image or video resources"
-        "FREE_PLAYLIST_LIMIT" -> "Free mode supports one playlist"
+        "FREE_RESOURCE_LIMIT" -> "Free mode supports up to 10 image or video resources"
+        "FREE_PLAYLIST_LIMIT" -> "Free mode supports one basic image/video carousel"
         else -> code.replace('_', ' ').lowercase().replaceFirstChar { it.uppercase() }
     }
     private fun quote(value: String): String = JSONObject.quote(value)
@@ -1582,5 +1613,8 @@ class KtorSignageServer(context: Context, private val port: Int) {
 
     private val webConsoleTemplate: String by lazy {
         applicationContext.resources.openRawResource(R.raw.web_console).bufferedReader(Charsets.UTF_8).use { it.readText() }
+    }
+    private val helpPage: String by lazy {
+        applicationContext.resources.openRawResource(R.raw.web_help).bufferedReader(Charsets.UTF_8).use { it.readText() }
     }
 }

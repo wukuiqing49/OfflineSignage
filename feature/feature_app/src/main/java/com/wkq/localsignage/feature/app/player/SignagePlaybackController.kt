@@ -17,11 +17,14 @@ import android.view.View
 import android.view.ViewGroup
 import android.webkit.WebResourceError
 import android.webkit.WebResourceRequest
+import android.webkit.WebResourceResponse
 import android.webkit.WebSettings
 import android.webkit.WebView
 import android.webkit.WebViewClient
 import android.widget.FrameLayout
 import android.widget.TextView
+import java.io.FileInputStream
+import java.net.URLConnection
 import coil.load
 import coil.dispose
 import androidx.core.view.setPadding
@@ -646,6 +649,19 @@ object SignagePlaybackController {
                 return !isAllowedWebUri(request.url)
             }
 
+            override fun shouldInterceptRequest(view: WebView, request: WebResourceRequest): WebResourceResponse? {
+                val uri = request.url
+                if (uri.scheme != "https" || uri.host != "local.signage") return super.shouldInterceptRequest(view, request)
+                val segments = uri.pathSegments
+                if (segments.size < 3 || segments[0] != "site") return blockedWebResponse()
+                val resource = SignageRuntime.resource(segments[1])?.takeIf { it.isLocalWebPackage } ?: return blockedWebResponse()
+                val relative = segments.drop(2).joinToString("/").ifBlank { "index.html" }
+                val file = runCatching { SignageRuntime.webPackageFile(resource, relative) }.getOrNull()
+                    ?.takeIf { it.isFile } ?: return blockedWebResponse()
+                val mime = URLConnection.guessContentTypeFromName(file.name) ?: "application/octet-stream"
+                return WebResourceResponse(mime, if (mime.startsWith("text/") || mime.contains("javascript")) "UTF-8" else null, FileInputStream(file))
+            }
+
             override fun onPageFinished(view: WebView, url: String) {
                 mainHandler.removeCallbacks(webLoadTimeout)
                 retryAttempts.remove(currentScene()?.id)
@@ -656,6 +672,8 @@ object SignagePlaybackController {
             }
         }
     }
+
+    private fun blockedWebResponse() = WebResourceResponse("text/plain", "UTF-8", 404, "Not Found", emptyMap(), "".byteInputStream())
 
     private fun releaseWebView(webView: WebView, destroy: Boolean) {
         mainHandler.removeCallbacks(webLoadTimeout)

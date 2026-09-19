@@ -26,7 +26,7 @@ data class CommercialAccessState(
  * trial never interrupts a running display or traps user-owned content.
  */
 object CommercialAccessPolicy {
-    const val FREE_RESOURCE_LIMIT = 5
+    const val FREE_RESOURCE_LIMIT = 10
     const val FREE_PLAYLIST_LIMIT = 1
 
     fun evaluate(

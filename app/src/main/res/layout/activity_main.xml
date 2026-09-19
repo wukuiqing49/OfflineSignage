@@ -177,14 +177,14 @@
                         android:id="@+id/open_billing_row"
                         android:layout_width="match_parent"
                         android:layout_height="wrap_content"
-                        android:minHeight="48dp"
+                        android:minHeight="56dp"
                         android:clickable="true"
                         android:focusable="true"
                         android:foreground="?attr/selectableItemBackground"
                         android:gravity="center_vertical"
                         android:orientation="horizontal"
-                        android:paddingStart="4dp"
-                        android:paddingEnd="2dp">
+                        android:paddingHorizontal="10dp"
+                        android:paddingVertical="7dp">
 
                         <ImageView
                             android:id="@+id/entitlement_icon"
@@ -194,16 +194,35 @@
                             android:src="@drawable/ic_license_24"
                             app:tint="@color/pairing_accent" />
 
-                        <TextView
-                            android:id="@+id/entitlement_status"
+                        <LinearLayout
                             android:layout_width="0dp"
                             android:layout_height="wrap_content"
                             android:layout_marginStart="8dp"
                             android:layout_weight="1"
-                            android:importantForAccessibility="no"
-                            android:textColor="@color/pairing_text_primary"
-                            android:textSize="13sp"
-                            android:textStyle="bold" />
+                            android:orientation="vertical">
+
+                            <TextView
+                                android:id="@+id/entitlement_status"
+                                android:layout_width="match_parent"
+                                android:layout_height="wrap_content"
+                                android:importantForAccessibility="no"
+                                android:maxLines="2"
+                                android:textColor="@color/pairing_text_primary"
+                                android:textSize="13sp"
+                                android:textStyle="bold" />
+
+                            <TextView
+                                android:id="@+id/entitlement_upgrade_hint"
+                                android:layout_width="match_parent"
+                                android:layout_height="wrap_content"
+                                android:layout_marginTop="2dp"
+                                android:maxLines="2"
+                                android:text="@string/trial_expired_badge"
+                                android:textColor="@color/entitlement_expired"
+                                android:textSize="11sp"
+                                android:textStyle="bold"
+                                android:visibility="gone" />
+                        </LinearLayout>
 
                         <ImageView
                             android:layout_width="18dp"

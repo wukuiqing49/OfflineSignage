@@ -1,7 +1,7 @@
 Effective date: August 20, 2026
 Document version: 1.1
 
-The subscription product is pro_subscription and offers the pro-mouth monthly base plan and the pro-yearly annual base plan. The purchase screen in Google Play provides the actual price, currency, tax, and billing period.
+The launch subscription product is pro_subscription with the pro-yearly annual base plan. The purchase screen in Google Play provides the actual price, currency, tax, and billing period. Previously offered valid purchases remain restorable with the purchasing Google Play account.
 
 1. The seven-day trial is a local app trial, not a Google Play subscription free trial, and it never charges automatically.
 
@@ -11,7 +11,7 @@ The subscription product is pro_subscription and offers the pro-mouth monthly ba
 
 4. After cancellation, access during a paid period follows the status returned by Google Play. Refunds and reversals follow Google Play policy and order status.
 
-5. The lifetime product is pro_lifetime. It is a one-time purchase and does not renew. The license is associated with the purchasing Google Play account and this app.
+5. A previously purchased lifetime license remains associated with the purchasing Google Play account and this app and can be restored, but it is not part of the launch purchase offer.
 
 6. Pending payments do not grant paid access. When online, the app queries Google Play to restore valid purchases.
 

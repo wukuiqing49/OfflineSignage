@@ -22,8 +22,10 @@ import kotlinx.coroutines.sync.withLock
 
 object MonetizationRepository {
     const val PRO_SUBSCRIPTION_ID = "pro_subscription"
+    // Kept for restoring historical purchases; the launch purchase screen offers annual Pro only.
     const val LIFETIME_PRODUCT_ID = "pro_lifetime"
-    const val MONTHLY_BASE_PLAN_ID = "pro-mouth"
+    const val MONTHLY_BASE_PLAN_ID = "pro-month"
+    val monthlyBasePlanIds = setOf(MONTHLY_BASE_PLAN_ID, "pro-mouth")
     const val YEARLY_BASE_PLAN_ID = "pro-yearly"
 
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
@@ -140,14 +142,10 @@ object MonetizationRepository {
     }
 
     private fun GoogleBillingCatalog.hasAllConfiguredProducts(): Boolean {
-        val hasMonthly = subscriptions.any {
-            it.baseProductId == PRO_SUBSCRIPTION_ID && it.basePlanId == MONTHLY_BASE_PLAN_ID
-        }
         val hasYearly = subscriptions.any {
             it.baseProductId == PRO_SUBSCRIPTION_ID && it.basePlanId == YEARLY_BASE_PLAN_ID
         }
-        val hasLifetime = oneTimeProducts.any { it.baseProductId == LIFETIME_PRODUCT_ID }
-        return hasMonthly && hasYearly && hasLifetime
+        return hasYearly
     }
 
     private suspend fun processPurchaseUpdate(purchases: List<GooglePurchase>) {

@@ -5,6 +5,7 @@ import com.wkq.localsignage.feature.app.model.PairedDevice
 import com.wkq.localsignage.feature.app.model.SignageResource
 import com.wkq.localsignage.feature.app.model.SignageScene
 import com.wkq.localsignage.feature.app.model.SignagePlaylist
+import com.wkq.localsignage.feature.app.model.PlaylistSchedule
 import org.json.JSONArray
 import org.json.JSONObject
 import java.io.File
@@ -117,7 +118,7 @@ class LocalDeviceClient(private val device: PairedDevice) {
         return RemoteCommandResult(response.status in 200..299, response.status, response.body)
     }
 
-    fun saveScene(scene: SignageScene, resourceId: String): Boolean {
+    fun saveScene(scene: SignageScene, resourceId: String): Int {
         val body = JSONObject().apply {
             put("id", scene.id)
             put("name", scene.name)
@@ -139,10 +140,10 @@ class LocalDeviceClient(private val device: PairedDevice) {
                 put("enabled", overlay.enabled); put("zIndex", overlay.zIndex)
             }) } })
         }
-        return postJson("/api/internal/sync/scene", body).status in 200..299
+        return postJson("/api/internal/sync/scene", body).status
     }
 
-    fun savePlaylist(playlist: SignagePlaylist): Boolean {
+    fun savePlaylist(playlist: SignagePlaylist): Int {
         val items = JSONArray().apply {
             playlist.items.forEach { item ->
                 put(JSONObject().apply {
@@ -158,7 +159,19 @@ class LocalDeviceClient(private val device: PairedDevice) {
             put("loop", playlist.loop)
             put("items", items)
         }
-        return postJson("/api/internal/sync/playlist", body).status in 200..299
+        return postJson("/api/internal/sync/playlist", body).status
+    }
+
+    fun replacePlaylistSchedules(schedules: Collection<PlaylistSchedule>): Int {
+        val body = JSONObject().put("schedules", JSONArray().apply {
+            schedules.forEach { schedule -> put(JSONObject().apply {
+                put("id", schedule.id); put("playlistId", schedule.playlistId)
+                put("weekdays", JSONArray(schedule.weekdays.sorted()))
+                put("startMinute", schedule.startMinute); put("endMinute", schedule.endMinute)
+                put("priority", schedule.priority); put("enabled", schedule.enabled)
+            }) }
+        })
+        return postJson("/api/internal/sync/schedules", body).status
     }
 
     private fun request(method: String, path: String, body: String? = null) = transport.request(method, path, body)

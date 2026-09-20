@@ -6,6 +6,8 @@ import android.os.Build
 import android.os.SystemClock
 import com.wkq.localsignage.feature.app.model.SignagePlaylist
 import com.wkq.localsignage.feature.app.model.SignagePlaylistItem
+import com.wkq.localsignage.feature.app.model.PlaylistSchedule
+import com.wkq.localsignage.feature.app.model.PlaylistSchedulePolicy
 import com.wkq.localsignage.feature.app.model.SignageScene
 import com.wkq.localsignage.feature.app.model.SignageSettings
 import com.wkq.localsignage.feature.app.model.ResourceKind
@@ -75,8 +77,16 @@ import kotlinx.coroutines.sync.withLock
 import org.json.JSONArray
 import org.json.JSONObject
 import java.io.ByteArrayOutputStream
+import java.io.BufferedInputStream
+import java.io.File
+import java.io.FileOutputStream
+import java.io.InputStream
 import java.security.MessageDigest
+import java.util.Calendar
 import java.util.concurrent.ConcurrentHashMap
+import java.util.zip.ZipEntry
+import java.util.zip.ZipInputStream
+import java.util.zip.ZipOutputStream
 
 internal val FLEET_COMMAND_ACTIONS = linkedMapOf(
     "play" to "PLAY",
@@ -87,6 +97,16 @@ internal val FLEET_COMMAND_ACTIONS = linkedMapOf(
     "volume" to "VOLUME",
     "mute" to "MUTE",
     "unmute" to "UNMUTE"
+)
+
+private const val MAX_PROJECT_BACKUP_FILES = 2_048
+private const val MAX_PROJECT_BACKUP_BYTES = 2L * 1024L * 1024L * 1024L
+private const val MAX_PROJECT_BACKUP_MANIFEST_BYTES = 2 * 1024 * 1024
+
+private data class ProjectBackupInspection(
+    val manifest: JSONObject,
+    val files: Int,
+    val sizeBytes: Long
 )
 
 class KtorSignageServer(context: Context, private val port: Int) {
@@ -359,6 +379,20 @@ class KtorSignageServer(context: Context, private val port: Int) {
                         if (deleted) HttpStatusCode.OK else HttpStatusCode.NotFound
                     )
                 }
+                put("/api/devices/paired/{id}/group") {
+                    if (!call.authorized()) return@put
+                    if (!call.requireProAccess()) return@put
+                    try {
+                        val deviceId = call.parameters["id"].orEmpty().trim()
+                        require(deviceId.isNotBlank()) { "DEVICE_ID_REQUIRED" }
+                        val body = JSONObject(call.receiveText())
+                        val device = SignageRuntime.setPairedDeviceGroup(deviceId, body.stringOrNull("groupName"))
+                            ?: throw IllegalArgumentException("DEVICE_NOT_PAIRED")
+                        call.respondJson(pairedDeviceJson(device))
+                    } catch (error: IllegalArgumentException) {
+                        call.respondJson(errorJson(error.message ?: "INVALID_DEVICE_GROUP"), HttpStatusCode.BadRequest)
+                    }
+                }
                 get("/api/status") {
                     if (!call.authorizedOrDevice(requireSession = false)) return@get
                     call.respondJson(statusJson())
@@ -384,6 +418,14 @@ class KtorSignageServer(context: Context, private val port: Int) {
                 get("/api/playlists") {
                     if (!call.authorized(requireSession = false)) return@get
                     call.respondJson(playlistsJson())
+                }
+                get("/api/schedules") {
+                    if (!call.authorized(requireSession = false)) return@get
+                    call.respondJson(playlistSchedulesJson())
+                }
+                get("/api/schedules/status") {
+                    if (!call.authorized(requireSession = false)) return@get
+                    call.respondJson(playlistScheduleStatusJson())
                 }
                 get("/api/settings") {
                     if (!call.authorized()) return@get
@@ -426,6 +468,64 @@ class KtorSignageServer(context: Context, private val port: Int) {
                         "attachment; filename=local-signage-diagnostics.txt"
                     )
                     call.respondText(diagnosticsText(), ContentType.Text.Plain)
+                }
+                get("/api/project-backup/export") {
+                    if (!call.authorized()) return@get
+                    try {
+                        val backup = withContext(Dispatchers.IO) { createProjectBackup() }
+                        call.response.headers.append(
+                            HttpHeaders.ContentDisposition,
+                            "attachment; filename=local-signage-project-${System.currentTimeMillis()}.zip"
+                        )
+                        call.respondFile(backup)
+                    } catch (error: IllegalArgumentException) {
+                        call.respondJson(errorJson(error.message ?: "PROJECT_BACKUP_EXPORT_FAILED"), HttpStatusCode.Conflict)
+                    }
+                }
+                post("/api/project-backup/inspect") {
+                    if (!call.authorized()) return@post
+                    try {
+                        var inspected: JSONObject? = null
+                        val multipart = call.receiveMultipart()
+                        while (true) {
+                            val part = multipart.readPart() ?: break
+                            try {
+                                if (part is PartData.FileItem && inspected == null) {
+                                    inspected = withContext(Dispatchers.IO) {
+                                        part.provider().toInputStream().use(::inspectProjectBackup)
+                                    }
+                                }
+                            } finally { part.dispose() }
+                        }
+                        call.respondJson((inspected ?: throw IllegalArgumentException("PROJECT_BACKUP_FILE_REQUIRED")).toString())
+                    } catch (error: IllegalArgumentException) {
+                        call.respondJson(errorJson(error.message ?: "PROJECT_BACKUP_INVALID"), HttpStatusCode.BadRequest)
+                    }
+                }
+                post("/api/project-backup/import") {
+                    if (!call.authorized()) return@post
+                    if (!call.requireProAccess()) return@post
+                    var upload: File? = null
+                    try {
+                        val multipart = call.receiveMultipart()
+                        while (true) {
+                            val part = multipart.readPart() ?: break
+                            try {
+                                if (part is PartData.FileItem && upload == null) {
+                                    upload = withContext(Dispatchers.IO) {
+                                        saveProjectBackupUpload(part.provider().toInputStream())
+                                    }
+                                }
+                            } finally { part.dispose() }
+                        }
+                        val file = upload ?: throw IllegalArgumentException("PROJECT_BACKUP_FILE_REQUIRED")
+                        val result = withContext(Dispatchers.IO) { importProjectBackup(file) }
+                        call.respondJson(result.toString(), HttpStatusCode.Created)
+                    } catch (error: IllegalArgumentException) {
+                        call.respondJson(errorJson(error.message ?: "PROJECT_BACKUP_INVALID"), HttpStatusCode.BadRequest)
+                    } finally {
+                        upload?.delete()
+                    }
                 }
                 delete("/api/errors") {
                     if (!call.authorized()) return@delete
@@ -930,6 +1030,33 @@ class KtorSignageServer(context: Context, private val port: Int) {
                         call.respondJson(errorJson(error.message ?: "INVALID_PLAYLIST"), HttpStatusCode.BadRequest)
                     }
                 }
+                post("/api/internal/sync/schedules") {
+                    if (!call.hasDeviceToken()) return@post
+                    if (!call.requireProAccess()) return@post
+                    try {
+                        val schedules = JSONObject(call.receiveText()).optJSONArray("schedules") ?: JSONArray()
+                        val values = buildList {
+                            for (index in 0 until schedules.length()) {
+                                val item = schedules.optJSONObject(index) ?: continue
+                                val weekdays = buildSet {
+                                    val days = item.optJSONArray("weekdays") ?: return@buildSet
+                                    for (dayIndex in 0 until days.length()) add(days.optInt(dayIndex))
+                                }
+                                add(PlaylistSchedule(
+                                    id = item.optString("id").takeIf { it.isNotBlank() } ?: throw IllegalArgumentException("SCHEDULE_ID_REQUIRED"),
+                                    playlistId = item.optString("playlistId").takeIf { it.isNotBlank() } ?: throw IllegalArgumentException("PLAYLIST_REQUIRED"),
+                                    weekdays = weekdays,
+                                    startMinute = item.optInt("startMinute", 0), endMinute = item.optInt("endMinute", 0),
+                                    priority = item.optInt("priority", 0), enabled = item.optBoolean("enabled", true)
+                                ))
+                            }
+                        }
+                        SignageRuntime.replacePlaylistSchedules(values)
+                        call.respondJson("{\"replaced\":${values.size}}")
+                    } catch (error: Exception) {
+                        call.respondJson(errorJson(error.message ?: "INVALID_SCHEDULE"), HttpStatusCode.BadRequest)
+                    }
+                }
                 post("/api/devices/sync") {
                     if (!call.authorized()) return@post
                     if (!call.requireProAccess()) return@post
@@ -964,6 +1091,40 @@ class KtorSignageServer(context: Context, private val port: Int) {
                         call.respondJson(fleetResultsJson(results))
                     } catch (error: Exception) {
                         call.respondJson(errorJson(error.message ?: "INVALID_PLAYLIST_SYNC"), HttpStatusCode.BadRequest)
+                    }
+                }
+                post("/api/devices/sync-schedules") {
+                    if (!call.authorized()) return@post
+                    if (!call.requireProAccess()) return@post
+                    try {
+                        val targets = pairedTargets(jsonStringList(JSONObject(call.receiveText()), "deviceIds"))
+                        if (targets.isEmpty()) throw IllegalArgumentException("NO_PAIRED_DEVICES")
+                        val schedules = SignageRuntime.playlistSchedules()
+                        val playlists = schedules.mapNotNull { SignageRuntime.playlist(it.playlistId) }.distinctBy { it.id }
+                        val results = withContext(Dispatchers.IO) {
+                            targets.map { target ->
+                                val client = com.wkq.localsignage.feature.app.device.LocalDeviceClient(target)
+                                var playlistFailure: String? = null
+                                playlists.forEach { playlist ->
+                                    if (playlistFailure != null) return@forEach
+                                    val scenes = playlist.items.mapNotNull { SignageRuntime.scene(it.sceneId) }.distinctBy { it.id }
+                                    val resources = scenes.mapNotNull { SignageRuntime.resource(it.resourceId) }.associateBy { it.id }
+                                    val files = resources.values.filter { it.isLocalFile }.associate { it.id to SignageRuntime.fileFor(it) }
+                                    val result = SignageDeviceFleet.syncPlaylist(playlist, scenes, resources, files, listOf(target)).single()
+                                    if (!result.success) playlistFailure = result.code
+                                }
+                                if (playlistFailure != null) {
+                                    SignageDeviceFleet.FleetResult(target.deviceId, target.deviceName, false, false, playlistFailure.orEmpty())
+                                } else {
+                                    val scheduleStatus = client.replacePlaylistSchedules(schedules)
+                                    val saved = scheduleStatus in 200..299
+                                    SignageDeviceFleet.FleetResult(target.deviceId, target.deviceName, saved, false, if (saved) "SCHEDULES_SYNCED" else "SCHEDULES_SYNC_FAILED_$scheduleStatus")
+                                }
+                            }
+                        }
+                        call.respondJson(fleetResultsJson(results))
+                    } catch (error: Exception) {
+                        call.respondJson(errorJson(error.message ?: "INVALID_SCHEDULE_SYNC"), HttpStatusCode.BadRequest)
                     }
                 }
                 post("/api/devices/play-playlist") { call.respondFleetPlaylistCommand() }
@@ -1047,6 +1208,35 @@ class KtorSignageServer(context: Context, private val port: Int) {
                 delete("/api/playlists/{id}") {
                     if (!call.authorized()) return@delete
                     val deleted = SignageRuntime.deletePlaylist(call.parameters["id"].orEmpty())
+                    call.respondJson("{\"deleted\":$deleted}", if (deleted) HttpStatusCode.OK else HttpStatusCode.NotFound)
+                }
+                post("/api/schedules") {
+                    if (!call.authorized()) return@post
+                    if (!call.requireProAccess()) return@post
+                    try {
+                        val body = call.receiveText()
+                        val json = JSONObject(body)
+                        val weekdays = buildSet {
+                            val values = json.optJSONArray("weekdays") ?: return@buildSet
+                            for (index in 0 until values.length()) add(values.optInt(index))
+                        }
+                        val schedule = PlaylistSchedule(
+                            id = jsonString(body, "id") ?: java.util.UUID.randomUUID().toString(),
+                            playlistId = jsonString(body, "playlistId").orEmpty(),
+                            weekdays = weekdays,
+                            startMinute = json.optInt("startMinute", 0),
+                            endMinute = json.optInt("endMinute", 0),
+                            priority = json.optInt("priority", 0),
+                            enabled = json.optBoolean("enabled", true)
+                        )
+                        call.respondJson(playlistScheduleJson(SignageRuntime.savePlaylistSchedule(schedule)), HttpStatusCode.Created)
+                    } catch (error: IllegalArgumentException) {
+                        call.respondJson(errorJson(error.message ?: "INVALID_SCHEDULE"), HttpStatusCode.BadRequest)
+                    }
+                }
+                delete("/api/schedules/{id}") {
+                    if (!call.authorized()) return@delete
+                    val deleted = SignageRuntime.deletePlaylistSchedule(call.parameters["id"].orEmpty())
                     call.respondJson("{\"deleted\":$deleted}", if (deleted) HttpStatusCode.OK else HttpStatusCode.NotFound)
                 }
                 delete("/api/resources/{id}") {
@@ -1360,7 +1550,7 @@ class KtorSignageServer(context: Context, private val port: Int) {
             "\"desiredRevision\":${assignment.desiredRevision},\"desiredPlaying\":${assignment.desiredPlaying}," +
             "\"state\":${quote(assignment.state)},\"appliedRevision\":${assignment.appliedRevision ?: "null"}," +
             "\"lastSyncAt\":${assignment.lastSyncAt ?: "null"},\"lastError\":${assignment.lastError?.let(::quote) ?: "null"}}"
-    private fun pairedDeviceJson(device: PairedDevice): String = "{\"deviceId\":${quote(device.deviceId)},\"deviceName\":${quote(device.deviceName)},\"host\":${quote(device.host)},\"port\":${device.port},\"pairedAt\":${device.pairedAt}}"
+    private fun pairedDeviceJson(device: PairedDevice): String = "{\"deviceId\":${quote(device.deviceId)},\"deviceName\":${quote(device.deviceName)},\"host\":${quote(device.host)},\"port\":${device.port},\"pairedAt\":${device.pairedAt},\"groupName\":${device.groupName?.let(::quote) ?: "null"}}"
     private fun fleetResultsJson(results: List<SignageDeviceFleet.FleetResult>): String = jsonArray(results) { result ->
         "{\"deviceId\":${quote(result.deviceId)},\"deviceName\":${quote(result.deviceName)},\"success\":${result.success},\"skipped\":${result.skipped},\"code\":${quote(result.code)}}"
     }
@@ -1508,6 +1698,21 @@ class KtorSignageServer(context: Context, private val port: Int) {
     private fun sceneJson(scene: SignageScene): String = "{\"id\":${quote(scene.id)},\"name\":${quote(scene.name)},\"resourceId\":${quote(scene.resourceId)},\"fitMode\":${quote(scene.fitMode)},\"cropGravity\":${quote(scene.cropGravity)},\"backgroundType\":${quote(scene.backgroundType)},\"backgroundColor\":${scene.backgroundColor?.let(::quote) ?: "null"},\"volume\":${scene.volume ?: "null"},\"muted\":${scene.muted},\"playbackSpeed\":${PlaybackTimingPolicy.normalizeVideoPlaybackSpeed(scene.playbackSpeed)},\"transitionEffect\":${quote(ImageTransitionPolicy.normalize(scene.transitionEffect))},\"overlays\":${overlaysJson(scene.overlays)}}"
     private fun playlistsJson(): String = jsonArray(SignageRuntime.playlists(), ::playlistJson)
     private fun playlistJson(playlist: SignagePlaylist): String = "{\"id\":${quote(playlist.id)},\"name\":${quote(playlist.name)},\"loop\":${playlist.loop},\"items\":[${playlist.items.joinToString { "{\"sceneId\":${quote(it.sceneId)},\"durationMs\":${it.durationMs ?: "null"},\"enabled\":${it.enabled}}" }}]}"
+    private fun playlistSchedulesJson(): String = jsonArray(SignageRuntime.playlistSchedules(), ::playlistScheduleJson)
+    private fun playlistScheduleJson(schedule: PlaylistSchedule): String = "{\"id\":${quote(schedule.id)},\"playlistId\":${quote(schedule.playlistId)},\"weekdays\":[${schedule.weekdays.sorted().joinToString()}],\"startMinute\":${schedule.startMinute},\"endMinute\":${schedule.endMinute},\"priority\":${schedule.priority},\"enabled\":${schedule.enabled},\"updatedAt\":${schedule.updatedAt}}"
+    private fun playlistScheduleStatusJson(): String {
+        val schedules = SignageRuntime.playlistSchedules()
+        val now = Calendar.getInstance()
+        val current = PlaylistSchedulePolicy.active(schedules, now.get(Calendar.DAY_OF_WEEK), now.get(Calendar.HOUR_OF_DAY) * 60 + now.get(Calendar.MINUTE))
+        val next = (1..(8 * 24 * 60)).firstNotNullOfOrNull { offset ->
+            val probe = now.clone() as Calendar
+            probe.add(Calendar.MINUTE, offset)
+            PlaylistSchedulePolicy.active(schedules, probe.get(Calendar.DAY_OF_WEEK), probe.get(Calendar.HOUR_OF_DAY) * 60 + probe.get(Calendar.MINUTE))
+                .takeIf { it?.id != current?.id }
+                ?.let { probe.timeInMillis }
+        }
+        return "{\"now\":${now.timeInMillis},\"active\":${current?.let(::playlistScheduleJson) ?: "null"},\"nextSwitchAt\":${next ?: "null"}}"
+    }
     private fun sessionJson(session: com.wkq.localsignage.feature.app.model.ControlSession?): String = session?.let { "{\"sessionId\":${quote(it.sessionId)},\"clientName\":${quote(it.clientName)},\"expiresAt\":${it.expiresAt}}" } ?: "null"
     private fun controlSessionStatusJson(session: com.wkq.localsignage.feature.app.model.ControlSession?): String = session?.let {
         "{\"active\":true,\"clientName\":${quote(it.clientName)},\"expiresAt\":${it.expiresAt}}"
@@ -1528,6 +1733,22 @@ class KtorSignageServer(context: Context, private val port: Int) {
         "PRO_REQUIRED" -> "This feature requires Local Signage Pro"
         "FREE_RESOURCE_LIMIT" -> "Free mode supports up to 10 image or video resources"
         "FREE_PLAYLIST_LIMIT" -> "Free mode supports one basic image/video carousel"
+        "WEB_PACKAGE_TOO_MANY_FILES" -> "The H5 package contains too many files"
+        "WEB_PACKAGE_TOO_LARGE" -> "The extracted H5 package exceeds the 50 MB limit"
+        "WEB_PACKAGE_INDEX_REQUIRED" -> "The H5 package must contain index.html at its root"
+        "WEB_PACKAGE_PATH_INVALID" -> "The H5 package contains an invalid file path"
+        "WEB_PACKAGE_DUPLICATE_PATH" -> "The H5 package contains duplicate file paths"
+        "WEB_PACKAGE_COMPRESSION_RATIO_INVALID" -> "The H5 package has an unsafe compression ratio"
+        "PROJECT_BACKUP_FILE_REQUIRED" -> "Select a Local Signage project backup ZIP file"
+        "PROJECT_BACKUP_TOO_MANY_FILES" -> "The project backup contains too many files"
+        "PROJECT_BACKUP_TOO_LARGE" -> "The project backup exceeds the supported size limit"
+        "PROJECT_BACKUP_PATH_INVALID" -> "The project backup contains an invalid file path"
+        "PROJECT_BACKUP_DUPLICATE_PATH" -> "The project backup contains duplicate file paths"
+        "PROJECT_BACKUP_MANIFEST_TOO_LARGE" -> "The project backup manifest is too large"
+        "PROJECT_BACKUP_MANIFEST_REQUIRED" -> "The project backup is missing its manifest"
+        "PROJECT_BACKUP_FORMAT_INVALID" -> "This ZIP is not a supported Local Signage project backup"
+        "PROJECT_BACKUP_ASSET_MISSING" -> "The project backup is missing one or more content files"
+        "PROJECT_BACKUP_EXTRACT_FAILED" -> "The project backup could not be extracted"
         else -> code.replace('_', ' ').lowercase().replaceFirstChar { it.uppercase() }
     }
     private fun quote(value: String): String = JSONObject.quote(value)
@@ -1613,6 +1834,301 @@ class KtorSignageServer(context: Context, private val port: Int) {
 
     private val webConsoleTemplate: String by lazy {
         applicationContext.resources.openRawResource(R.raw.web_console).bufferedReader(Charsets.UTF_8).use { it.readText() }
+    }
+
+    private fun createProjectBackup(): File {
+        val directory = File(applicationContext.cacheDir, "project-backups").apply { mkdirs() }
+        trimProjectBackupCache(directory)
+        val target = File(directory, "local-signage-${System.currentTimeMillis()}.zip")
+        val manifest = JSONObject().apply {
+            put("format", "local-signage-project")
+            put("version", 1)
+            put("exportedAt", System.currentTimeMillis())
+            put("resources", JSONArray())
+            put("scenes", JSONArray(scenesJson()))
+            put("playlists", JSONArray(playlistsJson()))
+        }
+        ZipOutputStream(target.outputStream().buffered()).use { output ->
+            SignageRuntime.resources().forEach { resource ->
+                val entry = JSONObject(resourceJson(resource))
+                when {
+                    resource.isLocalFile -> {
+                        val file = SignageRuntime.fileFor(resource)
+                        require(file.isFile) { "PROJECT_BACKUP_ASSET_MISSING" }
+                        val path = "assets/${resource.id}/${file.name}"
+                        writeBackupFile(output, path, file)
+                        entry.put("backupPath", path)
+                    }
+                    resource.isLocalWebPackage -> {
+                        val root = File(resource.path)
+                        require(root.isDirectory && File(root, "index.html").isFile) { "PROJECT_BACKUP_ASSET_MISSING" }
+                        root.walkTopDown().filter { it.isFile }.forEach { file ->
+                            val relative = file.relativeTo(root).invariantSeparatorsPath
+                            writeBackupFile(output, "web/${resource.id}/$relative", file)
+                        }
+                        entry.put("backupPath", "web/${resource.id}")
+                    }
+                }
+                manifest.getJSONArray("resources").put(entry)
+            }
+            output.putNextEntry(ZipEntry("manifest.json"))
+            output.write(manifest.toString().toByteArray(Charsets.UTF_8))
+            output.closeEntry()
+        }
+        return target
+    }
+
+    private fun trimProjectBackupCache(directory: File) {
+        directory.listFiles { file -> file.isFile && file.extension.equals("zip", ignoreCase = true) }
+            ?.sortedByDescending(File::lastModified)
+            ?.drop(2)
+            ?.forEach(File::delete)
+    }
+
+    private fun writeBackupFile(output: ZipOutputStream, path: String, file: File) {
+        output.putNextEntry(ZipEntry(path))
+        file.inputStream().buffered().use { input -> input.copyTo(output) }
+        output.closeEntry()
+    }
+
+    private fun saveProjectBackupUpload(input: InputStream): File {
+        val directory = File(applicationContext.cacheDir, "project-imports").apply { mkdirs() }
+        val target = File(directory, "upload-${System.currentTimeMillis()}-${java.util.UUID.randomUUID()}.zip")
+        var totalBytes = 0L
+        try {
+            FileOutputStream(target).use { output ->
+                val buffer = ByteArray(DEFAULT_BUFFER_SIZE)
+                while (true) {
+                    val count = input.read(buffer)
+                    if (count < 0) break
+                    totalBytes += count
+                    require(totalBytes <= MAX_PROJECT_BACKUP_BYTES) { "PROJECT_BACKUP_TOO_LARGE" }
+                    output.write(buffer, 0, count)
+                }
+            }
+            return target
+        } catch (error: Exception) {
+            target.delete()
+            throw error
+        }
+    }
+
+    private fun inspectProjectBackup(input: InputStream): JSONObject {
+        val inspection = readProjectBackup(input)
+        val resources = inspection.manifest.getJSONArray("resources")
+        val scenes = inspection.manifest.getJSONArray("scenes")
+        val playlists = inspection.manifest.getJSONArray("playlists")
+        return JSONObject().put("valid", true).put("resources", resources.length()).put("scenes", scenes.length())
+            .put("playlists", playlists.length()).put("files", inspection.files).put("sizeBytes", inspection.sizeBytes)
+    }
+
+    private fun readProjectBackup(input: InputStream): ProjectBackupInspection {
+        val paths = mutableSetOf<String>()
+        var totalBytes = 0L
+        var entries = 0
+        var manifest: JSONObject? = null
+        ZipInputStream(BufferedInputStream(input)).use { zip ->
+            while (true) {
+                val entry = zip.nextEntry ?: break
+                if (entry.isDirectory) continue
+                entries += 1
+                require(entries <= MAX_PROJECT_BACKUP_FILES) { "PROJECT_BACKUP_TOO_MANY_FILES" }
+                val path = entry.name.replace('\\', '/').trimStart('/')
+                require(path.isNotBlank() && !path.split('/').contains("..") && path.none { it == '\u0000' || it.isISOControl() }) {
+                    "PROJECT_BACKUP_PATH_INVALID"
+                }
+                require(paths.add(path)) { "PROJECT_BACKUP_DUPLICATE_PATH" }
+                val output = if (path == "manifest.json") ByteArrayOutputStream() else null
+                val buffer = ByteArray(DEFAULT_BUFFER_SIZE)
+                while (true) {
+                    val count = zip.read(buffer)
+                    if (count < 0) break
+                    totalBytes += count
+                    require(totalBytes <= MAX_PROJECT_BACKUP_BYTES) { "PROJECT_BACKUP_TOO_LARGE" }
+                    if (output != null) {
+                        require(output.size() + count <= MAX_PROJECT_BACKUP_MANIFEST_BYTES) { "PROJECT_BACKUP_MANIFEST_TOO_LARGE" }
+                        output.write(buffer, 0, count)
+                    }
+                }
+                if (path == "manifest.json") manifest = JSONObject(output!!.toString(Charsets.UTF_8.name()))
+            }
+        }
+        val value = manifest ?: throw IllegalArgumentException("PROJECT_BACKUP_MANIFEST_REQUIRED")
+        require(value.optString("format") == "local-signage-project" && value.optInt("version") == 1) { "PROJECT_BACKUP_FORMAT_INVALID" }
+        val resources = value.optJSONArray("resources") ?: throw IllegalArgumentException("PROJECT_BACKUP_RESOURCES_REQUIRED")
+        val scenes = value.optJSONArray("scenes") ?: throw IllegalArgumentException("PROJECT_BACKUP_SCENES_REQUIRED")
+        val playlists = value.optJSONArray("playlists") ?: throw IllegalArgumentException("PROJECT_BACKUP_PLAYLISTS_REQUIRED")
+        val resourceIds = mutableSetOf<String>()
+        for (index in 0 until resources.length()) {
+            val resource = resources.optJSONObject(index) ?: throw IllegalArgumentException("PROJECT_BACKUP_RESOURCE_INVALID")
+            val id = resource.optString("id")
+            require(id.isNotBlank() && resourceIds.add(id)) { "PROJECT_BACKUP_RESOURCE_INVALID" }
+            val kind = runCatching { ResourceKind.valueOf(resource.optString("kind").uppercase()) }
+                .getOrElse { throw IllegalArgumentException("PROJECT_BACKUP_RESOURCE_INVALID") }
+            val backupPath = resource.optString("backupPath").takeIf { it.isNotBlank() }
+            if (kind == ResourceKind.LOCAL_FILE) require(backupPath != null) { "PROJECT_BACKUP_ASSET_MISSING" }
+            backupPath?.let { path ->
+                require(paths.contains(path) || paths.any { it.startsWith("$path/") }) { "PROJECT_BACKUP_ASSET_MISSING" }
+                if (kind == ResourceKind.WEB) require(paths.contains("$path/index.html")) { "PROJECT_BACKUP_ASSET_MISSING" }
+            }
+        }
+        val sceneIds = mutableSetOf<String>()
+        for (index in 0 until scenes.length()) {
+            val scene = scenes.optJSONObject(index) ?: throw IllegalArgumentException("PROJECT_BACKUP_SCENE_INVALID")
+            require(sceneIds.add(scene.optString("id")) && scene.optString("resourceId") in resourceIds) { "PROJECT_BACKUP_SCENE_INVALID" }
+        }
+        for (index in 0 until playlists.length()) {
+            val playlist = playlists.optJSONObject(index) ?: throw IllegalArgumentException("PROJECT_BACKUP_PLAYLIST_INVALID")
+            val items = playlist.optJSONArray("items") ?: throw IllegalArgumentException("PROJECT_BACKUP_PLAYLIST_INVALID")
+            for (itemIndex in 0 until items.length()) require(items.optJSONObject(itemIndex)?.optString("sceneId") in sceneIds) { "PROJECT_BACKUP_PLAYLIST_INVALID" }
+        }
+        return ProjectBackupInspection(value, entries, totalBytes)
+    }
+
+    private fun importProjectBackup(archive: File): JSONObject {
+        val inspection = archive.inputStream().use(::readProjectBackup)
+        val temporaryRoot = File(applicationContext.cacheDir, "project-imports/extract-${java.util.UUID.randomUUID()}")
+        val createdResources = mutableSetOf<String>()
+        val createdScenes = mutableSetOf<String>()
+        val createdPlaylists = mutableSetOf<String>()
+        try {
+            extractProjectBackup(archive, temporaryRoot)
+            val resourceIdMap = linkedMapOf<String, String>()
+            val defaultSceneByResource = mutableMapOf<String, String>()
+            val existingResourceIds = SignageRuntime.resources().mapTo(mutableSetOf()) { it.id }
+            val resources = inspection.manifest.getJSONArray("resources")
+            for (index in 0 until resources.length()) {
+                val source = resources.getJSONObject(index)
+                val resource = importBackupResource(source, temporaryRoot)
+                resourceIdMap[source.getString("id")] = resource.id
+                if (resource.id !in existingResourceIds) {
+                    createdResources += resource.id
+                    SignageRuntime.scenes().firstOrNull { it.resourceId == resource.id }?.let { scene ->
+                        defaultSceneByResource[resource.id] = scene.id
+                    }
+                }
+            }
+            val sceneIdMap = linkedMapOf<String, String>()
+            val usedDefaultResources = mutableSetOf<String>()
+            val scenes = inspection.manifest.getJSONArray("scenes")
+            for (index in 0 until scenes.length()) {
+                val source = scenes.getJSONObject(index)
+                val resourceId = resourceIdMap[source.getString("resourceId")]
+                    ?: throw IllegalArgumentException("PROJECT_BACKUP_SCENE_INVALID")
+                val defaultId = defaultSceneByResource[resourceId]
+                val targetId = if (defaultId != null && usedDefaultResources.add(resourceId)) defaultId else java.util.UUID.randomUUID().toString()
+                val scene = backupScene(source, targetId, resourceId)
+                SignageRuntime.saveScene(scene)
+                sceneIdMap[source.getString("id")] = targetId
+                if (targetId != defaultId) createdScenes += targetId
+            }
+            val playlists = inspection.manifest.getJSONArray("playlists")
+            for (index in 0 until playlists.length()) {
+                val source = playlists.getJSONObject(index)
+                val playlist = backupPlaylist(source, java.util.UUID.randomUUID().toString(), sceneIdMap)
+                SignageRuntime.savePlaylist(playlist)
+                createdPlaylists += playlist.id
+            }
+            return JSONObject().put("imported", true).put("resources", resourceIdMap.size)
+                .put("scenes", sceneIdMap.size).put("playlists", createdPlaylists.size)
+        } catch (error: Exception) {
+            createdPlaylists.forEach(SignageRuntime::deletePlaylist)
+            createdScenes.forEach(SignageRuntime::deleteScene)
+            createdResources.forEach(SignageRuntime::deleteResource)
+            throw error
+        } finally {
+            temporaryRoot.deleteRecursively()
+        }
+    }
+
+    private fun extractProjectBackup(archive: File, root: File) {
+        require(root.mkdirs()) { "PROJECT_BACKUP_EXTRACT_FAILED" }
+        ZipInputStream(BufferedInputStream(archive.inputStream())).use { zip ->
+            while (true) {
+                val entry = zip.nextEntry ?: break
+                if (entry.isDirectory || entry.name == "manifest.json") continue
+                val relative = entry.name.replace('\\', '/').trimStart('/')
+                val target = File(root, relative).canonicalFile
+                require(target.path.startsWith(root.canonicalPath + File.separator)) { "PROJECT_BACKUP_PATH_INVALID" }
+                target.parentFile?.mkdirs()
+                target.outputStream().use { output -> zip.copyTo(output) }
+            }
+        }
+    }
+
+    private fun importBackupResource(source: JSONObject, root: File): com.wkq.localsignage.feature.app.model.SignageResource {
+        val kind = runCatching { ResourceKind.valueOf(source.getString("kind").uppercase()) }
+            .getOrElse { throw IllegalArgumentException("PROJECT_BACKUP_RESOURCE_INVALID") }
+        val name = source.optString("name").ifBlank { kind.name.lowercase() }
+        val backupPath = source.optString("backupPath").takeIf { it.isNotBlank() }
+        return when {
+            kind == ResourceKind.LOCAL_FILE -> {
+                val asset = backupPath?.let { File(root, it) }?.takeIf(File::isFile)
+                    ?: throw IllegalArgumentException("PROJECT_BACKUP_ASSET_MISSING")
+                asset.inputStream().use { SignageRuntime.saveUpload(name, source.optString("mimeType"), it) }
+            }
+            kind == ResourceKind.WEB && backupPath != null -> {
+                val packageRoot = File(root, backupPath)
+                require(File(packageRoot, "index.html").isFile) { "PROJECT_BACKUP_ASSET_MISSING" }
+                val packageZip = File(root, "${java.util.UUID.randomUUID()}.zip")
+                try {
+                    ZipOutputStream(packageZip.outputStream()).use { output ->
+                        packageRoot.walkTopDown().filter { it.isFile }.forEach { file ->
+                            writeBackupFile(output, file.relativeTo(packageRoot).invariantSeparatorsPath, file)
+                        }
+                    }
+                    packageZip.inputStream().use { SignageRuntime.saveWebPackage(name, it) }
+                } finally { packageZip.delete() }
+            }
+            kind == ResourceKind.REMOTE_FILE -> SignageRuntime.saveRemoteReference(
+                name, source.optString("sourceUri"), if (source.optString("mimeType").startsWith("video/")) "VIDEO" else "IMAGE"
+            )
+            else -> SignageRuntime.saveVirtualResource(
+                name = name,
+                kind = kind,
+                sourceUri = source.optString("sourceUri").takeIf { it.isNotBlank() },
+                content = source.optString("content").takeIf { it.isNotBlank() },
+                refreshIntervalMs = source.optLongOrNull("refreshIntervalMs"),
+                textSizeSp = source.optIntOrNull("textSizeSp"),
+                textColor = source.stringOrNull("textColor"),
+                textBackgroundColor = source.stringOrNull("textBackgroundColor"),
+                fontFamily = source.stringOrNull("fontFamily"),
+                textSpeedDpPerSecond = source.optIntOrNull("textSpeedDpPerSecond"),
+                textRepeatCount = source.optIntOrNull("textRepeatCount")
+            )
+        }
+    }
+
+    private fun backupScene(source: JSONObject, id: String, resourceId: String): SignageScene = SignageScene(
+        id = id,
+        name = source.optString("name").ifBlank { "Scene" },
+        resourceId = resourceId,
+        fitMode = source.optString("fitMode", "FIT"),
+        cropGravity = source.optString("cropGravity", "CENTER"),
+        backgroundType = source.optString("backgroundType", "BLACK"),
+        backgroundColor = source.stringOrNull("backgroundColor"),
+        volume = source.optIntOrNull("volume"),
+        muted = source.optBoolean("muted", false),
+        overlays = overlays(source.optJSONArray("overlays")),
+        playbackSpeed = source.optDouble("playbackSpeed", 1.0).toFloat(),
+        transitionEffect = source.optString("transitionEffect", ImageTransitionPolicy.DEFAULT_EFFECT)
+    )
+
+    private fun backupPlaylist(source: JSONObject, id: String, sceneIdMap: Map<String, String>): SignagePlaylist {
+        val items = source.optJSONArray("items") ?: throw IllegalArgumentException("PROJECT_BACKUP_PLAYLIST_INVALID")
+        return SignagePlaylist(
+            id = id,
+            name = source.optString("name").ifBlank { "Playlist" },
+            loop = source.optBoolean("loop", true),
+            items = buildList {
+                for (index in 0 until items.length()) {
+                    val item = items.optJSONObject(index) ?: throw IllegalArgumentException("PROJECT_BACKUP_PLAYLIST_INVALID")
+                    val sceneId = sceneIdMap[item.optString("sceneId")]
+                        ?: throw IllegalArgumentException("PROJECT_BACKUP_PLAYLIST_INVALID")
+                    add(SignagePlaylistItem(sceneId, item.optLongOrNull("durationMs"), item.optBoolean("enabled", true)))
+                }
+            }
+        )
     }
     private val helpPage: String by lazy {
         applicationContext.resources.openRawResource(R.raw.web_help).bufferedReader(Charsets.UTF_8).use { it.readText() }

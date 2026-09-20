@@ -24,6 +24,8 @@ import com.wkq.localsignage.feature.app.model.DeviceAssignment
 import com.wkq.localsignage.feature.app.model.PlaybackTimingPolicy
 import com.wkq.localsignage.feature.app.model.ImageTransitionPolicy
 import com.wkq.localsignage.feature.app.model.PlaylistPolicy
+import com.wkq.localsignage.feature.app.model.PlaylistSchedule
+import com.wkq.localsignage.feature.app.model.PlaylistSchedulePolicy
 import com.wkq.localsignage.feature.app.model.ResourceKind
 import com.wkq.localsignage.feature.app.model.ResourceMediaDetails
 import com.wkq.localsignage.feature.app.model.SecondPhasePolicy
@@ -332,15 +334,30 @@ class SignageStore(context: Context) : java.io.Closeable {
         require(device.deviceId.isNotBlank()) { "DEVICE_ID_REQUIRED" }
         require(device.token.isNotBlank()) { "DEVICE_TOKEN_REQUIRED" }
         require(device.host.isNotBlank() && device.port in 1..65535) { "DEVICE_ADDRESS_INVALID" }
+        val existingGroup = readPairedDevices(database.readableDatabase)
+            .firstOrNull { it.deviceId == device.deviceId }?.groupName
         val normalized = device.copy(
             deviceName = device.deviceName.trim().take(MAX_DEVICE_NAME_LENGTH).ifBlank { device.deviceId },
             host = device.host.trim(),
-            token = device.token.trim()
+            token = device.token.trim(),
+            groupName = normalizeDeviceGroup(device.groupName) ?: existingGroup
         )
         database.writableDatabase.inTransaction {
             insertPairedDevice(this, normalized)
         }
         normalized
+    }
+
+    fun setPairedDeviceGroup(deviceId: String, groupName: String?): PairedDevice? = synchronized(lock) {
+        val normalizedDeviceId = deviceId.trim()
+        if (normalizedDeviceId.isBlank()) return@synchronized null
+        val group = normalizeDeviceGroup(groupName)
+        database.writableDatabase.inTransaction {
+            if (update("paired_devices", ContentValues().apply { put("group_name", group) }, "device_id = ?", arrayOf(normalizedDeviceId)) == 0) {
+                return@inTransaction null
+            }
+            readPairedDevices(this).firstOrNull { it.deviceId == normalizedDeviceId }
+        }
     }
 
     fun deletePairedDevice(deviceId: String): Boolean = synchronized(lock) {
@@ -351,6 +368,12 @@ class SignageStore(context: Context) : java.io.Closeable {
             delete("paired_devices", "device_id = ?", arrayOf(normalizedDeviceId)) > 0
         }
     }
+
+    private fun normalizeDeviceGroup(value: String?): String? = value
+        ?.filterNot { it.isISOControl() }
+        ?.trim()
+        ?.take(MAX_DEVICE_GROUP_LENGTH)
+        ?.ifBlank { null }
 
     fun deviceAssignments(): List<DeviceAssignment> = synchronized(lock) {
         readDeviceAssignments(database.readableDatabase)
@@ -512,6 +535,7 @@ class SignageStore(context: Context) : java.io.Closeable {
         val root = File(resourceDirectory, "${id}_site")
         var totalBytes = 0L
         var entries = 0
+        val extractedPaths = mutableSetOf<String>()
         try {
             require(root.mkdirs()) { "WEB_PACKAGE_CREATE_FAILED" }
             ZipInputStream(BufferedInputStream(input)).use { zip ->
@@ -521,7 +545,16 @@ class SignageStore(context: Context) : java.io.Closeable {
                     entries += 1
                     require(entries <= MAX_WEB_PACKAGE_FILES) { "WEB_PACKAGE_TOO_MANY_FILES" }
                     val relative = entry.name.replace('\\', '/').trimStart('/')
-                    require(relative.isNotBlank() && !relative.split('/').contains("..")) { "WEB_PACKAGE_PATH_INVALID" }
+                    require(relative.isNotBlank() && relative.none { it == '\u0000' || it.isISOControl() }) {
+                        "WEB_PACKAGE_PATH_INVALID"
+                    }
+                    require(!relative.split('/').contains("..")) { "WEB_PACKAGE_PATH_INVALID" }
+                    require(extractedPaths.add(relative)) { "WEB_PACKAGE_DUPLICATE_PATH" }
+                    val declaredSize = entry.size
+                    val compressedSize = entry.compressedSize
+                    require(
+                        declaredSize < 0L || compressedSize <= 0L || declaredSize / compressedSize <= MAX_WEB_PACKAGE_COMPRESSION_RATIO
+                    ) { "WEB_PACKAGE_COMPRESSION_RATIO_INVALID" }
                     val target = File(root, relative).canonicalFile
                     require(target.path.startsWith(root.canonicalPath + File.separator)) { "WEB_PACKAGE_PATH_INVALID" }
                     target.parentFile?.mkdirs()
@@ -605,6 +638,40 @@ class SignageStore(context: Context) : java.io.Closeable {
     fun scene(id: String?): SignageScene? = synchronized(lock) { readScenes(database.readableDatabase, "id = ?", arrayOf(id.orEmpty())).firstOrNull() }
     fun playlists(): List<SignagePlaylist> = synchronized(lock) { readPlaylists(database.readableDatabase) }
     fun playlist(id: String?): SignagePlaylist? = synchronized(lock) { readPlaylists(database.readableDatabase).firstOrNull { it.id == id } }
+    fun playlistSchedules(): List<PlaylistSchedule> = synchronized(lock) { readPlaylistSchedules(database.readableDatabase) }
+    fun savePlaylistSchedule(schedule: PlaylistSchedule): PlaylistSchedule = synchronized(lock) {
+        val normalized = schedule.copy(
+            weekdays = PlaylistSchedulePolicy.normalizeWeekdays(schedule.weekdays),
+            startMinute = PlaylistSchedulePolicy.normalizeMinute(schedule.startMinute),
+            endMinute = PlaylistSchedulePolicy.normalizeMinute(schedule.endMinute),
+            updatedAt = System.currentTimeMillis()
+        )
+        require(normalized.weekdays.isNotEmpty()) { "SCHEDULE_WEEKDAYS_REQUIRED" }
+        database.writableDatabase.inTransaction {
+            require(playlistExists(this, normalized.playlistId)) { "PLAYLIST_NOT_FOUND" }
+            insertPlaylistSchedule(this, normalized)
+        }
+        normalized
+    }
+    fun deletePlaylistSchedule(id: String): Boolean = synchronized(lock) {
+        database.writableDatabase.delete("playlist_schedules", "id = ?", arrayOf(id)) > 0
+    }
+    fun replacePlaylistSchedules(schedules: Collection<PlaylistSchedule>) = synchronized(lock) {
+        val normalized = schedules.map { schedule ->
+            schedule.copy(
+                weekdays = PlaylistSchedulePolicy.normalizeWeekdays(schedule.weekdays),
+                startMinute = PlaylistSchedulePolicy.normalizeMinute(schedule.startMinute),
+                endMinute = PlaylistSchedulePolicy.normalizeMinute(schedule.endMinute),
+                updatedAt = System.currentTimeMillis()
+            )
+        }
+        require(normalized.all { it.weekdays.isNotEmpty() }) { "SCHEDULE_WEEKDAYS_REQUIRED" }
+        database.writableDatabase.inTransaction {
+            require(normalized.all { playlistExists(this, it.playlistId) }) { "PLAYLIST_NOT_FOUND" }
+            delete("playlist_schedules", null, null)
+            normalized.forEach { insertPlaylistSchedule(this, it) }
+        }
+    }
 
     fun currentSceneId(): String? = synchronized(lock) { getMeta(database.readableDatabase, KEY_CURRENT_SCENE) }
     fun currentPlaylistId(): String? = synchronized(lock) { getMeta(database.readableDatabase, KEY_CURRENT_PLAYLIST) }
@@ -1200,7 +1267,8 @@ class SignageStore(context: Context) : java.io.Closeable {
                 host = cursor.getString(2),
                 port = cursor.getInt(3),
                 token = LocalSecretCipher.decrypt(cursor.getString(4)),
-                pairedAt = cursor.getLong(5)
+                pairedAt = cursor.getLong(5),
+                groupName = cursor.getStringOrNull(6)
             ))
         }
     }
@@ -1282,6 +1350,17 @@ class SignageStore(context: Context) : java.io.Closeable {
         }
     }
 
+    private fun readPlaylistSchedules(db: SQLiteDatabase): List<PlaylistSchedule> = buildList {
+        db.query("playlist_schedules", arrayOf("id", "playlist_id", "weekdays", "start_minute", "end_minute", "priority", "enabled", "updated_at"), null, null, null, null, "priority DESC, updated_at DESC").use { cursor ->
+            while (cursor.moveToNext()) add(PlaylistSchedule(
+                id = cursor.getString(0), playlistId = cursor.getString(1),
+                weekdays = cursor.getString(2).split(',').mapNotNull(String::toIntOrNull).toSet(),
+                startMinute = cursor.getInt(3), endMinute = cursor.getInt(4), priority = cursor.getInt(5),
+                enabled = cursor.getInt(6) != 0, updatedAt = cursor.getLong(7)
+            ))
+        }
+    }
+
     private fun insertResource(db: SQLiteDatabase, resource: SignageResource) {
         db.insertOrThrow("resources", null, ContentValues().apply {
             put("id", resource.id); put("name", resource.name); put("mime_type", resource.mimeType)
@@ -1302,6 +1381,7 @@ class SignageStore(context: Context) : java.io.Closeable {
             put("port", device.port)
             put("token", LocalSecretCipher.encrypt(device.token))
             put("paired_at", device.pairedAt)
+            put("group_name", device.groupName)
         }, SQLiteDatabase.CONFLICT_REPLACE)
     }
 
@@ -1353,6 +1433,15 @@ class SignageStore(context: Context) : java.io.Closeable {
     private fun insertPlaylist(db: SQLiteDatabase, playlist: SignagePlaylist) {
         db.insertOrThrow("playlists", null, ContentValues().apply { put("id", playlist.id); put("name", playlist.name); put("loop", if (playlist.loop) 1 else 0); put("updated_at", playlist.updatedAt) })
         insertPlaylistItems(db, playlist)
+    }
+
+    private fun insertPlaylistSchedule(db: SQLiteDatabase, schedule: PlaylistSchedule) {
+        db.insertWithOnConflict("playlist_schedules", null, ContentValues().apply {
+            put("id", schedule.id); put("playlist_id", schedule.playlistId)
+            put("weekdays", schedule.weekdays.sorted().joinToString(",")); put("start_minute", schedule.startMinute)
+            put("end_minute", schedule.endMinute); put("priority", schedule.priority)
+            put("enabled", if (schedule.enabled) 1 else 0); put("updated_at", schedule.updatedAt)
+        }, SQLiteDatabase.CONFLICT_REPLACE)
     }
 
     private fun replacePlaylist(db: SQLiteDatabase, playlist: SignagePlaylist) {
@@ -1541,14 +1630,16 @@ class SignageStore(context: Context) : java.io.Closeable {
             db.execSQL("CREATE TABLE scenes (id TEXT PRIMARY KEY NOT NULL, name TEXT NOT NULL, resource_id TEXT NOT NULL, fit_mode TEXT NOT NULL, crop_gravity TEXT NOT NULL, background_type TEXT NOT NULL, background_color TEXT, volume INTEGER, muted INTEGER NOT NULL, created_at INTEGER NOT NULL, overlays_json TEXT NOT NULL DEFAULT '[]', playback_speed REAL NOT NULL DEFAULT 1.0, transition_effect TEXT NOT NULL DEFAULT 'FADE', FOREIGN KEY(resource_id) REFERENCES resources(id))")
             db.execSQL("CREATE TABLE playlists (id TEXT PRIMARY KEY NOT NULL, name TEXT NOT NULL, loop INTEGER NOT NULL, updated_at INTEGER NOT NULL)")
             db.execSQL("CREATE TABLE playlist_items (playlist_id TEXT NOT NULL, position INTEGER NOT NULL, scene_id TEXT NOT NULL, duration_ms INTEGER, enabled INTEGER NOT NULL, PRIMARY KEY(playlist_id, position), FOREIGN KEY(playlist_id) REFERENCES playlists(id) ON DELETE CASCADE, FOREIGN KEY(scene_id) REFERENCES scenes(id))")
+            db.execSQL("CREATE TABLE playlist_schedules (id TEXT PRIMARY KEY NOT NULL, playlist_id TEXT NOT NULL, weekdays TEXT NOT NULL, start_minute INTEGER NOT NULL, end_minute INTEGER NOT NULL, priority INTEGER NOT NULL, enabled INTEGER NOT NULL, updated_at INTEGER NOT NULL, FOREIGN KEY(playlist_id) REFERENCES playlists(id) ON DELETE CASCADE)")
             db.execSQL("CREATE TABLE meta (key TEXT PRIMARY KEY NOT NULL, value TEXT NOT NULL)")
             db.execSQL("CREATE TABLE playback_errors (id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, media_id TEXT, scene_id TEXT, error_code TEXT NOT NULL, action TEXT NOT NULL, attempt INTEGER NOT NULL, created_at INTEGER NOT NULL)")
-            db.execSQL("CREATE TABLE paired_devices (device_id TEXT PRIMARY KEY NOT NULL, device_name TEXT NOT NULL, host TEXT NOT NULL, port INTEGER NOT NULL, token TEXT NOT NULL, paired_at INTEGER NOT NULL)")
+            db.execSQL("CREATE TABLE paired_devices (device_id TEXT PRIMARY KEY NOT NULL, device_name TEXT NOT NULL, host TEXT NOT NULL, port INTEGER NOT NULL, token TEXT NOT NULL, paired_at INTEGER NOT NULL, group_name TEXT)")
             db.execSQL("CREATE TABLE device_assignments (device_id TEXT PRIMARY KEY NOT NULL, playlist_id TEXT NOT NULL, desired_revision INTEGER NOT NULL, desired_playing INTEGER NOT NULL, state TEXT NOT NULL, applied_revision INTEGER, last_sync_at INTEGER, last_error TEXT, FOREIGN KEY(device_id) REFERENCES paired_devices(device_id) ON DELETE CASCADE)")
             db.execSQL("CREATE TABLE command_results (command_id TEXT PRIMARY KEY NOT NULL, fingerprint TEXT NOT NULL, response TEXT NOT NULL, status_code INTEGER NOT NULL, created_at INTEGER NOT NULL)")
             db.execSQL("CREATE TABLE operation_records (id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, created_at INTEGER NOT NULL, client_name TEXT NOT NULL, device_id TEXT NOT NULL, action TEXT NOT NULL, result TEXT NOT NULL, status_code INTEGER NOT NULL)")
             db.execSQL("CREATE INDEX scenes_resource_idx ON scenes(resource_id)")
             db.execSQL("CREATE INDEX playlist_items_scene_idx ON playlist_items(scene_id)")
+            db.execSQL("CREATE INDEX playlist_schedules_playlist_idx ON playlist_schedules(playlist_id)")
             db.execSQL("CREATE INDEX playback_errors_created_idx ON playback_errors(created_at DESC)")
             db.execSQL("CREATE INDEX operation_records_created_idx ON operation_records(created_at DESC)")
         }
@@ -1593,6 +1684,11 @@ class SignageStore(context: Context) : java.io.Closeable {
             if (oldVersion < 12) {
                 db.execSQL("ALTER TABLE scenes ADD COLUMN transition_effect TEXT NOT NULL DEFAULT 'FADE'")
             }
+            if (oldVersion < 13) db.execSQL("ALTER TABLE paired_devices ADD COLUMN group_name TEXT")
+            if (oldVersion < 14) {
+                db.execSQL("CREATE TABLE IF NOT EXISTS playlist_schedules (id TEXT PRIMARY KEY NOT NULL, playlist_id TEXT NOT NULL, weekdays TEXT NOT NULL, start_minute INTEGER NOT NULL, end_minute INTEGER NOT NULL, priority INTEGER NOT NULL, enabled INTEGER NOT NULL, updated_at INTEGER NOT NULL, FOREIGN KEY(playlist_id) REFERENCES playlists(id) ON DELETE CASCADE)")
+                db.execSQL("CREATE INDEX IF NOT EXISTS playlist_schedules_playlist_idx ON playlist_schedules(playlist_id)")
+            }
         }
 
         private fun removeLegacyHtmlOverlays(db: SQLiteDatabase) {
@@ -1635,7 +1731,7 @@ class SignageStore(context: Context) : java.io.Closeable {
         const val TAG = "SignageStore"
         val SHA256_PATTERN = Regex("[a-f0-9]{64}")
         const val DATABASE_NAME = "signage.db"
-        const val DATABASE_VERSION = 12
+        const val DATABASE_VERSION = 14
         const val LEGACY_PREFERENCES = "local_signage"
         const val KEY_SCHEMA_MIGRATED = "schema_migrated"
         const val KEY_DEVICE_ID = "device_id"
@@ -1676,10 +1772,12 @@ class SignageStore(context: Context) : java.io.Closeable {
         const val MAX_COMMAND_RESULTS = 256
         const val MAX_CLIENT_NAME_LENGTH = 80
         const val MAX_DEVICE_NAME_LENGTH = 80
+        const val MAX_DEVICE_GROUP_LENGTH = 60
         const val MAX_RESOURCE_NAME_LENGTH = 120
         const val MAX_VIRTUAL_CONTENT_LENGTH = 100_000
         const val MAX_WEB_PACKAGE_FILES = 256
         const val MAX_WEB_PACKAGE_BYTES = 50L * 1024L * 1024L
+        const val MAX_WEB_PACKAGE_COMPRESSION_RATIO = 100L
         const val LOCAL_WEB_BASE = "https://local.signage/site"
         const val MAX_RESOURCE_BYTES = 200L * 1024L * 1024L
         const val MAX_TOTAL_RESOURCE_BYTES = 2L * 1024L * 1024L * 1024L
@@ -1701,7 +1799,7 @@ class SignageStore(context: Context) : java.io.Closeable {
         val SCENE_COLUMNS = arrayOf("id", "name", "resource_id", "fit_mode", "crop_gravity", "background_type", "background_color", "volume", "muted", "created_at", "overlays_json", "playback_speed", "transition_effect")
         val ERROR_COLUMNS = arrayOf("id", "media_id", "scene_id", "error_code", "action", "attempt", "created_at")
         val OPERATION_COLUMNS = arrayOf("id", "created_at", "client_name", "device_id", "action", "result", "status_code")
-        val PAIRED_DEVICE_COLUMNS = arrayOf("device_id", "device_name", "host", "port", "token", "paired_at")
+        val PAIRED_DEVICE_COLUMNS = arrayOf("device_id", "device_name", "host", "port", "token", "paired_at", "group_name")
         val DEVICE_ASSIGNMENT_COLUMNS = arrayOf("device_id", "playlist_id", "desired_revision", "desired_playing", "state", "applied_revision", "last_sync_at", "last_error")
         val COMMAND_RESULT_COLUMNS = arrayOf("command_id", "fingerprint", "response", "status_code", "created_at")
     }

@@ -6,6 +6,7 @@ import com.wkq.localsignage.feature.app.model.PlaybackListener
 import com.wkq.localsignage.feature.app.model.ControlSession
 import com.wkq.localsignage.feature.app.model.SignagePlaylist
 import com.wkq.localsignage.feature.app.model.SignagePlaylistItem
+import com.wkq.localsignage.feature.app.model.PlaylistSchedule
 import com.wkq.localsignage.feature.app.model.SignageResource
 import com.wkq.localsignage.feature.app.model.SignageScene
 import com.wkq.localsignage.feature.app.model.SignageState
@@ -63,6 +64,14 @@ object SignageRuntime {
     fun scene(id: String?): SignageScene? = requireStore().scene(id)
     fun playlists(): List<SignagePlaylist> = requireStore().playlists()
     fun playlist(id: String?): SignagePlaylist? = requireStore().playlist(id)
+    fun playlistSchedules(): List<PlaylistSchedule> = requireStore().playlistSchedules()
+    fun savePlaylistSchedule(schedule: PlaylistSchedule): PlaylistSchedule =
+        requireStore().savePlaylistSchedule(schedule).also { notifyContentChanged() }
+    fun deletePlaylistSchedule(id: String): Boolean = requireStore().deletePlaylistSchedule(id).also { notifyContentChanged() }
+    fun replacePlaylistSchedules(schedules: Collection<PlaylistSchedule>) {
+        requireStore().replacePlaylistSchedules(schedules)
+        notifyContentChanged()
+    }
     fun controlToken(): String = requireStore().controlToken()
     fun webAccessToken(): String = requireStore().webAccessToken()
     fun rotateWebAccessToken(): String = requireStore().rotateWebAccessToken()
@@ -99,6 +108,8 @@ object SignageRuntime {
     fun resourceStorageSummary(): ResourceStorageSummary = requireStore().resourceStorageSummary()
     fun pairedDevice(deviceId: String): PairedDevice? = requireStore().pairedDevice(deviceId)
     fun savePairedDevice(device: PairedDevice): PairedDevice = requireStore().savePairedDevice(device)
+    fun setPairedDeviceGroup(deviceId: String, groupName: String?): PairedDevice? =
+        requireStore().setPairedDeviceGroup(deviceId, groupName)
     fun deletePairedDevice(deviceId: String): Boolean = requireStore().deletePairedDevice(deviceId)
     fun controlSession(): ControlSession? = requireStore().controlSession()
     fun acquireControlSession(clientName: String, takeover: Boolean = false): ControlSession? = requireStore().acquireControlSession(clientName, takeover)

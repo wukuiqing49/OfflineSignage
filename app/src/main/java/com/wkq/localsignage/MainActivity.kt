@@ -306,6 +306,8 @@ class MainActivity : BaseActivity<ActivityMainBinding>(), PlaybackListener {
 
     private fun openPairingPanel() {
         pairingManuallyOpened = true
+        // A manually opened control panel must never present a stale pairing credential.
+        SignageRuntime.issuePairingToken()
         updateContentMode()
     }
 

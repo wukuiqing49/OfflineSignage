@@ -154,7 +154,8 @@ data class PairedDevice(
     val host: String,
     val port: Int,
     val token: String,
-    val pairedAt: Long
+    val pairedAt: Long,
+    val groupName: String? = null
 )
 
 data class DeviceAssignment(

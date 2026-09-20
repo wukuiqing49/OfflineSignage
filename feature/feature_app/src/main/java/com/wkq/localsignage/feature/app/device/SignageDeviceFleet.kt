@@ -108,22 +108,45 @@ object SignageDeviceFleet {
                         return@forEach
                     }
                     val exists = client.resourceExists(resource.hash)
-                    val remoteId = exists.resourceId ?: if (resource.isLocalFile) {
-                        client.upload(resource, checkNotNull(file)).resourceId
-                    } else {
-                        client.saveVirtualResource(resource).resourceId
+                    if (exists.status !in 200..299) {
+                        failure = "RESOURCE_LOOKUP_FAILED_${exists.status}"
+                        return@forEach
                     }
-                    if (remoteId == null) failure = "RESOURCE_SYNC_FAILED" else remoteResourceIds[resource.id] = remoteId
+                    val synced = if (exists.resourceId != null) {
+                        null
+                    } else if (resource.isLocalFile) {
+                        client.upload(resource, checkNotNull(file))
+                    } else {
+                        client.saveVirtualResource(resource)
+                    }
+                    val remoteId = exists.resourceId ?: synced?.resourceId
+                    if (remoteId == null) {
+                        failure = "RESOURCE_SYNC_FAILED_${synced?.status ?: -1}"
+                    } else {
+                        remoteResourceIds[resource.id] = remoteId
+                    }
                 }
                 if (failure != null) {
                     FleetResult(target.deviceId, target.deviceName, false, false, failure.orEmpty())
                 } else {
-                    val scenesSaved = scenes.all { scene ->
-                        val remoteId = remoteResourceIds[scene.resourceId] ?: return@all false
-                        client.saveScene(scene, remoteId)
+                    var sceneFailure: String? = null
+                    scenes.forEach { scene ->
+                        if (sceneFailure != null) return@forEach
+                        val remoteId = remoteResourceIds[scene.resourceId]
+                        if (remoteId == null) {
+                            sceneFailure = "RESOURCE_MAPPING_MISSING"
+                        } else {
+                            val status = client.saveScene(scene, remoteId)
+                            if (status !in 200..299) sceneFailure = "SCENE_SYNC_FAILED_$status"
+                        }
                     }
-                    val playlistSaved = scenesSaved && client.savePlaylist(playlist)
-                    FleetResult(target.deviceId, target.deviceName, playlistSaved, false, if (playlistSaved) "PLAYLIST_SYNCED" else "PLAYLIST_SYNC_FAILED")
+                    if (sceneFailure != null) {
+                        FleetResult(target.deviceId, target.deviceName, false, false, sceneFailure.orEmpty())
+                    } else {
+                        val playlistStatus = client.savePlaylist(playlist)
+                        val saved = playlistStatus in 200..299
+                        FleetResult(target.deviceId, target.deviceName, saved, false, if (saved) "PLAYLIST_SYNCED" else "PLAYLIST_SYNC_FAILED_$playlistStatus")
+                    }
                 }
             }
         }.awaitAll()

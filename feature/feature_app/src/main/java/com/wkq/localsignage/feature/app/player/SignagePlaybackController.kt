@@ -41,12 +41,14 @@ import com.wkq.localsignage.feature.app.model.SignageOverlay
 import com.wkq.localsignage.feature.app.model.SignagePlaylistItem
 import com.wkq.localsignage.feature.app.model.PlaybackStartupPolicy
 import com.wkq.localsignage.feature.app.model.PlaybackTimingPolicy
+import com.wkq.localsignage.feature.app.model.PlaylistSchedulePolicy
 import com.wkq.localsignage.feature.app.model.SignageResource
 import com.wkq.localsignage.feature.app.model.SignageScene
 import com.wkq.localsignage.feature.app.runtime.SignageRuntime
 import java.util.concurrent.FutureTask
 import java.util.concurrent.TimeoutException
 import java.util.concurrent.TimeUnit
+import java.util.Calendar
 import kotlin.math.max
 
 @androidx.annotation.OptIn(androidx.media3.common.util.UnstableApi::class)
@@ -76,6 +78,7 @@ object SignagePlaybackController {
     private val tickerAnimators = mutableListOf<ObjectAnimator>()
     private val htmlOverlayViews = mutableListOf<WebView>()
     private var textAnimator: ObjectAnimator? = null
+    private var activeScheduleId: String? = null
 
     private val sceneTimeout = Runnable { if (desiredPlaying) advance(1, fromFailure = false) }
     private val webLoadTimeout = Runnable { handleSceneFailure("WEB_TIMEOUT") }
@@ -97,6 +100,29 @@ object SignagePlaybackController {
                     .onFailure { handleSceneFailure("SUPERVISOR_FAILED") }
             }
             mainHandler.postDelayed(this, SUPERVISOR_INTERVAL_MS)
+        }
+    }
+    private val scheduleSupervisor = object : Runnable {
+        override fun run() {
+            val calendar = Calendar.getInstance()
+            val active = PlaylistSchedulePolicy.active(
+                SignageRuntime.playlistSchedules(),
+                calendar.get(Calendar.DAY_OF_WEEK),
+                calendar.get(Calendar.HOUR_OF_DAY) * 60 + calendar.get(Calendar.MINUTE)
+            )
+            if (active?.id != activeScheduleId) {
+                activeScheduleId = active?.id
+                active?.let { schedule ->
+                    if (SignageRuntime.playlist(schedule.playlistId) != null) {
+                        SignageRuntime.selectPlaylist(schedule.playlistId)
+                        // A schedule is an autonomous playback instruction, including after a cold start.
+                        desiredPlaying = true
+                        loadPlaylist(restorePosition = false, forceReload = true, followCurrentScene = false)
+                        publish()
+                    }
+                }
+            }
+            mainHandler.postDelayed(this, SCHEDULE_CHECK_INTERVAL_MS)
         }
     }
 
@@ -142,6 +168,7 @@ object SignagePlaybackController {
         )
         mainHandler.post(positionSaver)
         mainHandler.postDelayed(supervisor, SUPERVISOR_INTERVAL_MS)
+        mainHandler.post(scheduleSupervisor)
         runOnMainAndWait { loadPlaylist(restorePosition = true); true }
     }
 
@@ -196,6 +223,7 @@ object SignagePlaybackController {
         listener = null
         activeScenes = emptyList()
         activeItems = emptyList()
+        activeScheduleId = null
         retryAttempts.clear()
         failedSceneIds.clear()
         contentMode = ContentMode.NONE
@@ -972,6 +1000,7 @@ object SignagePlaybackController {
     private const val MIN_TIMEOUT_MS = 100L
     private const val WEB_LOAD_TIMEOUT_MS = 20_000L
     private const val SUPERVISOR_INTERVAL_MS = 10_000L
+    private const val SCHEDULE_CHECK_INTERVAL_MS = 30_000L
     private const val LOCAL_HTML_BASE_URL = "https://local.signage.invalid/"
     private const val BLUR_RADIUS_PX = 24f
     private const val MAX_BLUR_BITMAP_EDGE = 1_280

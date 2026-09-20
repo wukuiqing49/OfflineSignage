@@ -103,7 +103,7 @@ class SignageStoreIntegrationTest {
             assertEquals("scene", store.playlist("playlist")!!.items.single().sceneId)
             assertTrue(store.operationRecords().isEmpty())
         }
-        context.openOrCreateDatabase("signage.db", 0, null).use { assertEquals(12, it.version) }
+        context.openOrCreateDatabase("signage.db", 0, null).use { assertEquals(14, it.version) }
     }
 
     @Test fun checkpointFailureIsVisibleAndLaterWriteCanRecover() {

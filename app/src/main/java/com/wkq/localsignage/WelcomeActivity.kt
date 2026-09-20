@@ -6,6 +6,7 @@ import android.content.pm.ActivityInfo
 import android.content.res.Configuration
 import android.os.Build
 import android.view.ViewGroup
+import android.view.View
 import android.view.WindowManager
 import android.widget.LinearLayout
 import androidx.core.content.edit
@@ -52,7 +53,7 @@ class WelcomeActivity : BaseActivity<ActivityWelcomeBinding>() {
             )
             insets
         }
-        binding.welcomeRoot.doOnLayout { configureWelcomeLayout(it.width) }
+        binding.welcomeRoot.doOnLayout { configureWelcomeLayout(it.width, it.height) }
         binding.startButton.setOnClickListener {
             markWelcomeCompleted()
             openPlayer()
@@ -66,8 +67,10 @@ class WelcomeActivity : BaseActivity<ActivityWelcomeBinding>() {
 
     override fun initData() = Unit
 
-    private fun configureWelcomeLayout(availableWidth: Int) {
-        val compact = availableWidth < resources.getDimensionPixelSize(FeatureAppR.dimen.pairing_compact_breakpoint)
+    private fun configureWelcomeLayout(availableWidth: Int, availableHeight: Int) {
+        val compactWidth = availableWidth < resources.getDimensionPixelSize(FeatureAppR.dimen.pairing_compact_breakpoint)
+        val compactHeight = availableHeight < resources.getDimensionPixelSize(FeatureAppR.dimen.pairing_compact_height_breakpoint)
+        val compact = compactWidth || compactHeight
         val padding = resources.getDimensionPixelSize(
             if (compact) FeatureAppR.dimen.welcome_compact_screen_padding else FeatureAppR.dimen.welcome_screen_padding
         )
@@ -75,21 +78,27 @@ class WelcomeActivity : BaseActivity<ActivityWelcomeBinding>() {
             if (compact) FeatureAppR.dimen.welcome_compact_content_gap else FeatureAppR.dimen.welcome_content_gap
         )
         binding.welcomeContent.apply {
-            orientation = if (compact) LinearLayout.VERTICAL else LinearLayout.HORIZONTAL
+            orientation = if (compactWidth) LinearLayout.VERTICAL else LinearLayout.HORIZONTAL
             setPadding(padding, padding, padding, padding)
         }
         binding.welcomeIntro.layoutParams =
             (binding.welcomeIntro.layoutParams as LinearLayout.LayoutParams).apply {
-                width = if (compact) ViewGroup.LayoutParams.MATCH_PARENT else 0
-                weight = if (compact) 0f else 1f
+                width = if (compactWidth) ViewGroup.LayoutParams.MATCH_PARENT else 0
+                weight = if (compactWidth) 0f else 1f
             }
         binding.welcomeSetup.layoutParams =
             (binding.welcomeSetup.layoutParams as LinearLayout.LayoutParams).apply {
-                width = if (compact) ViewGroup.LayoutParams.MATCH_PARENT else 0
-                weight = if (compact) 0f else 1f
-                marginStart = if (compact) 0 else gap
-                topMargin = if (compact) gap else 0
+                width = if (compactWidth) ViewGroup.LayoutParams.MATCH_PARENT else 0
+                weight = if (compactWidth) 0f else 1f
+                marginStart = if (compactWidth) 0 else gap
+                topMargin = if (compactWidth) gap else 0
             }
+        binding.welcomeTitle.textSize = if (compactHeight) 25f else 36f
+        binding.welcomeSummary.textSize = if (compactHeight) 14f else 17f
+        binding.welcomeSummary.maxLines = if (compactHeight) 3 else 5
+        binding.welcomeOfflineNote.visibility = if (compactHeight) View.GONE else View.VISIBLE
+        binding.welcomeSetupTitle.textSize = if (compactHeight) 18f else 22f
+        binding.welcomeIntro.visibility = if (compactHeight && !compactWidth) View.GONE else View.VISIBLE
     }
 
     private fun welcomeCompleted(): Boolean =

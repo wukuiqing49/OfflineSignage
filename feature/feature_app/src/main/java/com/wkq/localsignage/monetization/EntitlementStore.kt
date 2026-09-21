@@ -35,14 +35,51 @@ internal class EntitlementStore(
     }
 
     @Synchronized
-    fun saveVerifiedPurchases(hasLifetime: Boolean, hasSubscription: Boolean) {
+    fun saveVerifiedPurchases(hasLifetime: Boolean? = null, hasSubscription: Boolean? = null) {
         val now = clock.nowEpochMillis()
+        preferences.edit().apply {
+            hasLifetime?.let { putBoolean(KEY_LIFETIME_VERIFIED, it) }
+            hasSubscription?.let {
+                putLong(KEY_SUBSCRIPTION_VERIFIED_AT, if (it) now else 0L)
+            }
+            putLong(KEY_LAST_OBSERVED_AT, max(now, preferences.getLong(KEY_LAST_OBSERVED_AT, now)))
+            apply()
+        }
+    }
+
+    @Synchronized
+    fun recordPendingAcknowledgement(purchaseToken: String) {
+        if (purchaseToken.isBlank()) return
         preferences.edit()
-            .putBoolean(KEY_LIFETIME_VERIFIED, hasLifetime)
-            .putLong(KEY_SUBSCRIPTION_VERIFIED_AT, if (hasSubscription) now else 0L)
-            .putLong(KEY_LAST_OBSERVED_AT, max(now, preferences.getLong(KEY_LAST_OBSERVED_AT, now)))
+            .putStringSet(
+                KEY_PENDING_ACKNOWLEDGEMENT_TOKENS,
+                pendingAcknowledgementTokens() + purchaseToken
+            )
             .apply()
     }
+
+    @Synchronized
+    fun clearPendingAcknowledgement(purchaseToken: String) {
+        preferences.edit()
+            .putStringSet(
+                KEY_PENDING_ACKNOWLEDGEMENT_TOKENS,
+                pendingAcknowledgementTokens() - purchaseToken
+            )
+            .apply()
+    }
+
+    @Synchronized
+    fun reconcilePendingAcknowledgements(unacknowledgedPurchaseTokens: Set<String>) {
+        preferences.edit()
+            .putStringSet(KEY_PENDING_ACKNOWLEDGEMENT_TOKENS, unacknowledgedPurchaseTokens)
+            .apply()
+    }
+
+    @Synchronized
+    fun pendingAcknowledgementTokens(): Set<String> = preferences
+        .getStringSet(KEY_PENDING_ACKNOWLEDGEMENT_TOKENS, emptySet())
+        .orEmpty()
+        .toSet()
 
     private companion object {
         const val PREFERENCES_NAME = "local_signage_entitlement"
@@ -50,6 +87,7 @@ internal class EntitlementStore(
         const val KEY_LAST_OBSERVED_AT = "last_observed_at"
         const val KEY_SUBSCRIPTION_VERIFIED_AT = "subscription_verified_at"
         const val KEY_LIFETIME_VERIFIED = "lifetime_verified"
+        const val KEY_PENDING_ACKNOWLEDGEMENT_TOKENS = "pending_acknowledgement_tokens"
         const val CLOCK_ROLLBACK_TOLERANCE_MS = 5 * 60 * 1000L
     }
 }

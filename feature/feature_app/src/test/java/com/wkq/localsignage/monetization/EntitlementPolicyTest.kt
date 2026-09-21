@@ -34,11 +34,11 @@ class EntitlementPolicyTest {
     }
 
     @Test
-    fun verifiedSubscriptionUsesOfflineGraceForThirtyDays() {
+    fun verifiedSubscriptionUsesOfflineGraceForSevenDays() {
         val verifiedAt = start + days(8)
         val state = policy.evaluateLocal(
             snapshot(
-                now = verifiedAt + days(29),
+                now = verifiedAt + days(6),
                 subscriptionVerifiedAt = verifiedAt
             )
         )
@@ -47,11 +47,11 @@ class EntitlementPolicyTest {
     }
 
     @Test
-    fun subscriptionGraceExpiresAfterThirtyDays() {
+    fun subscriptionGraceExpiresAfterSevenDays() {
         val verifiedAt = start + days(8)
         val state = policy.evaluateLocal(
             snapshot(
-                now = verifiedAt + days(31),
+                now = verifiedAt + days(8),
                 subscriptionVerifiedAt = verifiedAt
             )
         )

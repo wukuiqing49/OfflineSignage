@@ -4,7 +4,7 @@ import java.util.concurrent.TimeUnit
 
 internal class EntitlementPolicy(
     private val trialDurationMillis: Long = TimeUnit.DAYS.toMillis(7),
-    private val subscriptionGraceMillis: Long = TimeUnit.DAYS.toMillis(30)
+    private val subscriptionGraceMillis: Long = TimeUnit.DAYS.toMillis(7)
 ) {
     fun evaluateLocal(
         snapshot: EntitlementSnapshot,

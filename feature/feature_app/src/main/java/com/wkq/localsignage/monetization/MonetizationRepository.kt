@@ -87,7 +87,8 @@ object MonetizationRepository {
     }
 
     private suspend fun refreshNow(loadCatalog: Boolean) = refreshMutex.withLock {
-        _uiState.value = _uiState.value.copy(loading = true, errorMessage = "")
+        val previousState = _uiState.value
+        _uiState.value = previousState.copy(loading = true, errorMessage = "")
         var catalogError: Throwable? = null
         val catalog = if (loadCatalog) {
             GoogleKit.billing.queryConfiguredCatalog().getOrElse {
@@ -95,49 +96,67 @@ object MonetizationRepository {
                 GoogleBillingCatalog()
             }
         } else {
-            _uiState.value.catalog
+            previousState.catalog
         }
         if (loadCatalog && catalogError == null && !catalog.hasAllConfiguredProducts()) {
             catalogError = IllegalStateException("Configured Google Play products are unavailable.")
         }
         val subscriptionResult = GoogleKit.billing.queryActivePurchases(GoogleProductType.SUBS)
         val lifetimeResult = GoogleKit.billing.queryActivePurchases(GoogleProductType.IN_APP)
-        if (catalogError != null || subscriptionResult.isFailure || lifetimeResult.isFailure) {
-            val error = catalogError
-                ?: subscriptionResult.exceptionOrNull()
-                ?: lifetimeResult.exceptionOrNull()
+        if (subscriptionResult.isFailure && lifetimeResult.isFailure) {
+            val error = subscriptionResult.exceptionOrNull() ?: lifetimeResult.exceptionOrNull()
             _uiState.value = MonetizationUiState(
                 entitlement = policy.evaluateLocal(store.snapshot()),
                 catalog = catalog,
-                catalogLoaded = loadCatalog || _uiState.value.catalogLoaded,
+                catalogLoaded = (loadCatalog && catalogError == null) || previousState.catalogLoaded,
                 loading = false,
                 errorMessage = error?.message.orEmpty()
             )
             return@withLock
         }
 
-        val allPurchases = subscriptionResult.getOrThrow() + lifetimeResult.getOrThrow()
+        val subscriptionPurchases = subscriptionResult.getOrNull().orEmpty()
+        val lifetimePurchases = lifetimeResult.getOrNull().orEmpty()
+        val allPurchases = subscriptionPurchases + lifetimePurchases
         val pendingIds = allPurchases
             .filter { it.purchaseState == GooglePurchaseState.PENDING }
             .flatMap { it.products }
             .toSet()
         val verified = allPurchases.filter(::isVerifiedPurchased)
-        val hasLifetime = verified.any { LIFETIME_PRODUCT_ID in it.products }
-        val hasSubscription = verified.any { PRO_SUBSCRIPTION_ID in it.products }
-        acknowledgeVerifiedPurchases(verified)
-        store.saveVerifiedPurchases(hasLifetime, hasSubscription)
+        val subscriptionAvailable = subscriptionResult.isSuccess
+        val lifetimeAvailable = lifetimeResult.isSuccess
+        store.saveVerifiedPurchases(
+            hasLifetime = if (lifetimeAvailable) {
+                verified.any { LIFETIME_PRODUCT_ID in it.products }
+            } else {
+                null
+            },
+            hasSubscription = if (subscriptionAvailable) {
+                verified.any { PRO_SUBSCRIPTION_ID in it.products }
+            } else {
+                null
+            }
+        )
+        acknowledgeVerifiedPurchases(
+            purchases = verified,
+            reconcilePendingTokens = subscriptionAvailable && lifetimeAvailable
+        )
         val snapshot = store.snapshot()
         _uiState.value = MonetizationUiState(
             entitlement = policy.evaluateVerified(
                 snapshot = snapshot,
-                hasLifetime = hasLifetime,
-                hasSubscription = hasSubscription,
-                billingAvailable = true,
+                hasLifetime = snapshot.lifetimeVerified,
+                hasSubscription = snapshot.lastSubscriptionVerifiedAtEpochMillis != null,
+                billingAvailable = subscriptionAvailable || lifetimeAvailable,
                 pendingProductIds = pendingIds
             ),
             catalog = catalog,
-            catalogLoaded = loadCatalog || _uiState.value.catalogLoaded,
-            loading = false
+            catalogLoaded = (loadCatalog && catalogError == null) || previousState.catalogLoaded,
+            loading = false,
+            errorMessage = catalogError?.message
+                ?: subscriptionResult.exceptionOrNull()?.message
+                ?: lifetimeResult.exceptionOrNull()?.message
+                ?: ""
         )
     }
 
@@ -150,12 +169,49 @@ object MonetizationRepository {
 
     private suspend fun processPurchaseUpdate(purchases: List<GooglePurchase>) {
         val verified = purchases.filter(::isVerifiedPurchased)
+        if (verified.isEmpty()) return
+        store.saveVerifiedPurchases(
+            hasLifetime = true.takeIf { verified.any { purchase -> LIFETIME_PRODUCT_ID in purchase.products } },
+            hasSubscription = true.takeIf {
+                verified.any { purchase -> PRO_SUBSCRIPTION_ID in purchase.products }
+            }
+        )
+        val snapshot = store.snapshot()
+        _uiState.value = _uiState.value.copy(
+            entitlement = policy.evaluateVerified(
+                snapshot = snapshot,
+                hasLifetime = snapshot.lifetimeVerified,
+                hasSubscription = snapshot.lastSubscriptionVerifiedAtEpochMillis != null,
+                billingAvailable = true,
+                pendingProductIds = emptySet()
+            ),
+            loading = false,
+            errorMessage = ""
+        )
         acknowledgeVerifiedPurchases(verified)
     }
 
-    private suspend fun acknowledgeVerifiedPurchases(purchases: List<GooglePurchase>) {
-        purchases.filterNot { it.isAcknowledged }.forEach { purchase ->
-            GoogleKit.billing.acknowledgePurchase(purchase.purchaseToken)
+    private suspend fun acknowledgeVerifiedPurchases(
+        purchases: List<GooglePurchase>,
+        reconcilePendingTokens: Boolean = false
+    ) {
+        val unacknowledged = purchases.filterNot { it.isAcknowledged }
+        val unacknowledgedTokens = unacknowledged.map { it.purchaseToken }.toSet()
+        if (reconcilePendingTokens) {
+            store.reconcilePendingAcknowledgements(unacknowledgedTokens)
+        }
+        val tokensToAcknowledge = if (reconcilePendingTokens) {
+            unacknowledgedTokens
+        } else {
+            store.pendingAcknowledgementTokens() + unacknowledgedTokens
+        }
+        tokensToAcknowledge.forEach { purchaseToken ->
+            val response = GoogleKit.billing.acknowledgePurchase(purchaseToken)
+            if (response.isSuccess) {
+                store.clearPendingAcknowledgement(purchaseToken)
+            } else {
+                store.recordPendingAcknowledgement(purchaseToken)
+            }
         }
     }
 

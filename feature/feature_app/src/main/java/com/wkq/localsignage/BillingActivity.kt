@@ -35,6 +35,7 @@ class BillingActivity : BaseActivity<ActivityBillingBinding>() {
     private val viewModel by viewModels<BillingViewModel>()
     private var subscriptionProduct: GoogleProduct? = null
     private var hasPositionedContent = false
+    private var purchaseInFlight = false
 
     override fun initView() {
         binding.toolbar.wrapTitle()
@@ -99,7 +100,7 @@ class BillingActivity : BaseActivity<ActivityBillingBinding>() {
 
         binding.entitlementStatus.text = entitlementText(state.entitlement)
         binding.subscriptionPrice.text = subscriptionProduct?.displayPrice().orEmpty()
-        binding.subscriptionButton.isEnabled = subscriptionProduct != null && !state.loading
+        binding.subscriptionButton.isEnabled = subscriptionProduct != null && !state.loading && !purchaseInFlight
         binding.restoreButton.isEnabled = !state.loading
         binding.contentScroll.visibility = if (showLoading) View.INVISIBLE else View.VISIBLE
         binding.progressIndicator.visibility = if (showLoading) View.VISIBLE else View.GONE
@@ -135,13 +136,20 @@ class BillingActivity : BaseActivity<ActivityBillingBinding>() {
     }
 
     private fun launchPurchase(product: GoogleProduct) {
-        val response = MonetizationRepository.launchPurchase(this, product)
-        if (!response.isSuccess) {
-            Toast.makeText(
-                this,
-                R.string.billing_purchase_unavailable,
-                Toast.LENGTH_LONG
-            ).show()
+        if (purchaseInFlight) return
+        purchaseInFlight = true
+        binding.subscriptionButton.isEnabled = false
+        lifecycleScope.launch {
+            val response = MonetizationRepository.launchPurchase(this@BillingActivity, product)
+            purchaseInFlight = false
+            binding.subscriptionButton.isEnabled = subscriptionProduct != null && !viewModel.uiState.value.loading
+            if (!response.isSuccess) {
+                Toast.makeText(
+                    this@BillingActivity,
+                    R.string.billing_purchase_unavailable,
+                    Toast.LENGTH_LONG
+                ).show()
+            }
         }
     }
 

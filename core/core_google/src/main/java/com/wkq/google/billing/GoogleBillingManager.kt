@@ -5,6 +5,8 @@ import android.content.Context
 import android.content.pm.ApplicationInfo
 import android.content.pm.PackageManager
 import android.os.Build
+import android.os.Looper
+import android.os.SystemClock
 import android.util.Log
 import com.android.billingclient.api.AcknowledgePurchaseParams
 import com.android.billingclient.api.BillingClient
@@ -34,10 +36,15 @@ object GoogleBillingManager : GoogleBillingGateway {
 
     private const val TAG = "GoogleBilling"
     private const val CONNECTION_TIMEOUT_MS = 15_000L
+    private const val PURCHASE_FLOW_TIMEOUT_MS = 120_000L
 
     private val productCache = ConcurrentHashMap<String, ProductDetails>()
     private val clientLock = Any()
     private val connectionMutex = Mutex()
+    private val purchaseLaunchMutex = Mutex()
+
+    @Volatile
+    private var purchaseFlowStartedAtMs: Long = 0L
 
     @Volatile
     private var billingClient: BillingClient? = null
@@ -55,6 +62,7 @@ object GoogleBillingManager : GoogleBillingGateway {
     private var activeSubscriptionPurchase: GooglePurchase? = null
 
     private val purchasesUpdatedListener = PurchasesUpdatedListener { result, purchases ->
+        purchaseFlowStartedAtMs = 0L
         val response = result.toGoogleResponse()
         val googlePurchases = purchases.orEmpty().map { it.toGooglePurchase() }
         debugLog(
@@ -205,11 +213,44 @@ object GoogleBillingManager : GoogleBillingGateway {
         )
     }
 
-    fun launchPurchase(
+    suspend fun launchPurchase(
         activity: Activity,
         productId: String,
         offerToken: String = ""
     ): GoogleBillingResponse {
+        if (!purchaseLaunchMutex.tryLock()) {
+            return GoogleBillingResponse(
+                isSuccess = false,
+                responseCode = BillingClient.BillingResponseCode.SERVICE_UNAVAILABLE,
+                message = "A purchase flow is already being launched."
+            )
+        }
+        try {
+            if (isPurchaseFlowActive()) {
+                return GoogleBillingResponse(
+                    isSuccess = false,
+                    responseCode = BillingClient.BillingResponseCode.SERVICE_UNAVAILABLE,
+                    message = "A purchase flow is already active."
+                )
+            }
+            return launchFreshPurchase(activity, productId, offerToken)
+        } finally {
+            purchaseLaunchMutex.unlock()
+        }
+    }
+
+    private suspend fun launchFreshPurchase(
+        activity: Activity,
+        productId: String,
+        offerToken: String
+    ): GoogleBillingResponse {
+        if (!activity.canLaunchBillingFlow()) {
+            return GoogleBillingResponse(
+                isSuccess = false,
+                responseCode = BillingClient.BillingResponseCode.ERROR,
+                message = "The purchase activity is no longer available."
+            )
+        }
         val config = GoogleKit.requireConfig()
         if (!config.billingPurchaseAllowed()) {
             return GoogleBillingResponse(
@@ -237,12 +278,6 @@ object GoogleBillingManager : GoogleBillingGateway {
         val parts = productId.split(":")
         val realProductId = parts[0]
 
-        val productDetails = productCache[realProductId]
-            ?: return GoogleBillingResponse(
-                isSuccess = false,
-                responseCode = BillingClient.BillingResponseCode.ERROR,
-                message = "Query product details before launching purchase."
-            )
         val allowedProductIds = config.billingSubscriptionIds + config.billingInAppProductIds
         if (realProductId !in allowedProductIds) {
             return GoogleBillingResponse(
@@ -251,25 +286,47 @@ object GoogleBillingManager : GoogleBillingGateway {
                 message = "Product is not configured."
             )
         }
+        val productType = if (realProductId in config.billingSubscriptionIds) {
+            GoogleProductType.SUBS
+        } else {
+            GoogleProductType.IN_APP
+        }
+        // ProductDetails can become stale while the billing page remains open. Always refresh before launch.
+        productCache.remove(realProductId)
+        val freshProducts = queryProducts(listOf(realProductId), productType).getOrElse { error ->
+            return GoogleBillingResponse(
+                isSuccess = false,
+                responseCode = BillingClient.BillingResponseCode.SERVICE_UNAVAILABLE,
+                message = error.message.orEmpty()
+            )
+        }
+        val selectedProduct = freshProducts.matchingPurchaseProduct(productId, offerToken)
+            ?: return GoogleBillingResponse(
+                isSuccess = false,
+                responseCode = BillingClient.BillingResponseCode.DEVELOPER_ERROR,
+                message = "The selected offer is no longer available. Refresh the plans and try again."
+            )
+        val productDetails = productCache[realProductId]
+            ?: return GoogleBillingResponse(
+                isSuccess = false,
+                responseCode = BillingClient.BillingResponseCode.ERROR,
+                message = "Fresh product details are unavailable."
+            )
+        val resolvedOfferToken = selectedProduct.offerToken
+        if (resolvedOfferToken.isBlank() || !productDetails.hasEligibleOffer(productType, resolvedOfferToken)) {
+            return GoogleBillingResponse(
+                isSuccess = false,
+                responseCode = BillingClient.BillingResponseCode.DEVELOPER_ERROR,
+                message = "The selected offer is invalid. Refresh the plans and try again."
+            )
+        }
         debugLog(
             "launchPurchase request productId=$productId realProductId=$realProductId " +
-                "inputOfferToken=${offerToken.take(8)}... cacheHit=true"
+                "offerToken=${resolvedOfferToken.take(8)}... refreshed=true"
         )
         val productDetailsParamsBuilder = BillingFlowParams.ProductDetailsParams.newBuilder()
             .setProductDetails(productDetails)
-
-        val resolvedOfferToken = offerToken.ifBlank {
-            if (parts.size > 1) {
-                val basePlanId = parts[1]
-                productDetails.subscriptionOfferDetails?.firstOrNull { it.basePlanId == basePlanId }?.offerToken.orEmpty()
-            } else {
-                productDetails.defaultOfferToken()
-            }
-        }
-
-        if (resolvedOfferToken.isNotBlank()) {
-            productDetailsParamsBuilder.setOfferToken(resolvedOfferToken)
-        }
+            .setOfferToken(resolvedOfferToken)
         val oldSubscription = activeSubscriptionPurchase
             ?.takeIf { productDetails.productType == GoogleProductType.SUBS }
             ?.takeIf { old -> old.products.none { it == realProductId } }
@@ -303,10 +360,28 @@ object GoogleBillingManager : GoogleBillingGateway {
                     .build()
             )
         }
+        if (!activity.canLaunchBillingFlow() || Looper.myLooper() != Looper.getMainLooper()) {
+            return GoogleBillingResponse(
+                isSuccess = false,
+                responseCode = BillingClient.BillingResponseCode.ERROR,
+                message = "The purchase flow must be launched from an active main-thread activity."
+            )
+        }
         val flowParams = flowParamsBuilder.build()
         val result = client.launchBillingFlow(activity, flowParams)
+        if (result.responseCode == BillingClient.BillingResponseCode.OK) {
+            purchaseFlowStartedAtMs = SystemClock.elapsedRealtime()
+        }
         debugLog("launchPurchase result code=${result.responseCode} message=${result.debugMessage}")
         return result.toGoogleResponse()
+    }
+
+    private fun isPurchaseFlowActive(): Boolean {
+        val startedAt = purchaseFlowStartedAtMs
+        if (startedAt == 0L) return false
+        if (SystemClock.elapsedRealtime() - startedAt <= PURCHASE_FLOW_TIMEOUT_MS) return true
+        purchaseFlowStartedAtMs = 0L
+        return false
     }
 
     suspend fun queryActivePurchases(
@@ -504,6 +579,23 @@ object GoogleBillingManager : GoogleBillingGateway {
                 .joinToString(":") { byte -> "%02X".format(byte) }
         }.getOrDefault("unknown")
     }
+}
+
+private fun Activity.canLaunchBillingFlow(): Boolean =
+    !isFinishing && (Build.VERSION.SDK_INT < Build.VERSION_CODES.JELLY_BEAN_MR1 || !isDestroyed)
+
+internal fun List<GoogleProduct>.matchingPurchaseProduct(
+    productId: String,
+    offerToken: String
+): GoogleProduct? = firstOrNull { product ->
+    product.productId == productId && product.offerToken.isNotBlank() && product.offerToken == offerToken
+}
+
+private fun ProductDetails.hasEligibleOffer(productType: String, offerToken: String): Boolean = when (productType) {
+    GoogleProductType.SUBS -> subscriptionOfferDetails.orEmpty().any { it.offerToken == offerToken }
+    GoogleProductType.IN_APP -> oneTimePurchaseOfferDetailsList.orEmpty().any { it.offerToken == offerToken } ||
+        oneTimePurchaseOfferDetails?.offerToken == offerToken
+    else -> false
 }
 
 private fun ProductDetails.toGoogleProducts(): List<GoogleProduct> {

@@ -78,7 +78,7 @@ object MonetizationRepository {
         scope.launch { refreshNow(loadCatalog) }
     }
 
-    fun launchPurchase(activity: Activity, product: GoogleProduct): GoogleBillingResponse {
+    suspend fun launchPurchase(activity: Activity, product: GoogleProduct): GoogleBillingResponse {
         return GoogleKit.billing.launchPurchase(
             activity = activity,
             productId = product.productId,

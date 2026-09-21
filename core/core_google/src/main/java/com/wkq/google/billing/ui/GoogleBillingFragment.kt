@@ -212,18 +212,20 @@ class GoogleBillingFragment : Fragment() {
             "startPurchase plan=${item.config.planId} productId=${product.productId} " +
                 "type=${product.productType} price=${product.formattedPrice} offerToken=${product.offerToken.take(8)}..."
         )
-        val response = GoogleKit.billing.launchPurchase(
-            activity = requireActivity(),
-            productId = product.productId,
-            offerToken = product.offerToken
-        )
-        if (!response.isSuccess &&
-            response.responseCode != BillingClient.BillingResponseCode.OK &&
-            response.responseCode != BillingClient.BillingResponseCode.USER_CANCELED
-        ) {
-            val message = response.message.userMessageOrFallback(R.string.google_billing_purchase_failed)
-            showMessage(message)
-            sendResult(EVENT_ERROR, message = message)
+        viewLifecycleOwner.lifecycleScope.launch {
+            val response = GoogleKit.billing.launchPurchase(
+                activity = requireActivity(),
+                productId = product.productId,
+                offerToken = product.offerToken
+            )
+            if (!response.isSuccess &&
+                response.responseCode != BillingClient.BillingResponseCode.OK &&
+                response.responseCode != BillingClient.BillingResponseCode.USER_CANCELED
+            ) {
+                val message = response.message.userMessageOrFallback(R.string.google_billing_purchase_failed)
+                showMessage(message)
+                sendResult(EVENT_ERROR, message = message)
+            }
         }
     }
 

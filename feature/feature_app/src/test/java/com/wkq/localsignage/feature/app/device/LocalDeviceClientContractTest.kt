@@ -20,4 +20,15 @@ class LocalDeviceClientContractTest {
         assertNull(uploadedResourceId("{\"ids\":[]}"))
         assertNull(uploadedResourceId("not-json"))
     }
+
+    @Test
+    fun doesNotReuseNullIdWhenRemoteResourceIsMissing() {
+        assertNull(existingResourceId("{\"exists\":false,\"resourceId\":null}"))
+    }
+
+    @Test
+    fun reusesOnlyAnExistingRemoteResourceId() {
+        assertEquals("resource-1", existingResourceId("{\"exists\":true,\"resourceId\":\"resource-1\"}"))
+        assertNull(existingResourceId("{\"exists\":true,\"resourceId\":null}"))
+    }
 }

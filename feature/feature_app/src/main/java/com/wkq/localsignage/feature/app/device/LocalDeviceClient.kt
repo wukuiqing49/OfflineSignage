@@ -23,7 +23,8 @@ class LocalDeviceClient(private val device: PairedDevice) {
         val response = request("GET", "/api/resources/${urlEncode(hash)}/exists")
         if (response.status !in 200..299) return RemoteResourceResult(false, null, response.status)
         val json = runCatching { JSONObject(response.body) }.getOrNull() ?: return RemoteResourceResult(false, null, response.status)
-        return RemoteResourceResult(json.optBoolean("exists"), json.optString("resourceId").takeIf { it.isNotBlank() }, response.status)
+        val exists = json.optBoolean("exists")
+        return RemoteResourceResult(exists, existingResourceId(response.body), response.status)
     }
 
     fun status(): RemoteStatusResult {
@@ -119,6 +120,10 @@ class LocalDeviceClient(private val device: PairedDevice) {
     }
 
     fun saveScene(scene: SignageScene, resourceId: String): Int {
+        return saveSceneResult(scene, resourceId).status
+    }
+
+    fun saveSceneResult(scene: SignageScene, resourceId: String): RemoteWriteResult {
         val body = JSONObject().apply {
             put("id", scene.id)
             put("name", scene.name)
@@ -140,10 +145,14 @@ class LocalDeviceClient(private val device: PairedDevice) {
                 put("enabled", overlay.enabled); put("zIndex", overlay.zIndex)
             }) } })
         }
-        return postJson("/api/internal/sync/scene", body).status
+        return writeResult(postJson("/api/internal/sync/scene", body))
     }
 
     fun savePlaylist(playlist: SignagePlaylist): Int {
+        return savePlaylistResult(playlist).status
+    }
+
+    fun savePlaylistResult(playlist: SignagePlaylist): RemoteWriteResult {
         val items = JSONArray().apply {
             playlist.items.forEach { item ->
                 put(JSONObject().apply {
@@ -159,7 +168,7 @@ class LocalDeviceClient(private val device: PairedDevice) {
             put("loop", playlist.loop)
             put("items", items)
         }
-        return postJson("/api/internal/sync/playlist", body).status
+        return writeResult(postJson("/api/internal/sync/playlist", body))
     }
 
     fun replacePlaylistSchedules(schedules: Collection<PlaylistSchedule>): Int {
@@ -177,6 +186,13 @@ class LocalDeviceClient(private val device: PairedDevice) {
     private fun request(method: String, path: String, body: String? = null) = transport.request(method, path, body)
 
     private fun postJson(path: String, body: JSONObject) = request("POST", path, body.toString())
+
+    private fun writeResult(response: DeviceHttpTransport.Response): RemoteWriteResult {
+        val errorCode = runCatching { JSONObject(response.body).optJSONObject("error")?.optString("code") }
+            .getOrNull()
+            ?.takeIf { it.isNotBlank() }
+        return RemoteWriteResult(response.status, errorCode)
+    }
 
     private fun open(method: String, path: String): HttpURLConnection {
         require(device.port in 1..65535) { "DEVICE_PORT_INVALID" }
@@ -198,6 +214,7 @@ class LocalDeviceClient(private val device: PairedDevice) {
     private fun urlEncode(value: String): String = URLEncoder.encode(value, StandardCharsets.UTF_8.name())
 
     data class RemoteResourceResult(val exists: Boolean, val resourceId: String?, val status: Int)
+    data class RemoteWriteResult(val status: Int, val errorCode: String? = null)
     data class RemotePairingResult(
         val success: Boolean,
         val status: Int,
@@ -246,4 +263,14 @@ internal fun uploadedResourceId(responseBody: String): String? = runCatching {
             ?.takeUnless { it.isJsonNull }
             ?.asString
             ?.takeIf { it.isNotBlank() }
+}.getOrNull()
+
+/** Only an explicit positive lookup result may reuse a remote resource ID. */
+internal fun existingResourceId(responseBody: String): String? = runCatching {
+    val json = JsonParser.parseString(responseBody).asJsonObject
+    if (!json.get("exists").asBoolean) return@runCatching null
+    json.get("resourceId")
+        ?.takeUnless { it.isJsonNull }
+        ?.asString
+        ?.takeIf { it.isNotBlank() }
 }.getOrNull()

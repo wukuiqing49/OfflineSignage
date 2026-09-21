@@ -136,16 +136,24 @@ object SignageDeviceFleet {
                         if (remoteId == null) {
                             sceneFailure = "RESOURCE_MAPPING_MISSING"
                         } else {
-                            val status = client.saveScene(scene, remoteId)
-                            if (status !in 200..299) sceneFailure = "SCENE_SYNC_FAILED_$status"
+                            val result = client.saveSceneResult(scene, remoteId)
+                            if (result.status !in 200..299) {
+                                sceneFailure = "SCENE_SYNC_FAILED_${result.status}${result.errorCode?.let { "_$it" }.orEmpty()}"
+                            }
                         }
                     }
                     if (sceneFailure != null) {
                         FleetResult(target.deviceId, target.deviceName, false, false, sceneFailure.orEmpty())
                     } else {
-                        val playlistStatus = client.savePlaylist(playlist)
-                        val saved = playlistStatus in 200..299
-                        FleetResult(target.deviceId, target.deviceName, saved, false, if (saved) "PLAYLIST_SYNCED" else "PLAYLIST_SYNC_FAILED_$playlistStatus")
+                        val result = client.savePlaylistResult(playlist)
+                        val saved = result.status in 200..299
+                        FleetResult(
+                            target.deviceId,
+                            target.deviceName,
+                            saved,
+                            false,
+                            if (saved) "PLAYLIST_SYNCED" else "PLAYLIST_SYNC_FAILED_${result.status}${result.errorCode?.let { "_$it" }.orEmpty()}"
+                        )
                     }
                 }
             }

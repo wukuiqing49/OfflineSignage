@@ -1065,8 +1065,7 @@ class KtorSignageServer(context: Context, private val port: Int) {
                         val resource = SignageRuntime.resource(jsonString(body.toString(), "resourceId"))
                             ?: throw IllegalArgumentException("RESOURCE_NOT_FOUND")
                         val targetIds = jsonStringList(body, "deviceIds")
-                        val targets = pairedTargets(targetIds)
-                        if (targets.isEmpty()) throw IllegalArgumentException("NO_PAIRED_DEVICES")
+                        val targets = requirePairedTargets(targetIds)
                         val results = withContext(Dispatchers.IO) {
                             SignageDeviceFleet.sync(resource, resource.takeIf { it.isLocalFile }?.let(SignageRuntime::fileFor), targets)
                         }
@@ -1085,8 +1084,7 @@ class KtorSignageServer(context: Context, private val port: Int) {
                         val scenes = playlist.items.mapNotNull { SignageRuntime.scene(it.sceneId) }.distinctBy { it.id }
                         val resources = scenes.mapNotNull { SignageRuntime.resource(it.resourceId) }.associateBy { it.id }
                         val files = resources.values.filter { it.isLocalFile }.associate { it.id to SignageRuntime.fileFor(it) }
-                        val targets = pairedTargets(jsonStringList(body, "deviceIds"))
-                        if (targets.isEmpty()) throw IllegalArgumentException("NO_PAIRED_DEVICES")
+                        val targets = requirePairedTargets(jsonStringList(body, "deviceIds"))
                         val results = withContext(Dispatchers.IO) { SignageDeviceFleet.syncPlaylist(playlist, scenes, resources, files, targets) }
                         call.respondJson(fleetResultsJson(results))
                     } catch (error: Exception) {
@@ -1097,8 +1095,7 @@ class KtorSignageServer(context: Context, private val port: Int) {
                     if (!call.authorized()) return@post
                     if (!call.requireProAccess()) return@post
                     try {
-                        val targets = pairedTargets(jsonStringList(JSONObject(call.receiveText()), "deviceIds"))
-                        if (targets.isEmpty()) throw IllegalArgumentException("NO_PAIRED_DEVICES")
+                        val targets = requirePairedTargets(jsonStringList(JSONObject(call.receiveText()), "deviceIds"))
                         val schedules = SignageRuntime.playlistSchedules()
                         val playlists = schedules.mapNotNull { SignageRuntime.playlist(it.playlistId) }.distinctBy { it.id }
                         val results = withContext(Dispatchers.IO) {
@@ -1349,8 +1346,7 @@ class KtorSignageServer(context: Context, private val port: Int) {
         if (!authorized()) return
         try {
             val body = JSONObject(receiveText())
-            val targets = pairedTargets(jsonStringList(body, "deviceIds"))
-            if (targets.isEmpty()) throw IllegalArgumentException("NO_PAIRED_DEVICES")
+            val targets = requirePairedTargets(jsonStringList(body, "deviceIds"))
             val resource = body.optString("resourceId").takeIf { it.isNotBlank() }?.let(SignageRuntime::resource)
             if (body.has("resourceId") && resource == null) throw IllegalArgumentException("RESOURCE_NOT_FOUND")
             val value = if (jsonValue && body.has("value")) body.optInt("value") else null
@@ -1429,8 +1425,7 @@ class KtorSignageServer(context: Context, private val port: Int) {
             val body = JSONObject(receiveText())
             val playlist = SignageRuntime.playlist(body.optString("playlistId"))
                 ?: throw IllegalArgumentException("PLAYLIST_NOT_FOUND")
-            val targets = pairedTargets(jsonStringList(body, "deviceIds"))
-            if (targets.isEmpty()) throw IllegalArgumentException("NO_PAIRED_DEVICES")
+            val targets = requirePairedTargets(jsonStringList(body, "deviceIds"))
             val results = withContext(Dispatchers.IO) { SignageDeviceFleet.command("PLAY_PLAYLIST", null, playlist, null, targets) }
             respondJson(fleetResultsJson(results))
         } catch (error: Exception) {
@@ -1441,6 +1436,13 @@ class KtorSignageServer(context: Context, private val port: Int) {
     private fun pairedTargets(ids: List<String>): List<PairedDevice> {
         val paired = SignageRuntime.pairedDevices().associateBy { it.deviceId }
         return ids.distinct().mapNotNull { paired[it] }
+    }
+
+    private fun requirePairedTargets(ids: List<String>): List<PairedDevice> {
+        require(ids.isNotEmpty()) { "DEVICE_IDS_REQUIRED" }
+        return pairedTargets(ids).also { targets ->
+            require(targets.isNotEmpty()) { "PAIRED_TARGET_NOT_FOUND" }
+        }
     }
 
     private fun rollbackCreatedResources(resourceIds: Collection<String>) {

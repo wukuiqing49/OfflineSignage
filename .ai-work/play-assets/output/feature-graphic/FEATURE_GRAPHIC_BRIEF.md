@@ -9,33 +9,33 @@
 - Target Locale: en-US
 - Canvas Size: 1024x500
 - Prompt Output: FEATURE_GRAPHIC_PROMPT.md
-- Primary Message: 100% Offline Digital Signage Player & Menu Board
-- Blocking Issues: None.
+- Primary Message: Local Digital Signage with Browser Control
+- Blocking Issues: Concept only until Google Play products and target devices are verified; production requires real app captures.
 
 ## 2. Objective
 
-Deliver an eye-catching, high-converting Google Play Feature Graphic that instantly communicates the core offline signage and digital menu board value of LocalSignage.
+Deliver a clear Google Play Feature Graphic that communicates LocalSignage's on-device media playback and same-network browser control.
 
 ## 3. Product Positioning
 
-LocalSignage turns any Android TV, tablet, or box into a 100% offline digital signage player and dynamic digital menu board with instant local Wi-Fi browser control.
+LocalSignage turns a compatible Android device into a digital signage player that can be controlled from a browser on the same local network.
 
 ## 4. Target Audience
 
-Restaurants, cafes, retail stores, supermarkets, corporate offices, clinics, salons, and smart businesses seeking reliable local displays with zero cloud subscription fees.
+Small operators who want to play local media and manage a display over their local network.
 
 ## 5. Message
 
-- Primary Message: 100% Offline Digital Signage Player & Menu Board
-- Secondary Message: Zero Cloud Subscriptions · Instant Local Wi-Fi Control
+- Primary Message: Digital Signage, Managed Locally
+- Secondary Message: Local Media Playback · Browser Control
 - Product Feature Evidence: PF-001; PF-002; PF-003; PF-004; PF-005; PF-008
 
 ## 6. Composition
 
-- Visual Focus: On the right: a modern ultra-slim smart TV displaying a vibrant 4K digital restaurant menu and retail video promo, accompanied by a sleek tablet showing the local web control interface with BRAND-ICON-01. On the left: clean, elegant negative space with soft emerald green lighting for marketing headline placement.
+- Visual Focus: On the right: a compatible Android display playing an image/video playlist, accompanied by a phone showing a generic local browser control view with BRAND-ICON-01. On the left: clean negative space for the headline.
 - Real UI Asset ID: N/A
 - App Icon Asset ID: BRAND-ICON-01
-- Device Frame: Minimalist modern TV and tablet 3D mockup
+- Device Frame: Generic compatible Android display and phone mockup; no unverified TV/box claim
 - Text Placement: Left 45% clear safe region for title and value propositions
 - Safe Area: Central 80% safe zone; margins preserved for Google Play UI overlay
 
@@ -48,7 +48,7 @@ Restaurants, cafes, retail stores, supermarkets, corporate offices, clinics, sal
 
 ## 8. Preview Video Cover Relationship
 
-Harmonizes seamlessly with Video Scene 01, introducing the smart TV display and local-first signage capability.
+Harmonizes with Video Scene 01, introducing local media playback and browser control.
 
 ## 9. Required Assets
 
@@ -73,7 +73,7 @@ Harmonizes seamlessly with Video Scene 01, introducing the smart TV display and 
 
 ```text
 A commercial 3D render and product photography for Google Play Store Feature Graphic, exactly 1024x500 pixels landscape.
-Scene: A modern, minimalist retail and cafe countertop. On the right side: a sleek wall-mounted ultra-thin 4K Android TV displaying a vibrant, appetizing digital menu board with gourmet burgers, artisan coffee, and crisp price tags. Next to it on a clean oak counter, an iPad display shows the LocalSignage browser control console with BRAND-ICON-01 and green accent (#1A8754).
+Scene: A modern, minimalist retail counter. On the right side: a compatible Android display plays an image/video playlist. Next to it, a phone shows a generic browser control view for the display with BRAND-ICON-01 and green accent (#1A8754).
 On the left side: clean, generous negative space with soft studio ambient lighting and subtle gradient waves for headline overlay.
 Style: Photorealistic 8k commercial product render, Octane render aesthetic, shallow depth of field, cinematic warm soft studio lighting, ultra-clean commercial look, perfectly composed for 1024x500 canvas.
 ```

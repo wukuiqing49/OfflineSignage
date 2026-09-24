@@ -5,10 +5,13 @@ import com.wkq.google.billing.GooglePurchaseState
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
 import org.junit.Test
+import org.junit.runner.RunWith
+import org.robolectric.RobolectricTestRunner
 import java.security.KeyPairGenerator
 import java.security.Signature
 import java.util.Base64
 
+@RunWith(RobolectricTestRunner::class)
 class PurchaseVerifierTest {
     @Test
     fun debugVerificationAcceptsValidPayloadWithoutPublicKey() {

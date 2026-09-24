@@ -108,3 +108,39 @@
 本轮汇总：21 项通过、0 项失败、0 项受阻；图片夹具 setup 为复用状态，不计为断言。结果文件：[E2E 结果](../../build/functional-test/console-ui-20260924-01/result.json)；截图：[场景预览](../../build/functional-test/console-ui-20260924-01/scene-preview-desktop.png)、[390px 控制台](../../build/functional-test/console-ui-20260924-01/console-mobile.png)。本次通过项已按工作区指纹记录在 [`TEST_BASELINE.json`](TEST_BASELINE.json)。
 
 Android WebView 内的窗口/字体/滚动、播放器实际双区播放、项目备份导入导出及物理设备仍未验证；测试图片、轮播和场景留在专用测试 AVD 中。
+
+## 商业化计费与文案一致性回归
+
+- 时间/时区：2026-09-24，Asia/Singapore。
+- 分支/HEAD：`main` / `a7d72f0`；本轮未提交。
+- 工作区指纹：`0247f0493c6047316880c258f33b2df8267306f1`。由排除本报告/基线后的 tracked diff 与新增的 `BillingPriceFormatter.kt`、`BillingPriceFormatterTest.kt` blob 哈希组合生成。
+- 环境：Windows 10 x64、JDK 17.0.12、Gradle 8.13、compile/target SDK 36、Robolectric。
+- Debug APK：`app/build/outputs/apk/debug/app-debug.apk`；SHA-256 `2DDE86F92BE2AE1152D2B6EB536BE7B0838E848B3449EBCBFB4E4E6B7585E544`。
+
+| 用例 | 状态 | 命令/步骤 | 实际结果 |
+| --- | --- | --- | --- |
+| Feature JVM 回归（含 `BILLING-PRICE`、`BILLING-VERIFY`、`BILLING-ACCESS`） | 本次通过 | `gradlew.bat :feature:feature_app:testDebugUnitTest --no-parallel` | 99 tests，0 failures，0 errors；包含 Play 格式化价格、空价格不回退伪价格、API 23 验签兼容与购买签名拒绝路径 |
+| Feature lint | 本次通过 | `gradlew.bat :feature:feature_app:lintDebug --no-parallel` | exit 0；此前报告的 `java.util.Base64` / minSdk 23 lint errors 已消除 |
+| Debug APK | 本次通过 | `gradlew.bat :app:assembleDebug --no-parallel` | exit 0；APK SHA-256 见上 |
+| 多语言资源校验 | 本次通过 | `python -X utf8 .agents/skills/android-i18n-workflow/scripts/validate_i18n_resources.py --res-dir app/src/main/res --res-dir feature/feature_app/src/main/res --res-dir feature/feature_res/src/main/res` | 校验通过；提示 `app` 没有 string/plurals 资源，为现有结构警告 |
+| 差异格式 | 本次通过 | `git diff --check` | exit 0；Git 提示工作区 LF/CRLF 转换，不影响检查结果 |
+| Google Play 真实购买、取消、续订、退款、恢复及目标电视设备 | 未执行 | 需 Play 内部测试轨道、License Tester 和目标硬件 | 不能据此声称订阅交易、商品目录、设备兼容或上架验收已通过 |
+
+本轮汇总：本地自动门禁 4 项通过、0 项失败；Play 与硬件交易验证未执行。商店素材已标记为草案，法律服务条款已标注待产品及法律审核，不应直接视作已生效或可上架内容。仅记录本轮通过的本地门禁，见 [`TEST_BASELINE.json`](TEST_BASELINE.json)。
+
+## 计费页模拟器冒烟与错误状态修正
+
+- 时间/时区：2026-09-24，Asia/Singapore。
+- 分支/HEAD：`main` / `a7d72f0`；本轮变更尚未提交。
+- 初测环境：新建隔离 AVD `codex_localsignage_billing_api36`，Android 16/API 36，Google Play x86_64 系统镜像，序列号 `emulator-5560`；未操作 PCAM00 实体机或另一台 RoofQuote 模拟器。
+- 初测 APK：Debug，`com.wkq.localsignage` 1.3.0；SHA-256 `2DDE86F92BE2AE1152D2B6EB536BE7B0838E848B3449EBCBFB4E4E6B7585E544`。
+
+| 用例 | 初测结果 | 实际观察 |
+| --- | --- | --- |
+| 新装启动与试用态 | 通过 | App 启动至主界面，显示本地 Trial 状态；没有 AndroidRuntime 崩溃 |
+| 打开计费页 | 通过 | 主界面的计费入口可打开 `BillingActivity` |
+| Play Billing 不可用时的页面状态 | 失败，随后修正代码 | 侧载 Debug 包在该 AVD 收到 Billing response code 3（`Billing service unavailable on device.`）；计费页一直显示加载圈，没有呈现不可用提示。该环境无法验证商品目录或真实交易，但暴露了终态错误仍被当作加载中的 UI 状态问题 |
+| 计费 UI 状态回归 | 本次通过 | 新增 `MonetizationUiStateTest` 两项断言：未完成且无错误时保持 pending；终态错误时结束 pending。Feature 全套 101 tests，0 failures/errors |
+| Feature lint 与 Debug APK | 本次通过 | `:feature:feature_app:lintDebug` 及 `:app:assembleDebug --no-parallel` 成功；新 APK SHA-256 `9BB63E34D20911B9A1577DE6B93FD2E9D1D730B4FA3EAC61502422C556B564AC` |
+
+代码修正让 `MonetizationUiState` 在错误终态结束目录等待，从而让页面显示不可用状态和重试入口；没有改购买校验、真实权益或发起购买的逻辑。模拟器在新 APK 覆盖安装前已退出。按用户要求停止测试，修正后的计费页尚未在 AVD 复核；Google Play 真实购买/恢复也未执行。修复前计费页截图与层级证据位于 Git 忽略目录 `build/functional-test/billing-vm-20260924/`；同目录另有主界面临时截图/层级文件，含一次性配对信息，不会纳入提交或分享。

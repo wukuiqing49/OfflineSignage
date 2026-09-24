@@ -19,7 +19,7 @@
 ```text
 Device Type: Phone. Locale: en-US. Canvas: 1080x1920. Output: opaque PNG or JPEG.
 
-A commercial 3D render of a floating carousel timeline of high-resolution playlist cards (promo video, special offer poster, breakfast menu) smoothly transitioning into a commercial screen with BRAND-ICON-01. Floating timer and loop icons indicate automated scheduling. Clean uncluttered upper space for overlay text. Futuristic yet clean commercial 3D UI render, smooth motion trail effect, studio depth of field.
+A commercial render of image and video playlist items advancing in order on a compatible Android display. Include a simple loop indicator, but do not depict scheduling, failover, or an invented app interface. Leave clear space for headline text.
 ```
 
 ---
@@ -27,14 +27,14 @@ A commercial 3D render of a floating carousel timeline of high-resolution playli
 ## 🎨 Midjourney v6.1 Prompt (Raw Photo Style)
 
 ```text
-/imagine prompt: A commercial 3D render of a floating carousel timeline of high-resolution playlist cards (promo video, special offer poster, breakfast menu) smoothly transitioning into a commercial screen with BRAND-ICON-01. Floating timer and loop icons indicate automated scheduling. Clean uncluttered upper space for overlay text. Futuristic yet clean commercial 3D UI render, smooth motion trail effect, studio depth of field. --ar 9:16 --v 6.1 --style raw
+/imagine prompt: A commercial render of image and video playlist items advancing in order on a compatible Android display. Include a simple loop indicator, but do not depict scheduling, failover, or an invented app interface. Leave clear space for headline text. --ar 9:16 --v 6.1 --style raw
 ```
 
 ---
 
 ## 📐 Figma / PS Copy Overlay Card (Ready to Copy-Paste)
-- **Main Headline (EN)**: `Smart Playlists & Automatic Looping` (Font: Inter / Roboto Bold, ~64-72pt)
-- **Supporting Text (EN)**: `Auto-start on boot, custom slide timers, and failover recovery.` (Font: Inter / Roboto Regular, ~32-36pt)
+- **Main Headline (EN)**: `Playlists & Automatic Looping` (Font: Inter / Roboto Bold, ~64-72pt)
+- **Supporting Text (EN)**: `Play image and video items in sequence.` (Font: Inter / Roboto Regular, ~32-36pt)
 - **Figma Layout Tip**: Paste the AI background image into Figma, create a text box at the top clean margin, and align text centrally with 48px padding.
 
 ---

@@ -12,12 +12,12 @@
 - Orientation: landscape
 - Production Resolution: 1920x1080
 - Prompt Output: VIDEO_PROMPT.md
-- Primary Message: 100% Offline Digital Signage Player & Menu Board
-- Blocking Issues: None.
+- Primary Message: Local Digital Signage with Browser Control
+- Blocking Issues: Verify Play transactions and target hardware; replace concept visuals with real app capture before production.
 
 ## 2. Product Analysis
 
-LocalSignage is a local-first, offline digital signage player for Android TV, tablets, and media boxes, featuring an instant drag-and-drop web console hosted directly on the device over local Wi-Fi.
+LocalSignage is an Android digital signage player with a browser console hosted on the device and accessed over the local network.
 
 ## 3. Verified Product Facts
 
@@ -29,7 +29,7 @@ LocalSignage is a local-first, offline digital signage player for Android TV, ta
 | PF-004 | Local devices are discovered through NSD and UDP fallback. | VERIFIED | true | `LocalDeviceDiscovery.kt:24-121` | LAN scope discovery. |
 | PF-005 | Paired devices can receive assigned playlists. | VERIFIED | true | `KtorSignageServer.kt:189-230`; `KtorSignageServer.kt:752-770` | Local network fleet synchronization. |
 | PF-006 | Playback uses a foreground service and boot/package-update receiver. | VERIFIED | true | `SignageService.kt:46-75`; `SignageBootReceiver.kt:8-18` | Auto-start and recovery. |
-| PF-008 | Local media is stored and played from device files with restored playback state. | VERIFIED | true | `SignageStore.kt:672-710`; `SignagePlaybackController.kt:270-307` | 100% offline local playback. |
+| PF-008 | Local media is stored and played from device files with restored playback state. | VERIFIED | true | `SignageStore.kt:672-710`; `SignagePlaybackController.kt:270-307` | Offline wording applies only to media stored locally; remote sources need connectivity. |
 
 ### Do Not Advertise
 
@@ -51,14 +51,14 @@ Cloud CMS, SaaS monthly subscription, and unsupported hardware queries.
 
 ## 5. Video Positioning
 
-- Product Category: 100% Offline Android Digital Signage Player & Menu Board
-- Platform: Android TV, Tablets, and TV Boxes
-- Primary Audience: Restaurants, cafes, retail stores, offices, and venue operators seeking zero-cloud-cost signage
-- Primary User Problem: Costly cloud CMS subscriptions and black screens during internet outages
-- Primary Value Proposition: 100% offline reliability, instant local browser control, zero cloud subscriptions
-- Primary Marketing Message: 100% Offline Digital Signage Player & Menu Board on Android
-- Primary Differentiator: 100% local-file storage with local Wi-Fi web browser control
-- Supporting Features: 4K video loops, image slideshows, scrolling text marquees, HTML widgets, and fleet sync
+- Product Category: Android digital signage player
+- Platform: Compatible Android devices; TV/box compatibility requires separate validation
+- Primary Audience: Operators who want local media playback and browser-based control
+- Primary User Problem: Managing display content from a separate computer or phone
+- Primary Value Proposition: Upload local media and control playback over the same network
+- Primary Marketing Message: Digital Signage, Managed Locally
+- Primary Differentiator: On-device media playback with a browser control console on the local network
+- Supporting Features: Images, videos, text, web/HTML content, playlists, and local device assignment
 
 ## 6. Target Audience
 
@@ -82,7 +82,7 @@ Landscape, matching primary signage presentation and planned 1920x1080 canvas.
 
 ## 11. Core Marketing Message
 
-Turn any Android TV or tablet into an offline digital signage player and dynamic menu board with local Wi-Fi control.
+Use a compatible Android device for digital signage, then manage local playback from a browser on the same network.
 
 ## 12. Storyboard
 
@@ -92,11 +92,11 @@ Turn any Android TV or tablet into an offline digital signage player and dynamic
 - Real App Screen: N/A
 - Starting State: N/A
 - User Action: N/A
-- Visible Result: Smooth tracking shot in a modern cafe focusing on a wall-mounted 4K Android TV displaying a vibrant food menu board and BRAND-ICON-01.
+- Visible Result: Smooth tracking shot of a compatible Android display showing a food menu assembled from local images and video.
 - Demo Data: Gourmet Cafe menu board
-- Text Overlay: 100% Offline Digital Signage & Menu Board
+- Text Overlay: Digital Signage, Managed Locally
 - Text Position: top left
-- Visual Focus: 4K Android TV display and BRAND-ICON-01
+- Visual Focus: Android display and BRAND-ICON-01; no specific unverified hardware claim
 - Camera / Crop: full 1920x1080 canvas
 - Transition: smooth cinematic glide
 - Positioning Relationship: Opens with primary value proposition and brand mark.
@@ -105,13 +105,13 @@ Turn any Android TV or tablet into an offline digital signage player and dynamic
 
 ### Scene 02 | 00:04-00:08
 
-- Purpose: Showcase instant driver-free local Wi-Fi web browser control.
+- Purpose: Show browser-based local network control without claiming a response-time guarantee.
 - Real App Screen: N/A
 - Starting State: N/A
 - User Action: N/A
-- Visible Result: Manager drags a promo file on a laptop browser; the wall TV screen updates instantaneously over local Wi-Fi.
+- Visible Result: Manager selects a promo file in a browser on the same local network; the display updates after the local command completes.
 - Demo Data: LocalSignage Web Console drag-and-drop
-- Text Overlay: Control From Any Web Browser · No PC Software Needed
+- Text Overlay: Control From a Browser on Your Local Network
 - Text Position: top left
 - Visual Focus: laptop web console and wall screen updating
 - Camera / Crop: full 1920x1080 canvas
@@ -126,9 +126,9 @@ Turn any Android TV or tablet into an offline digital signage player and dynamic
 - Real App Screen: N/A
 - Starting State: N/A
 - User Action: N/A
-- Visible Result: Dynamic split showcase of 4K video loops, high-res photos, and scrolling text marquees.
-- Demo Data: Fashion 4K video, seasonal poster, text ticker
-- Text Overlay: 4K Videos, Images & Live Scrolling Banners
+- Visible Result: Dynamic showcase of a video, image, and scrolling text.
+- Demo Data: Promotional video, seasonal poster, text ticker
+- Text Overlay: Videos, Images & Scrolling Text
 - Text Position: top center
 - Visual Focus: split layout with dynamic text and video
 - Camera / Crop: full 1920x1080 canvas
@@ -139,35 +139,35 @@ Turn any Android TV or tablet into an offline digital signage player and dynamic
 
 ### Scene 04 | 00:12-00:16
 
-- Purpose: Communicate 100% offline continuous playback reliability.
+- Purpose: Explain that local files can play without a network while remote sources require connectivity.
 - Real App Screen: N/A
 - Starting State: N/A
 - User Action: N/A
-- Visible Result: Wi-Fi disconnected icon fades out while playback continues uninterrupted with a glowing 100% Local Storage shield.
-- Demo Data: 100% Local Storage shield
-- Text Overlay: Zero Cloud Subscriptions · Never Goes Black
+- Visible Result: A small network-status cue appears beside a playlist of locally stored image/video items; do not claim uninterrupted playback.
+- Demo Data: Local image/video playlist
+- Text Overlay: Play Media Stored on Your Device
 - Text Position: center left
-- Visual Focus: uninterrupted playback and offline badge
+- Visual Focus: local files and the display; no uptime or offline shield badge
 - Camera / Crop: full 1920x1080 canvas
 - Transition: pulse and continuous loop
-- Positioning Relationship: Delivers the core offline differentiator.
+- Positioning Relationship: Clarifies the boundary between local files and network-dependent sources.
 - Product Feature Evidence: PF-006; PF-008
 - Recording Clip ID: N/A
 
 ### Scene 05 | 00:16-00:20
 
-- Purpose: Show automated playlist looping and recovery.
+- Purpose: Show playlist progression and looping.
 - Real App Screen: N/A
 - Starting State: N/A
 - User Action: N/A
 - Visible Result: 3D perspective timeline showing automated playlist progression, slide timers, and seamless auto-looping.
 - Demo Data: 3D playlist timeline
-- Text Overlay: Smart Playlists & Commercial Auto-Recovery
+- Text Overlay: Playlists & Automatic Looping
 - Text Position: top left
 - Visual Focus: 3D timeline carousel
 - Camera / Crop: full 1920x1080 canvas
 - Transition: horizontal slot advance and loop return
-- Positioning Relationship: Connects automated reliability to commercial use.
+- Positioning Relationship: Shows how a local playlist advances between items.
 - Product Feature Evidence: PF-002; PF-005; PF-006
 - Recording Clip ID: N/A
 
@@ -177,7 +177,7 @@ Turn any Android TV or tablet into an offline digital signage player and dynamic
 - Real App Screen: N/A
 - Starting State: N/A
 - User Action: N/A
-- Visible Result: Wide panoramic view of three synchronized Android TV screens across a restaurant, concluding with BRAND-ICON-01.
+- Visible Result: Wide view of three displays assigned content over a local network, concluding with BRAND-ICON-01. Use only as a concept until target hardware is validated.
 - Demo Data: Three synchronized store screens
 - Text Overlay: Multi-Screen Fleet Synchronization · LocalSignage
 - Text Position: top center
@@ -244,11 +244,11 @@ en-US text overlays validated.
 
 ```text
 Cinematic 24-second commercial product video for LocalSignage, 1920x1080 landscape, 60fps.
-[00:00-00:04] Smooth tracking shot in a modern boutique cafe focusing on a wall-mounted 4K Android TV lighting up with a delicious digital menu board and BRAND-ICON-01. Overlay: "100% Offline Digital Signage & Menu Board".
-[00:04-00:08] Over-the-shoulder shot of a manager dragging a promo file on a laptop browser; the wall screen updates instantaneously over local Wi-Fi. Overlay: "Control From Any Web Browser · No PC Software Needed".
-[00:08-00:12] Dynamic showcase of 4K video loops, high-res photos, and scrolling text marquees. Overlay: "4K Videos, Images & Live Scrolling Banners".
-[00:12-00:16] Network indicator shows offline mode, but playback continues uninterrupted with zero buffering. Overlay: "Zero Cloud Subscriptions · Never Goes Black".
-[00:16-00:20] 3D floating playlist timeline showing seamless loops and auto-resume. Overlay: "Smart Playlists & Commercial Auto-Recovery".
+[00:00-00:04] Smooth tracking shot of a compatible Android display playing a local image/video menu playlist. Overlay: "Digital Signage, Managed Locally".
+[00:04-00:08] A manager selects a promo file in a browser on the same local network; the display updates after the command completes. Overlay: "Control From a Browser on Your Local Network".
+[00:08-00:12] Show video, images, and scrolling text on a display. Overlay: "Videos, Images & Scrolling Text".
+[00:12-00:16] Show local files on the display with a neutral local-file cue; do not imply all sources work offline. Overlay: "Play Media Stored on Your Device".
+[00:16-00:20] Show image and video playlist items advancing on a display with a simple loop indicator. Overlay: "Playlists & Automatic Looping".
 [00:20-00:24] Wide interior shot of three synchronized displays across a store, ending with a clean brand title card featuring BRAND-ICON-01 and LocalSignage. Overlay: "Multi-Screen Fleet Synchronization · LocalSignage".
 Style: Photorealistic 8k commercial video, warm natural lighting, fluid camera movement, crisp text typography, professional retail tech presentation.
 ```

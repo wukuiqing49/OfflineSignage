@@ -13,35 +13,35 @@
 - Output Format: opaque PNG or JPEG
 - Orientation: mixed
 - Prompt Output Directory: prompts/{device}/
-- Blocking Issues: None.
+- Blocking Issues: Replace concept renders with real app captures before production; TV/box assets require compatibility validation.
 
 ## 2. Screenshot Sequence Strategy
 
 The sequence moves progressively through the core value propositions:
-1. Category & Core Hook: 100% Offline Digital Signage & Dynamic Menu Board.
-2. Local Wi-Fi Web Control: Drag-and-drop media from any phone/laptop browser without client software.
-3. Multi-Format Rich Media: 4K Videos, high-res images, scrolling text marquees, and HTML widgets.
-4. Continuous Offline Reliability: Zero cloud server dependencies, zero downtime during internet outages.
-5. Smart Playlists & Scheduling: Seamless video loops, slide durations, and auto-resume.
-6. Multi-Screen Fleet Synchronization: Pair and broadcast synchronized content to all store displays.
+1. Category & Core Hook: Digital signage with local browser control.
+2. Local Wi-Fi Web Control: Manage media from a phone or laptop browser connected to the same network.
+3. Multi-Format Rich Media: Videos, images, scrolling text, and HTML content.
+4. Local Media: Show that files stored on the device can play without a network connection; remote sources require connectivity.
+5. Playlists & Automatic Looping: Show image and video items advancing in sequence.
+6. Multi-Device Control: Assign content to paired displays on the local network.
 
 ## 3. Shared Visual Style
 
-Pure visual commercial 3D renders with photorealistic lighting, sleek emerald green (#1A8754 / #71C887) brand accents, warm retail/restaurant environments, and clean uncluttered upper space reserved for Figma text overlays. Panels are exported across Phone (1080x1920 portrait), Android TV (1920x1080 landscape), and Tablet (2560x1600 landscape).
+Pure visual commercial 3D concept renders with restrained green accents, warm retail/restaurant environments, and clean space for text overlays. Phone (1080x1920 portrait) and tablet (2560x1600 landscape) concepts are planned; TV/box output is blocked from production use until compatibility is validated.
 
 ## 4. Screenshots
 
 ### Screenshot 01
 
-- Purpose: Establish 100% offline digital signage and menu board capability.
+- Purpose: Establish the digital signage player category and local control workflow.
 - Device Type: Phone
 - Locale: en-US
 - Orientation: portrait
 - Real App Screen: N/A
 - Starting State: N/A
 - Demo Data: Gourmet cafe menu board
-- Headline: 100% Offline Digital Signage & Menu Board
-- Supporting Text: Turn any Android TV, tablet, or box into a commercial display.
+- Headline: Digital Signage, Managed Locally
+- Supporting Text: Play local media and control it from your browser.
 - Text Position: top
 - Visual Focus: 3D perspective mockup of an Android display inside a modern cafe showcasing a vibrant food menu board with BRAND-ICON-01.
 - Crop: full canvas
@@ -55,7 +55,7 @@ Pure visual commercial 3D renders with photorealistic lighting, sleek emerald gr
 #### Final Image Prompt
 
 ```text
-A commercial 3D render of a modern cafe counter with an ultra-thin display screen. The screen presents a crisp, vibrant 4K digital menu board featuring gourmet burgers, specialty coffee, and glowing price tags with BRAND-ICON-01 badge. Clean uncluttered space left at the top for overlay text. Photorealistic 8k commercial mockup, Octane render, warm wood textures, ambient lighting, soft green (#1A8754) color accents, cinematic depth of field.
+A commercial render of a compatible Android display playing a local image/video menu playlist in a modern cafe. Leave clean space for headline text and use restrained green accents. Do not imply compatibility with a specific unverified TV or box model.
 ```
 
 ### Screenshot 02
@@ -67,7 +67,7 @@ A commercial 3D render of a modern cafe counter with an ultra-thin display scree
 - Real App Screen: N/A
 - Starting State: N/A
 - Demo Data: Web console drag-and-drop media
-- Headline: Instant Control from Any Web Browser
+- Headline: Browser Control on Your Local Network
 - Supporting Text: Drag-and-drop media over local Wi-Fi. No PC software needed.
 - Text Position: top
 - Visual Focus: A sleek laptop and phone showing the LocalSignage Web Console connected wirelessly to a wall display with BRAND-ICON-01.
@@ -87,17 +87,17 @@ A commercial 3D render of a modern workspace with a sleek laptop and smartphone 
 
 ### Screenshot 03
 
-- Purpose: Highlight multi-format media playback (4K video, images, text marquees, HTML).
+- Purpose: Highlight image/video playback, text, and HTML content modes.
 - Device Type: Phone
 - Locale: en-US
 - Orientation: portrait
 - Real App Screen: N/A
 - Starting State: N/A
 - Demo Data: Video, image, and text ticker split layout
-- Headline: 4K Videos, Images & Live Scrolling Banners
+- Headline: Videos, Images & Scrolling Text
 - Supporting Text: Mix photos, video loops, marquee text, and custom HTML widgets.
 - Text Position: top
-- Visual Focus: Commercial display showing crisp 4K video playback with smooth scrolling banner and BRAND-ICON-01.
+- Visual Focus: Commercial display showing a video, image, and scrolling text example with BRAND-ICON-01.
 - Crop: full canvas
 - Device Frame: Sleek display screen
 - Background Direction: Modern retail showroom
@@ -109,22 +109,22 @@ A commercial 3D render of a modern workspace with a sleek laptop and smartphone 
 #### Final Image Prompt
 
 ```text
-A commercial 3D render of a vibrant display screen mounted in a modern retail boutique. The screen showcases a dynamic split layout: a smooth 4K fashion promotional video playing seamlessly alongside a seasonal sale photo and an active scrolling marquee ticker with BRAND-ICON-01. Clean uncluttered space left at the top for headline overlay. High-end commercial product render, vibrant colors, premium retail atmosphere, 8k resolution, crisp screen details.
+A commercial render of a display in a modern retail boutique. The screen shows a video, a seasonal image, and scrolling text. Keep the text legible and leave clean space for a headline overlay.
 ```
 
 ### Screenshot 04
 
-- Purpose: Emphasize 100% offline reliability with zero cloud downtime.
+- Purpose: Show local media playback without implying all content sources work offline.
 - Device Type: Phone
 - Locale: en-US
 - Orientation: portrait
 - Real App Screen: N/A
 - Starting State: N/A
-- Demo Data: 100% Local Storage offline badge
-- Headline: 100% Offline · Zero Cloud Subscriptions
-- Supporting Text: All media stored locally. Never goes black when internet drops.
+- Demo Data: Locally stored image and video files
+- Headline: Play Media Stored on Your Device
+- Supporting Text: Remote web pages and live streams need a network connection.
 - Text Position: top
-- Visual Focus: Standalone Android display operating flawlessly with a glowing "100% Offline Ready" shield badge and BRAND-ICON-01.
+- Visual Focus: Android display showing an image/video playlist with a restrained local-file indicator and BRAND-ICON-01; no reliability guarantee badge.
 - Crop: full canvas
 - Device Frame: Commercial display
 - Background Direction: Minimalist architectural space
@@ -136,20 +136,20 @@ A commercial 3D render of a vibrant display screen mounted in a modern retail bo
 #### Final Image Prompt
 
 ```text
-A commercial 3D render of a free-standing commercial digital kiosk and wall display playing smoothly 24/7 in an architectural space. A subtle, elegant 3D holographic badge with an offline shield icon and "100% Local Storage" floats beside the screen with BRAND-ICON-01. Clean uncluttered upper section for overlay text. Sophisticated 3D render, sleek emerald green (#1A8754) highlights, confident corporate and retail setting, photorealistic.
+A commercial product render of a compatible Android display playing an image/video playlist from local files in a retail space. Include a small neutral local-file label, not a shield or uptime claim. Keep a clean upper area for headline text, with restrained emerald green accents and realistic device proportions.
 ```
 
 ### Screenshot 05
 
-- Purpose: Show smart playlists, auto-looping, and commercial display guards.
+- Purpose: Show playlist ordering and automatic looping.
 - Device Type: Phone
 - Locale: en-US
 - Orientation: portrait
 - Real App Screen: N/A
 - Starting State: N/A
 - Demo Data: Dynamic playlist carousel
-- Headline: Smart Playlists & Automatic Looping
-- Supporting Text: Auto-start on boot, custom slide timers, and failover recovery.
+- Headline: Playlists & Automatic Looping
+- Supporting Text: Play image and video items in sequence.
 - Text Position: top
 - Visual Focus: Multi-card 3D perspective timeline showing image and video loop progression with BRAND-ICON-01.
 - Crop: full canvas
@@ -163,7 +163,7 @@ A commercial 3D render of a free-standing commercial digital kiosk and wall disp
 #### Final Image Prompt
 
 ```text
-A commercial 3D render of a floating carousel timeline of high-resolution playlist cards (promo video, special offer poster, breakfast menu) smoothly transitioning into a commercial screen with BRAND-ICON-01. Floating timer and loop icons indicate automated scheduling. Clean uncluttered upper space for overlay text. Futuristic yet clean commercial 3D UI render, smooth motion trail effect, studio depth of field.
+A commercial render of image and video playlist items advancing in order on a compatible Android display. Include a simple loop indicator, but do not depict scheduling, failover, or an invented app interface. Leave clear space for headline text.
 ```
 
 ### Screenshot 06

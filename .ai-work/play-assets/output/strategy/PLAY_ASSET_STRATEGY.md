@@ -6,9 +6,9 @@
 - Asset Mode: CONCEPT
 - App Name: LocalSignage
 - Target Locale: en-US
-- Target Device Types: Android phones, tablets, and TV displays
-- Primary Marketing Message: 100% Offline Digital Signage Player & Dynamic Menu Board for Android.
-- Blocking Issues: None.
+- Target Device Types: Android phones and tablets; TV/box visuals are concept-only pending compatibility validation
+- Primary Marketing Message: Local media playback with browser control on the same network.
+- Blocking Issues: Google Play product catalog and real purchase flows remain unverified; target Android TV/box support is unverified.
 
 ## 2. Product Analysis
 
@@ -24,15 +24,15 @@ Local Signage is an Android digital signage player whose device also hosts a loc
 | PF-004 | Devices can be discovered on a local network through NSD and UDP fallback. | VERIFIED | true | `app/src/main/java/com/wkq/localsignage/SignageService.kt:28-55`; `feature/feature_app/src/main/java/com/wkq/localsignage/feature/app/discovery/LocalDeviceDiscovery.kt:24-121` | Discovery runs with the signage service. |
 | PF-005 | A paired device can receive an assigned playlist through the local control API. | VERIFIED | true | `feature/feature_app/src/main/java/com/wkq/localsignage/feature/app/server/KtorSignageServer.kt:189-230`; `feature/feature_app/src/main/java/com/wkq/localsignage/feature/app/server/KtorSignageServer.kt:752-770` | Device assignment, synchronization, and fleet playback routes are reachable. |
 | PF-006 | Playback infrastructure runs in a foreground service and restarts after boot or app updates. | VERIFIED | true | `app/src/main/java/com/wkq/localsignage/SignageService.kt:46-75`; `app/src/main/java/com/wkq/localsignage/SignageBootReceiver.kt:8-18`; `app/src/main/AndroidManifest.xml:35-45` | Marketing wording must not promise recovery on every vendor-modified Android build. |
-| PF-007 | Trial, subscription, and one-time purchase code paths exist. | UNVERIFIED | false | `feature/feature_app/src/main/java/com/wkq/localsignage/monetization/MonetizationRepository.kt:25-122`; `feature/feature_app/src/main/java/com/wkq/localsignage/monetization/EntitlementPolicy.kt:7-46` | Play Console product availability and prices were not verified. |
+| PF-007 | A 7-day trial, limited free mode, annual subscription purchase UI, and legacy purchase restoration are implemented. | VERIFIED_IN_CODE; PLAY_UNVERIFIED | false | `feature/feature_app/src/main/java/com/wkq/localsignage/monetization/MonetizationRepository.kt:25-122`; `CommercialAccessPolicy.kt:28-47`; `EntitlementPolicy.kt:5-8` | Current new offer is annual `pro-yearly`; Play Console catalog, localized price, and real transactions were not verified. Monthly/lifetime code paths are legacy restore compatibility, not current offers. |
 | PF-008 | Locally uploaded media is stored on the Android device and played from local files; playback state is restored when the player initializes. | VERIFIED | true | `feature/feature_app/src/main/java/com/wkq/localsignage/feature/app/storage/SignageStore.kt:672-710`; `feature/feature_app/src/main/java/com/wkq/localsignage/feature/app/player/SignagePlaybackController.kt:270-307`; `feature/feature_app/src/main/java/com/wkq/localsignage/feature/app/player/SignagePlaybackController.kt:397-405` | Offline wording applies to local content, not remote web pages or live streams. |
 
 ### Do Not Advertise
 
-- Google Play prices, subscription availability, or lifetime purchase availability until Play Console is verified.
+- Google Play prices, product availability, or transaction success until Play Console and internal-track flows are verified.
 - Cloud CMS, public internet management, analytics, scheduling, enterprise device management, or AI.
 - Android TV/TV Box compatibility until device and manifest validation is complete.
-- Absolute offline claims for remote web pages and live streams.
+- Claims that local media, remote web pages, live streams, and purchase verification are all offline-capable.
 - Absolute privacy or security claims.
 
 ## 4. ASO / SEO / GEO Positioning

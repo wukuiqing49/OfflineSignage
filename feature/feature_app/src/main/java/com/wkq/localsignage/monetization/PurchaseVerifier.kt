@@ -1,8 +1,8 @@
 package com.wkq.localsignage.monetization
 
+import android.util.Base64
 import com.google.gson.JsonParser
 import com.wkq.google.billing.GooglePurchase
-import java.util.Base64
 import java.security.KeyFactory
 import java.security.Signature
 import java.security.spec.X509EncodedKeySpec
@@ -26,12 +26,12 @@ internal object PurchaseVerifier {
         if (licensePublicKey.isBlank()) return allowMissingPublicKey
         if (purchase.signature.isBlank()) return false
         return runCatching {
-            val keyBytes = Base64.getDecoder().decode(licensePublicKey.normalizedBase64())
+            val keyBytes = Base64.decode(licensePublicKey.normalizedBase64(), Base64.DEFAULT)
             val publicKey = KeyFactory.getInstance("RSA").generatePublic(X509EncodedKeySpec(keyBytes))
             Signature.getInstance("SHA1withRSA").run {
                 initVerify(publicKey)
                 update(purchase.originalJson.toByteArray(Charsets.UTF_8))
-                verify(Base64.getDecoder().decode(purchase.signature.normalizedBase64()))
+                verify(Base64.decode(purchase.signature.normalizedBase64(), Base64.DEFAULT))
             }
         }.getOrDefault(false)
     }

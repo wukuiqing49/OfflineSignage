@@ -19,7 +19,7 @@
 ```text
 Device Type: Phone. Locale: en-US. Canvas: 1080x1920. Output: opaque PNG or JPEG.
 
-A commercial 3D render of a free-standing commercial digital kiosk and wall display playing smoothly 24/7 in an architectural space. A subtle, elegant 3D holographic badge with an offline shield icon and "100% Local Storage" floats beside the screen with BRAND-ICON-01. Clean uncluttered upper section for overlay text. Sophisticated 3D render, sleek emerald green (#1A8754) highlights, confident corporate and retail setting, photorealistic.
+A product render of a compatible Android display playing a local image/video playlist in a retail space. Include a small neutral local-file cue, but no uptime guarantee or offline shield. Leave clean space for text; use restrained emerald accents and realistic device proportions.
 ```
 
 ---
@@ -27,14 +27,14 @@ A commercial 3D render of a free-standing commercial digital kiosk and wall disp
 ## 🎨 Midjourney v6.1 Prompt (Raw Photo Style)
 
 ```text
-/imagine prompt: A commercial 3D render of a free-standing commercial digital kiosk and wall display playing smoothly 24/7 in an architectural space. A subtle, elegant 3D holographic badge with an offline shield icon and "100% Local Storage" floats beside the screen with BRAND-ICON-01. Clean uncluttered upper section for overlay text. Sophisticated 3D render, sleek emerald green (#1A8754) highlights, confident corporate and retail setting, photorealistic. --ar 9:16 --v 6.1 --style raw
+/imagine prompt: A product render of a compatible Android display playing a local image/video playlist in a retail space. Include a small neutral local-file cue, but no uptime guarantee or offline shield. Leave clean space for text; use restrained emerald accents and realistic device proportions. --ar 9:16 --v 6.1 --style raw
 ```
 
 ---
 
 ## 📐 Figma / PS Copy Overlay Card (Ready to Copy-Paste)
-- **Main Headline (EN)**: `100% Offline · Zero Cloud Subscriptions` (Font: Inter / Roboto Bold, ~64-72pt)
-- **Supporting Text (EN)**: `All media stored locally. Never goes black when internet drops.` (Font: Inter / Roboto Regular, ~32-36pt)
+- **Main Headline (EN)**: `Play Media Stored on Your Device` (Font: Inter / Roboto Bold, ~64-72pt)
+- **Supporting Text (EN)**: `Remote web pages and live streams need a network connection.` (Font: Inter / Roboto Regular, ~32-36pt)
 - **Figma Layout Tip**: Paste the AI background image into Figma, create a text box at the top clean margin, and align text centrally with 48px padding.
 
 ---

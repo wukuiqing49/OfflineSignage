@@ -33,7 +33,7 @@ A commercial 3D render of a modern workspace with a sleek laptop and smartphone 
 ---
 
 ## 📐 Figma / PS Copy Overlay Card (Ready to Copy-Paste)
-- **Main Headline (EN)**: `Instant Control from Any Web Browser` (Font: Inter / Roboto Bold, ~64-72pt)
+- **Main Headline (EN)**: `Browser Control on Your Local Network` (Font: Inter / Roboto Bold, ~64-72pt)
 - **Supporting Text (EN)**: `Drag-and-drop media over local Wi-Fi. No PC software needed.` (Font: Inter / Roboto Regular, ~32-36pt)
 - **Figma Layout Tip**: Paste the AI background image into Figma, create a text box at the top clean margin, and align text centrally with 48px padding.
 

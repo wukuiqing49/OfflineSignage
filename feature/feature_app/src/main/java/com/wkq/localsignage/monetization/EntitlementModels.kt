@@ -31,7 +31,10 @@ data class MonetizationUiState(
     val catalogLoaded: Boolean = false,
     val loading: Boolean = false,
     val errorMessage: String = ""
-)
+) {
+    val isCatalogPending: Boolean
+        get() = loading || (!catalogLoaded && errorMessage.isBlank())
+}
 
 internal data class EntitlementSnapshot(
     val trialStartedAtEpochMillis: Long,

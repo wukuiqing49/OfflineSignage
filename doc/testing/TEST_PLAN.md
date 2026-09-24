@@ -26,7 +26,13 @@
 | SCENE-BACKUP | 项目导入/导出侧栏引用 | `server/KtorSignageServer.kt` | Manifest 资源清单、资源 ID remap、回滚 | 含双区 Scene 的项目备份 | 导出并导入后比对资源引用 | 侧栏 ID remap 正确；缺失/非法侧栏拒绝导入 | 集成测试；本轮未执行 |
 | APP-DEBUG | 应用 Debug 构建 | `app`, `feature/feature_app` | 所有 Android 编译资源和模块依赖 | Debug variant | `:app:assembleDebug` | APK 生成成功 | Gradle |
 | APP-LINT | 应用 lint | `app` | Android 资源与应用壳 | Debug variant | `:app:lintDebug` | 任务成功 | Gradle lint |
-| FEATURE-LINT | Feature lint | `feature/feature_app` | Feature Kotlin 与资源 | Debug variant | `:feature:feature_app:lintDebug` | 无 lint error | Gradle lint；当前存在未改动的 API 兼容错误，详见报告 |
+| FEATURE-LINT | Feature lint | `feature/feature_app` | Feature Kotlin 与资源 | Debug variant | `:feature:feature_app:lintDebug` | 无 lint error | Gradle lint |
+| BILLING-PRICE | Play 本地化价格展示 | `BillingActivity.kt`, `BillingPriceFormatter.kt` | 年度商品目录 | `BillingPriceFormatterTest` | 保留 Play `formattedPrice`；空价格不自行拼币种或展示伪价格 | JUnit |
+| BILLING-VERIFY | 购买签名及包名/商品校验 | `PurchaseVerifier.kt` | API 23 Base64 兼容 | `PurchaseVerifierTest` | 有效签名可通过；篡改、错误包名、未知商品或无效 JSON 被拒绝 | Robolectric/JUnit |
+| BILLING-ACCESS | 试用后免费额度及权益状态 | `CommercialAccessPolicy.kt`, `EntitlementPolicy.kt` | 7 天试用、7 天离线宽限 | `CommercialAccessPolicyTest`, `EntitlementPolicyTest` | 免费模式限 10 个资源和 1 个基础轮播；Play 未验证不视为真实交易验收 | Robolectric/JUnit |
+| BILLING-UI-STATE | 计费目录加载与错误状态 | `EntitlementModels.kt`, `BillingActivity.kt` | Billing 查询 loading/error 状态 | `MonetizationUiStateTest` | 初始/加载状态显示等待；终态错误结束 spinner 并允许显示不可用提示 | JUnit |
+| BILLING-UI-ERROR-AVD | Play Billing 不可用时的计费页 | `BillingActivity.kt`, `MonetizationRepository.kt` | 新装 Debug 包、无 Play Billing 服务 | 从主界面打开“Plans and license” | 显示本地权益与不可用提示，加载圈消失，恢复按钮可重试；不发起真实购买 | Android AVD 手工 |
+| BILLING-PLAY-MANUAL | Play 实际购买与恢复 | Billing Activity/Repository | Play 内部测试轨道、License Tester | 验证年度购买、取消、续订、退款、恢复及离线降级 | 交易状态与权益一致，播放不因计费失败中断 | 手工；当前未执行 |
 
 ## 排除范围
 
@@ -41,4 +47,4 @@
 - 场景预览的本地图片鉴权和双区媒体尺寸、390px 内容操作按钮布局已于 2026-09-24 修复并通过 E2E 复测；历史失败和修复后证据见 [`TEST_REPORT.md`](TEST_REPORT.md)。
 - 控制台已在桌面 Chrome 完成自动交互；Android WebView 的字体、滚动与窗口行为仍未验证。
 - 项目备份的双区导入/导出往返未纳入本轮自动测试。
-- Feature lint 受现存 `PurchaseVerifier.kt` API 23/Base64 lint error 阻断；未改动该文件，也未建立 lint baseline。
+- `PurchaseVerifier.kt` 的 API 23/Base64 lint 错误已修复；2026-09-24 的 `:feature:feature_app:lintDebug` 通过，未建立 lint baseline。

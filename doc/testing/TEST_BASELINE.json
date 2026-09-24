@@ -2,13 +2,13 @@
   "schemaVersion": 1,
   "cases": {
     "FEATURE-DEBUG-UNIT-SUITE": {
-      "commit": "74f241a",
-      "sourceFingerprint": "9a9889b646ff894bb703882c7be7f5f7e141000f",
-      "testedAt": "2026-09-24T11:19:43+08:00",
+      "commit": "a7d72f0",
+      "sourceFingerprint": "8a542c15c342d8bede585cd49d87a763ddd49688",
+      "testedAt": "2026-09-24T16:00:37+08:00",
       "variant": "debug",
       "environment": "JDK 17.0.12; Gradle 8.13; AGP 8.13.2; Kotlin 2.3.0; Robolectric",
-      "commandOrSteps": "gradlew.bat :feature:feature_app:testDebugUnitTest",
-      "evidence": "feature/feature_app/build/reports/tests/testDebugUnitTest/index.html; 97 tests, 0 failures"
+      "commandOrSteps": "gradlew.bat :feature:feature_app:testDebugUnitTest --no-parallel",
+      "evidence": "feature/feature_app/build/reports/tests/testDebugUnitTest/index.html; 101 tests, 0 failures"
     },
     "APP-DEBUG-UNIT-SUITE": {
       "commit": "74f241a",
@@ -20,13 +20,13 @@
       "evidence": "app/build/reports/tests/testDebugUnitTest/index.html; 3 tests, 0 failures"
     },
     "APP-DEBUG-ASSEMBLE": {
-      "commit": "74f241a",
-      "sourceFingerprint": "9a9889b646ff894bb703882c7be7f5f7e141000f",
-      "testedAt": "2026-09-24T11:19:43+08:00",
+      "commit": "a7d72f0",
+      "sourceFingerprint": "8a542c15c342d8bede585cd49d87a763ddd49688",
+      "testedAt": "2026-09-24T16:00:48+08:00",
       "variant": "debug",
       "environment": "JDK 17.0.12; Gradle 8.13; compile/target SDK 36",
-      "commandOrSteps": "gradlew.bat --no-daemon --max-workers=2 :app:assembleDebug",
-      "evidence": "app/build/outputs/apk/debug/app-debug.apk; SHA-256 8606CB291E9D022D1FA42AEC45058F6A827D9D4C2E888EB719524B5B197FD0F5"
+      "commandOrSteps": "gradlew.bat :app:assembleDebug --no-parallel",
+      "evidence": "app/build/outputs/apk/debug/app-debug.apk; SHA-256 9BB63E34D20911B9A1577DE6B93FD2E9D1D730B4FA3EAC61502422C556B564AC"
     },
     "WEB-CONSOLE-INLINE-SYNTAX": {
       "commit": "74f241a",
@@ -54,6 +54,51 @@
       "environment": "JDK 17.0.12; Gradle 8.13; SDK 36",
       "commandOrSteps": "gradlew.bat :app:lintDebug",
       "evidence": "app/build/reports/lint-results-debug.html; exit 0"
+    },
+    "BILLING-PRICE-UNIT": {
+      "commit": "a7d72f0",
+      "sourceFingerprint": "8a542c15c342d8bede585cd49d87a763ddd49688",
+      "testedAt": "2026-09-24T16:00:37+08:00",
+      "variant": "debug",
+      "environment": "JDK 17.0.12; Gradle 8.13; Robolectric/JUnit",
+      "commandOrSteps": "gradlew.bat :feature:feature_app:testDebugUnitTest --no-parallel",
+      "evidence": "feature/feature_app/build/test-results/testDebugUnitTest/TEST-com.wkq.localsignage.monetization.BillingPriceFormatterTest.xml; 2 tests, 0 failures"
+    },
+    "BILLING-VERIFY-UNIT": {
+      "commit": "a7d72f0",
+      "sourceFingerprint": "8a542c15c342d8bede585cd49d87a763ddd49688",
+      "testedAt": "2026-09-24T16:00:37+08:00",
+      "variant": "debug",
+      "environment": "JDK 17.0.12; Gradle 8.13; Robolectric/JUnit",
+      "commandOrSteps": "gradlew.bat :feature:feature_app:testDebugUnitTest --no-parallel",
+      "evidence": "feature/feature_app/build/test-results/testDebugUnitTest/TEST-com.wkq.localsignage.monetization.PurchaseVerifierTest.xml; 5 tests, 0 failures"
+    },
+    "FEATURE-LINT": {
+      "commit": "a7d72f0",
+      "sourceFingerprint": "8a542c15c342d8bede585cd49d87a763ddd49688",
+      "testedAt": "2026-09-24T16:02:09+08:00",
+      "variant": "debug",
+      "environment": "JDK 17.0.12; Gradle 8.13; SDK 36",
+      "commandOrSteps": "gradlew.bat :feature:feature_app:lintDebug --no-parallel",
+      "evidence": "feature/feature_app/build/reports/lint-results-debug.html; exit 0"
+    },
+    "BILLING-UI-STATE": {
+      "commit": "a7d72f0",
+      "sourceFingerprint": "8a542c15c342d8bede585cd49d87a763ddd49688",
+      "testedAt": "2026-09-24T16:00:37+08:00",
+      "variant": "debug",
+      "environment": "JDK 17.0.12; Gradle 8.13; Robolectric/JUnit",
+      "commandOrSteps": "gradlew.bat :feature:feature_app:testDebugUnitTest --no-parallel",
+      "evidence": "feature/feature_app/build/test-results/testDebugUnitTest/TEST-com.wkq.localsignage.monetization.MonetizationUiStateTest.xml; 2 tests, 0 failures"
+    },
+    "I18N-RESOURCE-VALIDATION": {
+      "commit": "a7d72f0",
+      "sourceFingerprint": "0247f0493c6047316880c258f33b2df8267306f1",
+      "testedAt": "2026-09-24T14:58:00+08:00",
+      "variant": "debug",
+      "environment": "Python 3; repository i18n validator",
+      "commandOrSteps": "validate_i18n_resources.py for app, feature_app, and feature_res resources",
+      "evidence": "Validation passed; app has no string/plurals resources (warning)"
     }
   }
 }

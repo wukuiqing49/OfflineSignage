@@ -19,7 +19,7 @@
 ```text
 Device Type: TV. Locale: en-US. Canvas: 1920x1080. Output: opaque PNG or JPEG.
 
-A commercial 3D render of a modern cafe counter with an ultra-thin display screen. The screen presents a crisp, vibrant 4K digital menu board featuring gourmet burgers, specialty coffee, and glowing price tags with BRAND-ICON-01 badge. Clean uncluttered space left at the top for overlay text. Photorealistic 8k commercial mockup, Octane render, warm wood textures, ambient lighting, soft green (#1A8754) color accents, cinematic depth of field.
+A commercial render of a compatible Android display playing a local image/video menu playlist in a modern cafe. Leave clean space for headline text and use restrained green accents. Do not imply compatibility with a specific unverified TV or box model.
 ```
 
 ---
@@ -27,14 +27,14 @@ A commercial 3D render of a modern cafe counter with an ultra-thin display scree
 ## 🎨 Midjourney v6.1 Prompt (Raw Photo Style)
 
 ```text
-/imagine prompt: A commercial 3D render of a modern cafe counter with an ultra-thin display screen. The screen presents a crisp, vibrant 4K digital menu board featuring gourmet burgers, specialty coffee, and glowing price tags with BRAND-ICON-01 badge. Clean uncluttered space left at the top for overlay text. Photorealistic 8k commercial mockup, Octane render, warm wood textures, ambient lighting, soft green (#1A8754) color accents, cinematic depth of field. --ar 16:9 --v 6.1 --style raw
+/imagine prompt: A commercial render of a compatible Android display playing a local image/video menu playlist in a modern cafe. Leave clean space for headline text and use restrained green accents. Do not imply compatibility with a specific unverified TV or box model. --ar 16:9 --v 6.1 --style raw
 ```
 
 ---
 
 ## 📐 Figma / PS Copy Overlay Card (Ready to Copy-Paste)
-- **Main Headline (EN)**: `100% Offline Digital Signage & Menu Board` (Font: Inter / Roboto Bold, ~64-72pt)
-- **Supporting Text (EN)**: `Turn any Android TV, tablet, or box into a commercial display.` (Font: Inter / Roboto Regular, ~32-36pt)
+- **Main Headline (EN)**: `Digital Signage, Managed Locally` (Font: Inter / Roboto Bold, ~64-72pt)
+- **Supporting Text (EN)**: `Play local media and control it from your browser.` (Font: Inter / Roboto Regular, ~32-36pt)
 - **Figma Layout Tip**: Paste the AI background image into Figma, create a text box at the top clean margin, and align text centrally with 48px padding.
 
 ---

@@ -1,43 +1,41 @@
 # Google Play Store Listing Metadata & ASO / GEO Copy
 
+> Draft only. Do not publish until the Play Console product catalog, actual prices, billing flows, and target-device support have been verified.
+
 ## 1. English (en-US) - Default
 
 ### App Title (Max 30 characters)
-`LocalSignage: Menu & TV Player`
-*(29 / 30 characters - Contains high-value keywords: LocalSignage, Menu, TV, Player)*
+`LocalSignage: Digital Signage`
 
 ### Short Description (Max 80 characters)
-`100% offline digital signage player & digital menu board for Android TV.`
-*(72 / 80 characters - Hits core hooks: 100% offline, digital signage player, digital menu board, Android TV)*
+`Local signage player with local media and browser control.`
 
 ### Full Description (Max 4,000 characters)
 
 ```text
-Turn any Android TV, tablet, or media box into a 100% offline digital signage player and dynamic digital menu board. 
-
-Manage your commercial screens over your local Wi-Fi with an instant web browser console. Zero cloud accounts, zero recurring subscription fees, and zero downtime.
+Turn a compatible Android device into a digital signage player. Upload local images and videos, create a playlist, and control playback from a browser on the same local network. Local files can continue playing without an internet connection after they are on the device. Remote web pages, live streams, and Google Play purchase checks require network access. Local Signage does not require a Local Signage account or cloud CMS.
 
 🌟 KEY FEATURES
 
-• 100% Offline Playback: All media files (4K videos, high-res images, dynamic text marquees) are stored directly on your Android device. Playback never stutters or goes black during internet outages.
-• Instant Web Browser Console: Manage screens from your laptop, iPad, or phone on the same Wi-Fi network at http://<ip>:8080. Drag and drop media with no client software or driver installations required.
-• Multi-Format Support: Seamlessly play 4K video loops, image slideshows, live RTSP streams, custom HTML widgets, and scrolling promotional text banners.
-• Multi-Screen Fleet Sync: Automatically discover and pair multiple Android displays across your local network (NSD/UDP). Broadcast synchronized playlists or push unique content to individual screens.
-• Commercial Display Guards: Automatic boot startup, foreground service persistence, and instant crash recovery keep your business displays running 24/7.
-• One-Time Lifetime License: Completely private, local-first architecture. No cloud lock-in, no monthly SaaS fees.
+• Local media playback: Play image and video files stored on the Android device. Network-dependent sources need an active connection.
+• Browser control on your local network: Open the device's displayed address from a phone or computer on the same network to upload media and manage playback.
+• Multiple content types: Images, videos, live streams, web/HTML, and text are supported, with advanced content subject to Pro access.
+• Playlists and multi-device tools: Create playlists and use local device discovery and assignment; multi-device controls require Pro access.
+• Free mode: Start with a 7-day full-feature trial. After it ends, continue playback with up to 10 image/video resources and one basic image/video carousel.
+• Pro: An annual auto-renewing subscription is offered through Google Play. Price and billing details are shown by Google Play at checkout. Previously purchased legacy entitlements may be restored but are not current offers.
 
 🏪 PERFECT FOR ALL BUSINESS TYPES
 
 • Restaurants, Cafes & Bakeries: Digital menu boards, daily specials, and animated combos.
-• Retail Stores & Supermarkets: 4K promotional video loops, seasonal sales posters, and discount banners.
+• Retail Stores & Supermarkets: promotional video loops, seasonal posters, and discount banners.
 • Corporate Offices & Reception: Welcome boards, company dashboards, and visitor guidance.
 • Clinics, Salons & Spas: Service price lists, announcements, and queue status screens.
 • Events & Exhibitions: Fast portable kiosk displays over hotspot or local Wi-Fi.
 
 ⚙️ QUICK START IN 3 STEPS
 
-1. Install LocalSignage on your Android TV, tablet, or box.
-2. Open any web browser on your laptop or phone connected to the same Wi-Fi and visit the on-screen address (e.g., http://192.168.1.100:8080).
+1. Install LocalSignage on a compatible Android device.
+2. Open a browser on a laptop or phone connected to the same Wi-Fi and visit the on-screen address (e.g., http://192.168.1.100:8080).
 3. Drag and drop your images or videos to start playing immediately!
 
 Privacy Policy: https://wukuiqing49.github.io/agreement/local_signage_privacy_policy.html
@@ -53,29 +51,27 @@ Data Deletion & Support: https://wukuiqing.github.io/OfflineSignage/docs/local_s
 *(22 / 30 字符)*
 
 ### 简短说明 (最长 80 字符)
-`100% 离线 Android 广告机与电子餐牌播放器，局域网网页秒控。`
+`本地数字标牌播放器，支持局域网浏览器控制。`
 *(35 / 80 字符)*
 
 ### 完整说明
 
 ```text
-将闲置的 Android 电视、平板或电视盒子一秒变身为 100% 纯离线数字标牌（广告机）与动态电子餐牌播放器！
-
-通过局域网内任意电脑或手机浏览器秒级控屏，无需云端账号、无需按月订阅、断网照常 24 小时稳定轮播。
+将兼容的 Android 设备用作数字标牌播放器。在同一局域网内通过手机或电脑浏览器上传图片、视频并管理播放。本地文件保存到设备后可在无网络时继续播放；远程网页、直播内容及 Google Play 购买校验需要网络。无需注册 Local Signage 账号或使用云端 CMS。
 
 🌟 核心功能亮点
 
-• 100% 纯本地离线轮播：所有图片、4K 视频与跑马灯文字直接存储在 Android 本地设备中。断网不断流，永不黑屏。
-• 免驱动局域网网页控制台：在同 Wi-Fi 下的电脑或手机浏览器打开 http://<设备IP>:8080，直接拖拽上传图片与视频，无需安装任何 PC 客户端。
-• 多媒体格式全支持：支持 4K 视频无缝循环、高清图片轮播、滚动跑马灯字幕、自定义 HTML 组件与 RTSP 直播流。
-• 多屏集群局域网同步：自动发现同局域网内的所有 Android 大屏，一键批量下发播放列表或对单屏独立分发。
-• 商业级守护与开机自启：支持前台守护服务、开机自动启动播放与崩溃自动恢复，保障商用展示 24 小时全天候无忧运转。
-• 买断制无持续成本：纯本地隐私优先架构，不收集业务数据，告别昂贵的第三方云端 SaaS 订阅费。
+• 本地媒体播放：播放存储在 Android 设备上的图片和视频；依赖网络的内容源需要保持联网。
+• 局域网浏览器控制：同一网络中的手机或电脑可打开设备显示的地址，上传媒体并管理播放。
+• 多种内容类型：支持图片、视频、直播、网页/HTML 和文字；高级内容受 Pro 权益限制。
+• 播放列表与多设备工具：可创建播放列表并使用局域网设备发现和分配；多设备控制需要 Pro。
+• 免费模式：先体验 7 天完整功能；试用结束后仍可播放，最多新增 10 个图片/视频资源并使用 1 个基础图片/视频轮播。
+• Pro：通过 Google Play 提供年度自动续订订阅，价格和计费信息以购买时的 Play 页面为准。此前购买的旧版权益可恢复，但不属于当前新购方案。
 
 🏪 广泛适用场景
 
 • 餐饮咖啡店：动态电子餐牌、今日特价与新品推荐海报。
-• 零售商超：4K 促销视频轮播、打折信息与品牌宣传。
+• 零售商超：促销视频轮播、打折信息与品牌宣传。
 • 企业大堂与办公室：迎宾看板、企业文化宣传与通知公告。
 • 诊所、美发沙龙与展厅：价目表展示、排队指引与便民信息。
 

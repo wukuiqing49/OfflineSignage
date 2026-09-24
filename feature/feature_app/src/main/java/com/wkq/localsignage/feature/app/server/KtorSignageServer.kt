@@ -9,6 +9,7 @@ import com.wkq.localsignage.feature.app.model.SignagePlaylistItem
 import com.wkq.localsignage.feature.app.model.PlaylistSchedule
 import com.wkq.localsignage.feature.app.model.PlaylistSchedulePolicy
 import com.wkq.localsignage.feature.app.model.SignageScene
+import com.wkq.localsignage.feature.app.model.SceneLayoutTemplate
 import com.wkq.localsignage.feature.app.model.SignageSettings
 import com.wkq.localsignage.feature.app.model.ResourceKind
 import com.wkq.localsignage.feature.app.model.SignageOverlay
@@ -972,7 +973,9 @@ class KtorSignageServer(context: Context, private val port: Int) {
                             muted = jsonBoolean(body, "muted") ?: false,
                             overlays = overlays(JSONObject(body).optJSONArray("overlays")),
                             playbackSpeed = JSONObject(body).optDouble("playbackSpeed", 1.0).toFloat(),
-                            transitionEffect = jsonString(body, "transitionEffect") ?: ImageTransitionPolicy.DEFAULT_EFFECT
+                            transitionEffect = jsonString(body, "transitionEffect") ?: ImageTransitionPolicy.DEFAULT_EFFECT,
+                            layoutTemplate = jsonString(body, "layoutTemplate") ?: SceneLayoutTemplate.FULLSCREEN,
+                            sidebarResourceId = jsonString(body, "sidebarResourceId")
                         )
                         call.respondJson(sceneJson(SignageRuntime.saveScene(scene)), HttpStatusCode.Created)
                     } catch (error: Exception) {
@@ -1082,7 +1085,7 @@ class KtorSignageServer(context: Context, private val port: Int) {
                         val playlist = SignageRuntime.playlist(body.optString("playlistId"))
                             ?: throw IllegalArgumentException("PLAYLIST_NOT_FOUND")
                         val scenes = playlist.items.mapNotNull { SignageRuntime.scene(it.sceneId) }.distinctBy { it.id }
-                        val resources = scenes.mapNotNull { SignageRuntime.resource(it.resourceId) }.associateBy { it.id }
+                        val resources = scenes.flatMap { it.resourceIds }.distinct().mapNotNull(SignageRuntime::resource).associateBy { it.id }
                         val files = resources.values.filter { it.isLocalFile }.associate { it.id to SignageRuntime.fileFor(it) }
                         val targets = requirePairedTargets(jsonStringList(body, "deviceIds"))
                         val results = withContext(Dispatchers.IO) { SignageDeviceFleet.syncPlaylist(playlist, scenes, resources, files, targets) }
@@ -1105,7 +1108,7 @@ class KtorSignageServer(context: Context, private val port: Int) {
                                 playlists.forEach { playlist ->
                                     if (playlistFailure != null) return@forEach
                                     val scenes = playlist.items.mapNotNull { SignageRuntime.scene(it.sceneId) }.distinctBy { it.id }
-                                    val resources = scenes.mapNotNull { SignageRuntime.resource(it.resourceId) }.associateBy { it.id }
+                                    val resources = scenes.flatMap { it.resourceIds }.distinct().mapNotNull(SignageRuntime::resource).associateBy { it.id }
                                     val files = resources.values.filter { it.isLocalFile }.associate { it.id to SignageRuntime.fileFor(it) }
                                     val result = SignageDeviceFleet.syncPlaylist(playlist, scenes, resources, files, listOf(target)).single()
                                     if (!result.success) playlistFailure = result.code
@@ -1147,7 +1150,9 @@ class KtorSignageServer(context: Context, private val port: Int) {
                             muted = jsonBoolean(body, "muted") ?: false,
                             overlays = overlays(JSONObject(body).optJSONArray("overlays")),
                             playbackSpeed = JSONObject(body).optDouble("playbackSpeed", 1.0).toFloat(),
-                            transitionEffect = jsonString(body, "transitionEffect") ?: ImageTransitionPolicy.DEFAULT_EFFECT
+                            transitionEffect = jsonString(body, "transitionEffect") ?: ImageTransitionPolicy.DEFAULT_EFFECT,
+                            layoutTemplate = jsonString(body, "layoutTemplate") ?: SceneLayoutTemplate.FULLSCREEN,
+                            sidebarResourceId = jsonString(body, "sidebarResourceId")
                         )
                         call.respondJson(sceneJson(SignageRuntime.saveScene(scene)), HttpStatusCode.Created)
                     } catch (error: IllegalArgumentException) {
@@ -1379,7 +1384,7 @@ class KtorSignageServer(context: Context, private val port: Int) {
         }
         try {
             val scenes = playlist.items.mapNotNull { SignageRuntime.scene(it.sceneId) }.distinctBy { it.id }
-            val resources = scenes.mapNotNull { SignageRuntime.resource(it.resourceId) }.associateBy { it.id }
+            val resources = scenes.flatMap { it.resourceIds }.distinct().mapNotNull(SignageRuntime::resource).associateBy { it.id }
             val files = resources.values.filter { it.isLocalFile }.associate { it.id to SignageRuntime.fileFor(it) }
             val syncResult = withContext(Dispatchers.IO) {
                 SignageDeviceFleet.syncPlaylist(playlist, scenes, resources, files, listOf(target)).single()
@@ -1448,7 +1453,7 @@ class KtorSignageServer(context: Context, private val port: Int) {
     private fun rollbackCreatedResources(resourceIds: Collection<String>) {
         resourceIds.forEach { resourceId ->
             SignageRuntime.scenes()
-                .filter { it.resourceId == resourceId }
+                .filter { resourceId in it.resourceIds }
                 .forEach { scene -> SignageRuntime.deleteScene(scene.id) }
             SignageRuntime.deleteResource(resourceId)
         }
@@ -1697,7 +1702,7 @@ class KtorSignageServer(context: Context, private val port: Int) {
     }
 
     private fun scenesJson(): String = jsonArray(SignageRuntime.scenes(), ::sceneJson)
-    private fun sceneJson(scene: SignageScene): String = "{\"id\":${quote(scene.id)},\"name\":${quote(scene.name)},\"resourceId\":${quote(scene.resourceId)},\"fitMode\":${quote(scene.fitMode)},\"cropGravity\":${quote(scene.cropGravity)},\"backgroundType\":${quote(scene.backgroundType)},\"backgroundColor\":${scene.backgroundColor?.let(::quote) ?: "null"},\"volume\":${scene.volume ?: "null"},\"muted\":${scene.muted},\"playbackSpeed\":${PlaybackTimingPolicy.normalizeVideoPlaybackSpeed(scene.playbackSpeed)},\"transitionEffect\":${quote(ImageTransitionPolicy.normalize(scene.transitionEffect))},\"overlays\":${overlaysJson(scene.overlays)}}"
+    private fun sceneJson(scene: SignageScene): String = "{\"id\":${quote(scene.id)},\"name\":${quote(scene.name)},\"resourceId\":${quote(scene.resourceId)},\"layoutTemplate\":${quote(scene.layoutTemplate)},\"sidebarResourceId\":${scene.sidebarResourceId?.let(::quote) ?: "null"},\"fitMode\":${quote(scene.fitMode)},\"cropGravity\":${quote(scene.cropGravity)},\"backgroundType\":${quote(scene.backgroundType)},\"backgroundColor\":${scene.backgroundColor?.let(::quote) ?: "null"},\"volume\":${scene.volume ?: "null"},\"muted\":${scene.muted},\"playbackSpeed\":${PlaybackTimingPolicy.normalizeVideoPlaybackSpeed(scene.playbackSpeed)},\"transitionEffect\":${quote(ImageTransitionPolicy.normalize(scene.transitionEffect))},\"overlays\":${overlaysJson(scene.overlays)}}"
     private fun playlistsJson(): String = jsonArray(SignageRuntime.playlists(), ::playlistJson)
     private fun playlistJson(playlist: SignagePlaylist): String = "{\"id\":${quote(playlist.id)},\"name\":${quote(playlist.name)},\"loop\":${playlist.loop},\"items\":[${playlist.items.joinToString { "{\"sceneId\":${quote(it.sceneId)},\"durationMs\":${it.durationMs ?: "null"},\"enabled\":${it.enabled}}" }}]}"
     private fun playlistSchedulesJson(): String = jsonArray(SignageRuntime.playlistSchedules(), ::playlistScheduleJson)
@@ -1975,9 +1980,24 @@ class KtorSignageServer(context: Context, private val port: Int) {
             }
         }
         val sceneIds = mutableSetOf<String>()
+        val resourceById = buildMap {
+            for (index in 0 until resources.length()) {
+                val resource = resources.getJSONObject(index)
+                put(resource.getString("id"), resource)
+            }
+        }
         for (index in 0 until scenes.length()) {
             val scene = scenes.optJSONObject(index) ?: throw IllegalArgumentException("PROJECT_BACKUP_SCENE_INVALID")
             require(sceneIds.add(scene.optString("id")) && scene.optString("resourceId") in resourceIds) { "PROJECT_BACKUP_SCENE_INVALID" }
+            val layout = scene.optString("layoutTemplate", SceneLayoutTemplate.FULLSCREEN)
+            require(layout in SceneLayoutTemplate.supported) { "PROJECT_BACKUP_SCENE_INVALID" }
+            if (layout == SceneLayoutTemplate.MAIN_WITH_SIDEBAR) {
+                val sidebarId = scene.optString("sidebarResourceId")
+                val sidebar = resourceById[sidebarId]
+                val kind = sidebar?.optString("kind").orEmpty().uppercase()
+                val image = sidebar?.optString("mimeType").orEmpty().startsWith("image/", ignoreCase = true)
+                require(sidebar != null && (image || kind == ResourceKind.TEXT.name)) { "PROJECT_BACKUP_SCENE_INVALID" }
+            }
         }
         for (index in 0 until playlists.length()) {
             val playlist = playlists.optJSONObject(index) ?: throw IllegalArgumentException("PROJECT_BACKUP_PLAYLIST_INVALID")
@@ -2017,9 +2037,13 @@ class KtorSignageServer(context: Context, private val port: Int) {
                 val source = scenes.getJSONObject(index)
                 val resourceId = resourceIdMap[source.getString("resourceId")]
                     ?: throw IllegalArgumentException("PROJECT_BACKUP_SCENE_INVALID")
+                val sidebarResourceId = source.optString("sidebarResourceId").takeIf { it.isNotBlank() }?.let(resourceIdMap::get)
+                if (source.optString("layoutTemplate", SceneLayoutTemplate.FULLSCREEN) == SceneLayoutTemplate.MAIN_WITH_SIDEBAR && sidebarResourceId == null) {
+                    throw IllegalArgumentException("PROJECT_BACKUP_SCENE_INVALID")
+                }
                 val defaultId = defaultSceneByResource[resourceId]
                 val targetId = if (defaultId != null && usedDefaultResources.add(resourceId)) defaultId else java.util.UUID.randomUUID().toString()
-                val scene = backupScene(source, targetId, resourceId)
+                val scene = backupScene(source, targetId, resourceId, sidebarResourceId)
                 SignageRuntime.saveScene(scene)
                 sceneIdMap[source.getString("id")] = targetId
                 if (targetId != defaultId) createdScenes += targetId
@@ -2101,7 +2125,7 @@ class KtorSignageServer(context: Context, private val port: Int) {
         }
     }
 
-    private fun backupScene(source: JSONObject, id: String, resourceId: String): SignageScene = SignageScene(
+    private fun backupScene(source: JSONObject, id: String, resourceId: String, sidebarResourceId: String?): SignageScene = SignageScene(
         id = id,
         name = source.optString("name").ifBlank { "Scene" },
         resourceId = resourceId,
@@ -2113,7 +2137,9 @@ class KtorSignageServer(context: Context, private val port: Int) {
         muted = source.optBoolean("muted", false),
         overlays = overlays(source.optJSONArray("overlays")),
         playbackSpeed = source.optDouble("playbackSpeed", 1.0).toFloat(),
-        transitionEffect = source.optString("transitionEffect", ImageTransitionPolicy.DEFAULT_EFFECT)
+        transitionEffect = source.optString("transitionEffect", ImageTransitionPolicy.DEFAULT_EFFECT),
+        layoutTemplate = source.optString("layoutTemplate", SceneLayoutTemplate.FULLSCREEN),
+        sidebarResourceId = sidebarResourceId
     )
 
     private fun backupPlaylist(source: JSONObject, id: String, sceneIdMap: Map<String, String>): SignagePlaylist {

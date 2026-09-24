@@ -64,7 +64,8 @@ class MainActivity : BaseActivity<ActivityMainBinding>(), PlaybackListener {
             webView = binding.webView,
             textView = binding.textContentView,
             overlayContainer = binding.overlayContainer,
-            blurBackgroundView = binding.blurBackgroundView
+            blurBackgroundView = binding.blurBackgroundView,
+            sidebarContainer = binding.sidebarContainer
         )
     private val pairingHandler = Handler(Looper.getMainLooper())
     private val hidePlaybackControls = Runnable {

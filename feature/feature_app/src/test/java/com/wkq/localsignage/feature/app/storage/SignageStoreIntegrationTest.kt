@@ -13,6 +13,9 @@ import org.junit.runner.RunWith
 import org.robolectric.RobolectricTestRunner
 import org.robolectric.RuntimeEnvironment
 import org.robolectric.annotation.Config
+import com.wkq.localsignage.feature.app.model.ResourceKind
+import com.wkq.localsignage.feature.app.model.SceneLayoutTemplate
+import com.wkq.localsignage.feature.app.model.SignageScene
 
 @RunWith(RobolectricTestRunner::class)
 @Config(sdk = [23, 28], application = Application::class)
@@ -82,6 +85,37 @@ class SignageStoreIntegrationTest {
         SignageStore(context).use { assertEquals(1234L, it.state(8080).positionMs) }
     }
 
+    @Test fun splitScenePersistsSidebarAndProtectsItsResource() {
+        SignageStore(context).use { store ->
+            val main = store.saveUpload("main.png", "image/png", ByteArrayInputStream(byteArrayOf(1)))
+            val sidebar = store.saveVirtualResource("Offer", ResourceKind.TEXT, null, "Today's offer", null)
+            val scene = store.saveScene(SignageScene(
+                id = "split-scene", name = "Promotion", resourceId = main.id,
+                layoutTemplate = SceneLayoutTemplate.MAIN_WITH_SIDEBAR, sidebarResourceId = sidebar.id
+            ))
+            assertEquals(listOf(main.id, sidebar.id), scene.resourceIds)
+            assertEquals(sidebar.id, store.scene(scene.id)?.sidebarResourceId)
+            assertThrows(IllegalArgumentException::class.java) { store.deleteResource(sidebar.id) }
+            assertEquals(SceneLayoutTemplate.FULLSCREEN, store.saveScene(scene.copy(
+                id = "legacy-compatible", layoutTemplate = SceneLayoutTemplate.FULLSCREEN
+            )).layoutTemplate)
+            assertNull(store.scene("legacy-compatible")?.sidebarResourceId)
+        }
+    }
+
+    @Test fun splitSceneRejectsVideoSidebar() {
+        SignageStore(context).use { store ->
+            val main = store.saveUpload("main.png", "image/png", ByteArrayInputStream(byteArrayOf(1)))
+            val video = store.saveUpload("sidebar.mp4", "video/mp4", ByteArrayInputStream(byteArrayOf(2)))
+            assertThrows(IllegalArgumentException::class.java) {
+                store.saveScene(SignageScene(
+                    id = "invalid-split", name = "Invalid", resourceId = main.id,
+                    layoutTemplate = SceneLayoutTemplate.MAIN_WITH_SIDEBAR, sidebarResourceId = video.id
+                ))
+            }
+        }
+    }
+
     @Test fun versionOneDatabaseUpgradesWithoutLosingPlaylistContent() {
         val path = context.getDatabasePath("signage.db")
         path.parentFile!!.mkdirs()
@@ -100,10 +134,12 @@ class SignageStoreIntegrationTest {
         SignageStore(context).use { store ->
             assertEquals("Legacy image", store.resource("resource")!!.name)
             assertEquals("FADE", store.scene("scene")!!.transitionEffect)
+            assertEquals(SceneLayoutTemplate.FULLSCREEN, store.scene("scene")!!.layoutTemplate)
+            assertNull(store.scene("scene")!!.sidebarResourceId)
             assertEquals("scene", store.playlist("playlist")!!.items.single().sceneId)
             assertTrue(store.operationRecords().isEmpty())
         }
-        context.openOrCreateDatabase("signage.db", 0, null).use { assertEquals(14, it.version) }
+        context.openOrCreateDatabase("signage.db", 0, null).use { assertEquals(15, it.version) }
     }
 
     @Test fun checkpointFailureIsVisibleAndLaterWriteCanRecover() {

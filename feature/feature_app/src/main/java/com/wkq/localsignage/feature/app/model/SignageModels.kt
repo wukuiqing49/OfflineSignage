@@ -69,8 +69,19 @@ data class SignageScene(
     val createdAt: Long = System.currentTimeMillis(),
     val overlays: List<SignageOverlay> = emptyList(),
     val playbackSpeed: Float = PlaybackTimingPolicy.DEFAULT_VIDEO_PLAYBACK_SPEED,
-    val transitionEffect: String = ImageTransitionPolicy.DEFAULT_EFFECT
-)
+    val transitionEffect: String = ImageTransitionPolicy.DEFAULT_EFFECT,
+    val layoutTemplate: String = SceneLayoutTemplate.FULLSCREEN,
+    val sidebarResourceId: String? = null
+) {
+    val resourceIds: List<String>
+        get() = listOfNotNull(resourceId, sidebarResourceId).distinct()
+}
+
+object SceneLayoutTemplate {
+    const val FULLSCREEN = "FULLSCREEN"
+    const val MAIN_WITH_SIDEBAR = "MAIN_WITH_SIDEBAR"
+    val supported = setOf(FULLSCREEN, MAIN_WITH_SIDEBAR)
+}
 
 object ImageTransitionPolicy {
     const val NONE = "NONE"

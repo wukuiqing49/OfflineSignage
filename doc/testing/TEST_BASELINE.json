@@ -1,0 +1,59 @@
+{
+  "schemaVersion": 1,
+  "cases": {
+    "FEATURE-DEBUG-UNIT-SUITE": {
+      "commit": "74f241a",
+      "sourceFingerprint": "9a9889b646ff894bb703882c7be7f5f7e141000f",
+      "testedAt": "2026-09-24T11:19:43+08:00",
+      "variant": "debug",
+      "environment": "JDK 17.0.12; Gradle 8.13; AGP 8.13.2; Kotlin 2.3.0; Robolectric",
+      "commandOrSteps": "gradlew.bat :feature:feature_app:testDebugUnitTest",
+      "evidence": "feature/feature_app/build/reports/tests/testDebugUnitTest/index.html; 97 tests, 0 failures"
+    },
+    "APP-DEBUG-UNIT-SUITE": {
+      "commit": "74f241a",
+      "sourceFingerprint": "9a9889b646ff894bb703882c7be7f5f7e141000f",
+      "testedAt": "2026-09-24T11:19:43+08:00",
+      "variant": "debug",
+      "environment": "JDK 17.0.12; Gradle 8.13; AGP 8.13.2; Kotlin 2.3.0",
+      "commandOrSteps": "gradlew.bat :app:testDebugUnitTest",
+      "evidence": "app/build/reports/tests/testDebugUnitTest/index.html; 3 tests, 0 failures"
+    },
+    "APP-DEBUG-ASSEMBLE": {
+      "commit": "74f241a",
+      "sourceFingerprint": "9a9889b646ff894bb703882c7be7f5f7e141000f",
+      "testedAt": "2026-09-24T11:19:43+08:00",
+      "variant": "debug",
+      "environment": "JDK 17.0.12; Gradle 8.13; compile/target SDK 36",
+      "commandOrSteps": "gradlew.bat --no-daemon --max-workers=2 :app:assembleDebug",
+      "evidence": "app/build/outputs/apk/debug/app-debug.apk; SHA-256 8606CB291E9D022D1FA42AEC45058F6A827D9D4C2E888EB719524B5B197FD0F5"
+    },
+    "WEB-CONSOLE-INLINE-SYNTAX": {
+      "commit": "74f241a",
+      "sourceFingerprint": "9a9889b646ff894bb703882c7be7f5f7e141000f",
+      "testedAt": "2026-09-24T11:19:43+08:00",
+      "variant": "debug",
+      "environment": "Node.js 22.19.0",
+      "commandOrSteps": "Extract each inline script and pass it to new Function",
+      "evidence": "11 inline scripts parsed; syntax only, no DOM/UI execution"
+    },
+    "SCENE-CONSOLE-E2E": {
+      "commit": "74f241a",
+      "sourceFingerprint": "5d76156ab3e4772d446e52d259b7baf7a9b744ee",
+      "testedAt": "2026-09-24T13:11:34+08:00",
+      "variant": "debug",
+      "environment": "Android 16/API 36 dedicated AVD; Chrome 154.0.8037.57; Node.js 22.19.0",
+      "commandOrSteps": "gradlew.bat :app:assembleDebug; node build/functional-test/console-ui-20260924-01/console-ui.test.cjs with existing test credential in process environment",
+      "evidence": "21 assertions passed, 0 failed; result.json and desktop/mobile screenshots in build/functional-test/console-ui-20260924-01; APK SHA-256 BF5DDC0956D721DDE8BB8A964D3F35249497EFD64480467ADFCA127846B97EC4"
+    },
+    "APP-DEBUG-LINT": {
+      "commit": "74f241a",
+      "sourceFingerprint": "9a9889b646ff894bb703882c7be7f5f7e141000f",
+      "testedAt": "2026-09-24T11:19:43+08:00",
+      "variant": "debug",
+      "environment": "JDK 17.0.12; Gradle 8.13; SDK 36",
+      "commandOrSteps": "gradlew.bat :app:lintDebug",
+      "evidence": "app/build/reports/lint-results-debug.html; exit 0"
+    }
+  }
+}

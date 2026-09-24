@@ -47,6 +47,13 @@
         android:visibility="gone" />
 
     <FrameLayout
+        android:id="@+id/sidebar_container"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:background="#111111"
+        android:visibility="gone" />
+
+    <FrameLayout
         android:id="@+id/overlay_container"
         android:layout_width="match_parent"
         android:layout_height="match_parent"

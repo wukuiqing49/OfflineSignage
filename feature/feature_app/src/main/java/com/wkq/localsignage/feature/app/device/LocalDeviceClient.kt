@@ -123,28 +123,8 @@ class LocalDeviceClient(private val device: PairedDevice) {
         return saveSceneResult(scene, resourceId).status
     }
 
-    fun saveSceneResult(scene: SignageScene, resourceId: String): RemoteWriteResult {
-        val body = JSONObject().apply {
-            put("id", scene.id)
-            put("name", scene.name)
-            put("resourceId", resourceId)
-            put("fitMode", scene.fitMode)
-            put("cropGravity", scene.cropGravity)
-            put("backgroundType", scene.backgroundType)
-            scene.backgroundColor?.let { put("backgroundColor", it) }
-            scene.volume?.let { put("volume", it) }
-            put("muted", scene.muted)
-            put("playbackSpeed", scene.playbackSpeed.toDouble())
-            put("transitionEffect", scene.transitionEffect)
-            put("overlays", JSONArray().apply { scene.overlays.forEach { overlay -> put(JSONObject().apply {
-                put("id", overlay.id); put("type", overlay.type); put("content", overlay.content)
-                put("horizontalPosition", overlay.horizontalPosition); put("verticalPosition", overlay.verticalPosition)
-                put("textSizeSp", overlay.textSizeSp); put("textColor", overlay.textColor); put("backgroundColor", overlay.backgroundColor)
-                put("paddingDp", overlay.paddingDp); put("cornerRadiusDp", overlay.cornerRadiusDp); put("fontFamily", overlay.fontFamily)
-                put("speedDpPerSecond", overlay.speedDpPerSecond)
-                put("enabled", overlay.enabled); put("zIndex", overlay.zIndex)
-            }) } })
-        }
+    fun saveSceneResult(scene: SignageScene, resourceId: String, sidebarResourceId: String? = null): RemoteWriteResult {
+        val body = sceneWritePayload(scene, resourceId, sidebarResourceId)
         return writeResult(postJson("/api/internal/sync/scene", body))
     }
 
@@ -250,6 +230,30 @@ class LocalDeviceClient(private val device: PairedDevice) {
     private companion object {
         const val TIMEOUT_MS = 5_000
     }
+}
+
+internal fun sceneWritePayload(scene: SignageScene, resourceId: String, sidebarResourceId: String?): JSONObject = JSONObject().apply {
+    put("id", scene.id)
+    put("name", scene.name)
+    put("resourceId", resourceId)
+    put("layoutTemplate", scene.layoutTemplate)
+    if (sidebarResourceId == null) put("sidebarResourceId", JSONObject.NULL) else put("sidebarResourceId", sidebarResourceId)
+    put("fitMode", scene.fitMode)
+    put("cropGravity", scene.cropGravity)
+    put("backgroundType", scene.backgroundType)
+    scene.backgroundColor?.let { put("backgroundColor", it) }
+    scene.volume?.let { put("volume", it) }
+    put("muted", scene.muted)
+    put("playbackSpeed", scene.playbackSpeed.toDouble())
+    put("transitionEffect", scene.transitionEffect)
+    put("overlays", JSONArray().apply { scene.overlays.forEach { overlay -> put(JSONObject().apply {
+        put("id", overlay.id); put("type", overlay.type); put("content", overlay.content)
+        put("horizontalPosition", overlay.horizontalPosition); put("verticalPosition", overlay.verticalPosition)
+        put("textSizeSp", overlay.textSizeSp); put("textColor", overlay.textColor); put("backgroundColor", overlay.backgroundColor)
+        put("paddingDp", overlay.paddingDp); put("cornerRadiusDp", overlay.cornerRadiusDp); put("fontFamily", overlay.fontFamily)
+        put("speedDpPerSecond", overlay.speedDpPerSecond)
+        put("enabled", overlay.enabled); put("zIndex", overlay.zIndex)
+    }) } })
 }
 
 internal fun uploadedResourceId(responseBody: String): String? = runCatching {

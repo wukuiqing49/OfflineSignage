@@ -22,6 +22,7 @@ import android.webkit.WebSettings
 import android.webkit.WebView
 import android.webkit.WebViewClient
 import android.widget.FrameLayout
+import android.widget.ImageView
 import android.widget.TextView
 import java.io.FileInputStream
 import java.net.URLConnection
@@ -44,6 +45,7 @@ import com.wkq.localsignage.feature.app.model.PlaybackTimingPolicy
 import com.wkq.localsignage.feature.app.model.PlaylistSchedulePolicy
 import com.wkq.localsignage.feature.app.model.SignageResource
 import com.wkq.localsignage.feature.app.model.SignageScene
+import com.wkq.localsignage.feature.app.model.SceneLayoutTemplate
 import com.wkq.localsignage.feature.app.runtime.SignageRuntime
 import java.util.concurrent.FutureTask
 import java.util.concurrent.TimeoutException
@@ -197,6 +199,7 @@ object SignagePlaybackController {
         releaseWebView(playbackViews.webView, destroy = true)
         if (views !== playbackViews) return
         clearOverlays(playbackViews.overlayContainer)
+        playbackViews.sidebarContainer.removeAllViews()
         textAnimator?.cancel()
         textAnimator = null
         slideshowRenderer?.release()
@@ -384,6 +387,8 @@ object SignagePlaybackController {
         views?.overlayContainer?.let(::clearOverlays)
         val scene = currentScene() ?: return clearPlayback("NO_PLAYABLE_SCENE")
         val resource = SignageRuntime.resource(scene.resourceId) ?: return handleSceneFailure("RESOURCE_MISSING")
+        applySceneLayout(scene)
+        renderSidebar(scene)
         SignageRuntime.selectPlaybackScene(scene.id, activePlaylistId)
         scenePositionMs = if (restorePosition) scenePositionMs else 0L
         sceneStartedAt = SystemClock.elapsedRealtime()
@@ -412,7 +417,8 @@ object SignagePlaybackController {
         val allImages = activeScenes.mapNotNull { candidate ->
             SignageRuntime.resource(candidate.resourceId)?.takeIf { it.isImage }?.let { ImageSlide(candidate, it) }
         }
-        val isPureImagePlaylist = allImages.size == activeScenes.size
+        val isPureImagePlaylist = scene.layoutTemplate == SceneLayoutTemplate.FULLSCREEN &&
+            activeScenes.all { it.layoutTemplate == SceneLayoutTemplate.FULLSCREEN } && allImages.size == activeScenes.size
         val slides = if (isPureImagePlaylist) allImages else listOf(ImageSlide(scene, resource))
         val pageIndex = if (isPureImagePlaylist) activeIndex else 0
         slideshowRenderer?.show(slides, pageIndex)
@@ -757,6 +763,58 @@ object SignagePlaybackController {
         }
     }
 
+    private fun applySceneLayout(scene: SignageScene) {
+        val currentViews = views ?: return
+        val root = currentViews.sidebarContainer.parent as? View ?: return
+        if (root.width <= 0 || root.height <= 0) {
+            root.post { if (views === currentViews && currentScene()?.id == scene.id) applySceneLayout(scene) }
+            return
+        }
+        val split = scene.layoutTemplate == SceneLayoutTemplate.MAIN_WITH_SIDEBAR && scene.sidebarResourceId != null
+        val horizontal = root.width >= root.height
+        val mainWidth = if (!split) root.width else if (horizontal) (root.width * 0.68f).toInt() else root.width
+        val mainHeight = if (!split) root.height else if (horizontal) root.height else (root.height * 0.68f).toInt()
+        val mainGravity = if (!split) Gravity.CENTER else if (horizontal) Gravity.START or Gravity.CENTER_VERTICAL else Gravity.TOP or Gravity.CENTER_HORIZONTAL
+        listOf(currentViews.blurBackgroundView, currentViews.imageSlideshow, currentViews.playerView,
+            currentViews.webView, currentViews.textView, currentViews.overlayContainer).forEach { view ->
+            view.layoutParams = FrameLayout.LayoutParams(mainWidth, mainHeight, mainGravity)
+        }
+        currentViews.sidebarContainer.visibility = if (split) View.VISIBLE else View.GONE
+        if (split) {
+            currentViews.sidebarContainer.layoutParams = FrameLayout.LayoutParams(
+                if (horizontal) root.width - mainWidth else root.width,
+                if (horizontal) root.height else root.height - mainHeight,
+                if (horizontal) Gravity.END or Gravity.CENTER_VERTICAL else Gravity.BOTTOM or Gravity.CENTER_HORIZONTAL
+            )
+        } else {
+            currentViews.sidebarContainer.removeAllViews()
+        }
+    }
+
+    private fun renderSidebar(scene: SignageScene) {
+        val container = views?.sidebarContainer ?: return
+        container.removeAllViews()
+        val resource = scene.sidebarResourceId?.let(SignageRuntime::resource) ?: return
+        if (resource.isImage) {
+            val image = ImageView(container.context).apply {
+                scaleType = ImageView.ScaleType.CENTER_CROP
+                val source: Any = if (resource.isLocalFile) runCatching { SignageRuntime.fileFor(resource) }.getOrNull() ?: return@apply else resource.sourceUri ?: return@apply
+                load(source)
+            }
+            container.addView(image, FrameLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT))
+        } else if (resource.isText) {
+            val text = TextView(container.context).apply {
+                text = resource.content.orEmpty()
+                textSize = resource.textSizeSp.coerceIn(12, 160).toFloat()
+                setTextColor(parseColor(resource.textColor, Color.WHITE))
+                gravity = Gravity.CENTER
+                setPadding(dp(this, 20))
+                setBackgroundColor(parseColor(resource.textBackgroundColor, Color.BLACK))
+            }
+            container.addView(text, FrameLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT))
+        }
+    }
+
     @SuppressLint("SetJavaScriptEnabled")
     private fun createHtmlOverlay(container: FrameLayout, overlay: SignageOverlay): WebView = WebView(container.context).apply {
         setBackgroundColor(Color.TRANSPARENT)
@@ -946,6 +1004,7 @@ object SignagePlaybackController {
         activePlaylistId = null; contentMode = ContentMode.NONE; desiredPlaying = false
         showMode(ContentMode.NONE)
         views?.overlayContainer?.let(::clearOverlays)
+        views?.sidebarContainer?.apply { removeAllViews(); visibility = View.GONE }
         textAnimator?.cancel()
         textAnimator = null
         SignageRuntime.setPlaying(false)

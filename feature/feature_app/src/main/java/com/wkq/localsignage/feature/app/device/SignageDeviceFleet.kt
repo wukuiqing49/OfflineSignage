@@ -99,9 +99,9 @@ object SignageDeviceFleet {
                 val client = LocalDeviceClient(target)
                 val remoteResourceIds = mutableMapOf<String, String>()
                 var failure: String? = null
-                scenes.forEach { scene ->
+                scenes.flatMap { it.resourceIds }.distinct().forEach { resourceId ->
                     if (failure != null) return@forEach
-                    val resource = resources[scene.resourceId]
+                    val resource = resources[resourceId]
                     val file = resource?.let { files[it.id] }
                     if (resource == null || resource.isLocalFile && file == null) {
                         failure = "RESOURCE_NOT_FOUND"
@@ -133,10 +133,11 @@ object SignageDeviceFleet {
                     scenes.forEach { scene ->
                         if (sceneFailure != null) return@forEach
                         val remoteId = remoteResourceIds[scene.resourceId]
-                        if (remoteId == null) {
+                        val remoteSidebarId = scene.sidebarResourceId?.let(remoteResourceIds::get)
+                        if (remoteId == null || scene.sidebarResourceId != null && remoteSidebarId == null) {
                             sceneFailure = "RESOURCE_MAPPING_MISSING"
                         } else {
-                            val result = client.saveSceneResult(scene, remoteId)
+                            val result = client.saveSceneResult(scene, remoteId, remoteSidebarId)
                             if (result.status !in 200..299) {
                                 sceneFailure = "SCENE_SYNC_FAILED_${result.status}${result.errorCode?.let { "_$it" }.orEmpty()}"
                             }

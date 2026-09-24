@@ -14,6 +14,7 @@ import com.wkq.localsignage.feature.app.model.SignagePlaylist
 import com.wkq.localsignage.feature.app.model.SignagePlaylistItem
 import com.wkq.localsignage.feature.app.model.SignageResource
 import com.wkq.localsignage.feature.app.model.SignageScene
+import com.wkq.localsignage.feature.app.model.SceneLayoutTemplate
 import com.wkq.localsignage.feature.app.model.SignageState
 import com.wkq.localsignage.feature.app.model.ControlSession
 import com.wkq.localsignage.feature.app.model.PlaybackErrorRecord
@@ -700,10 +701,19 @@ class SignageStore(context: Context) : java.io.Closeable {
     fun saveScene(scene: SignageScene): SignageScene = synchronized(lock) {
         val normalizedScene = scene.copy(
             playbackSpeed = PlaybackTimingPolicy.normalizeVideoPlaybackSpeed(scene.playbackSpeed),
-            transitionEffect = ImageTransitionPolicy.normalize(scene.transitionEffect)
+            transitionEffect = ImageTransitionPolicy.normalize(scene.transitionEffect),
+            layoutTemplate = scene.layoutTemplate.trim().uppercase(),
+            sidebarResourceId = scene.sidebarResourceId?.trim()?.takeIf { scene.layoutTemplate.trim().uppercase() == SceneLayoutTemplate.MAIN_WITH_SIDEBAR }
         )
         database.writableDatabase.inTransaction {
             require(resourceExists(this, normalizedScene.resourceId)) { "Resource does not exist" }
+            require(normalizedScene.layoutTemplate in SceneLayoutTemplate.supported) { "SCENE_LAYOUT_UNSUPPORTED" }
+            if (normalizedScene.layoutTemplate == SceneLayoutTemplate.MAIN_WITH_SIDEBAR) {
+                val sidebarId = normalizedScene.sidebarResourceId ?: throw IllegalArgumentException("SCENE_SIDEBAR_REQUIRED")
+                val sidebar = readResources(this, "id = ?", arrayOf(sidebarId)).firstOrNull()
+                    ?: throw IllegalArgumentException("SCENE_SIDEBAR_NOT_FOUND")
+                require(sidebar.isImage || sidebar.isText) { "SCENE_SIDEBAR_TYPE_UNSUPPORTED" }
+            }
             insertScene(this, normalizedScene)
         }
         normalizedScene
@@ -1013,7 +1023,7 @@ class SignageStore(context: Context) : java.io.Closeable {
 
     fun deleteResource(id: String): Boolean = synchronized(lock) {
         val resource = resource(id) ?: return@synchronized false
-        require(scenes().none { it.resourceId == id }) { "RESOURCE_IN_USE" }
+        require(scenes().none { id in it.resourceIds }) { "RESOURCE_IN_USE" }
         val deleted = database.writableDatabase.inTransaction {
             delete(this, "resources", "id = ?", arrayOf(id))
             if (getMeta(this, KEY_CURRENT_RESOURCE) == id) {
@@ -1331,7 +1341,9 @@ class SignageStore(context: Context) : java.io.Closeable {
                 createdAt = cursor.getLong(9),
                 overlays = parseOverlays(cursor.getStringOrNull(10)),
                 playbackSpeed = cursor.getFloat(11),
-                transitionEffect = cursor.getString(12)
+                transitionEffect = cursor.getString(12),
+                layoutTemplate = cursor.getString(13),
+                sidebarResourceId = cursor.getStringOrNull(14)
             ))
         }
     }
@@ -1413,6 +1425,8 @@ class SignageStore(context: Context) : java.io.Closeable {
             put("overlays_json", overlaysJson(scene.overlays))
             put("playback_speed", PlaybackTimingPolicy.normalizeVideoPlaybackSpeed(scene.playbackSpeed))
             put("transition_effect", ImageTransitionPolicy.normalize(scene.transitionEffect))
+            put("layout_template", scene.layoutTemplate)
+            put("sidebar_resource_id", scene.sidebarResourceId)
         }
         if (db.update("scenes", values, "id = ?", arrayOf(scene.id)) == 0) {
             db.insertOrThrow("scenes", null, values)
@@ -1627,7 +1641,7 @@ class SignageStore(context: Context) : java.io.Closeable {
         override fun onConfigure(db: SQLiteDatabase) { db.setForeignKeyConstraintsEnabled(true) }
         override fun onCreate(db: SQLiteDatabase) {
             db.execSQL("CREATE TABLE resources (id TEXT PRIMARY KEY NOT NULL, name TEXT NOT NULL, mime_type TEXT NOT NULL, path TEXT NOT NULL, hash TEXT NOT NULL UNIQUE, size_bytes INTEGER NOT NULL, created_at INTEGER NOT NULL, kind TEXT NOT NULL DEFAULT 'LOCAL_FILE', source_uri TEXT, content TEXT, refresh_interval_ms INTEGER, text_size_sp INTEGER NOT NULL DEFAULT 48, text_color TEXT NOT NULL DEFAULT '#FFFFFFFF', text_background_color TEXT NOT NULL DEFAULT '#FF000000', font_family TEXT NOT NULL DEFAULT 'SYSTEM_SANS', text_speed_dp_per_second INTEGER NOT NULL DEFAULT 90, text_repeat_count INTEGER NOT NULL DEFAULT 0)")
-            db.execSQL("CREATE TABLE scenes (id TEXT PRIMARY KEY NOT NULL, name TEXT NOT NULL, resource_id TEXT NOT NULL, fit_mode TEXT NOT NULL, crop_gravity TEXT NOT NULL, background_type TEXT NOT NULL, background_color TEXT, volume INTEGER, muted INTEGER NOT NULL, created_at INTEGER NOT NULL, overlays_json TEXT NOT NULL DEFAULT '[]', playback_speed REAL NOT NULL DEFAULT 1.0, transition_effect TEXT NOT NULL DEFAULT 'FADE', FOREIGN KEY(resource_id) REFERENCES resources(id))")
+            db.execSQL("CREATE TABLE scenes (id TEXT PRIMARY KEY NOT NULL, name TEXT NOT NULL, resource_id TEXT NOT NULL, fit_mode TEXT NOT NULL, crop_gravity TEXT NOT NULL, background_type TEXT NOT NULL, background_color TEXT, volume INTEGER, muted INTEGER NOT NULL, created_at INTEGER NOT NULL, overlays_json TEXT NOT NULL DEFAULT '[]', playback_speed REAL NOT NULL DEFAULT 1.0, transition_effect TEXT NOT NULL DEFAULT 'FADE', layout_template TEXT NOT NULL DEFAULT 'FULLSCREEN', sidebar_resource_id TEXT, FOREIGN KEY(resource_id) REFERENCES resources(id), FOREIGN KEY(sidebar_resource_id) REFERENCES resources(id))")
             db.execSQL("CREATE TABLE playlists (id TEXT PRIMARY KEY NOT NULL, name TEXT NOT NULL, loop INTEGER NOT NULL, updated_at INTEGER NOT NULL)")
             db.execSQL("CREATE TABLE playlist_items (playlist_id TEXT NOT NULL, position INTEGER NOT NULL, scene_id TEXT NOT NULL, duration_ms INTEGER, enabled INTEGER NOT NULL, PRIMARY KEY(playlist_id, position), FOREIGN KEY(playlist_id) REFERENCES playlists(id) ON DELETE CASCADE, FOREIGN KEY(scene_id) REFERENCES scenes(id))")
             db.execSQL("CREATE TABLE playlist_schedules (id TEXT PRIMARY KEY NOT NULL, playlist_id TEXT NOT NULL, weekdays TEXT NOT NULL, start_minute INTEGER NOT NULL, end_minute INTEGER NOT NULL, priority INTEGER NOT NULL, enabled INTEGER NOT NULL, updated_at INTEGER NOT NULL, FOREIGN KEY(playlist_id) REFERENCES playlists(id) ON DELETE CASCADE)")
@@ -1689,6 +1703,10 @@ class SignageStore(context: Context) : java.io.Closeable {
                 db.execSQL("CREATE TABLE IF NOT EXISTS playlist_schedules (id TEXT PRIMARY KEY NOT NULL, playlist_id TEXT NOT NULL, weekdays TEXT NOT NULL, start_minute INTEGER NOT NULL, end_minute INTEGER NOT NULL, priority INTEGER NOT NULL, enabled INTEGER NOT NULL, updated_at INTEGER NOT NULL, FOREIGN KEY(playlist_id) REFERENCES playlists(id) ON DELETE CASCADE)")
                 db.execSQL("CREATE INDEX IF NOT EXISTS playlist_schedules_playlist_idx ON playlist_schedules(playlist_id)")
             }
+            if (oldVersion < 15) {
+                db.execSQL("ALTER TABLE scenes ADD COLUMN layout_template TEXT NOT NULL DEFAULT '${SceneLayoutTemplate.FULLSCREEN}'")
+                db.execSQL("ALTER TABLE scenes ADD COLUMN sidebar_resource_id TEXT REFERENCES resources(id)")
+            }
         }
 
         private fun removeLegacyHtmlOverlays(db: SQLiteDatabase) {
@@ -1731,7 +1749,7 @@ class SignageStore(context: Context) : java.io.Closeable {
         const val TAG = "SignageStore"
         val SHA256_PATTERN = Regex("[a-f0-9]{64}")
         const val DATABASE_NAME = "signage.db"
-        const val DATABASE_VERSION = 14
+        const val DATABASE_VERSION = 15
         const val LEGACY_PREFERENCES = "local_signage"
         const val KEY_SCHEMA_MIGRATED = "schema_migrated"
         const val KEY_DEVICE_ID = "device_id"
@@ -1796,7 +1814,7 @@ class SignageStore(context: Context) : java.io.Closeable {
         val SUPPORTED_ORIENTATIONS = setOf("AUTO", "LANDSCAPE", "PORTRAIT")
         val SUPPORTED_CROP_GRAVITIES = setOf("CENTER", "TOP", "BOTTOM", "LEFT", "RIGHT")
         val RESOURCE_COLUMNS = arrayOf("id", "name", "mime_type", "path", "hash", "size_bytes", "created_at", "kind", "source_uri", "content", "refresh_interval_ms", "text_size_sp", "text_color", "text_background_color", "font_family", "text_speed_dp_per_second", "text_repeat_count")
-        val SCENE_COLUMNS = arrayOf("id", "name", "resource_id", "fit_mode", "crop_gravity", "background_type", "background_color", "volume", "muted", "created_at", "overlays_json", "playback_speed", "transition_effect")
+        val SCENE_COLUMNS = arrayOf("id", "name", "resource_id", "fit_mode", "crop_gravity", "background_type", "background_color", "volume", "muted", "created_at", "overlays_json", "playback_speed", "transition_effect", "layout_template", "sidebar_resource_id")
         val ERROR_COLUMNS = arrayOf("id", "media_id", "scene_id", "error_code", "action", "attempt", "created_at")
         val OPERATION_COLUMNS = arrayOf("id", "created_at", "client_name", "device_id", "action", "result", "status_code")
         val PAIRED_DEVICE_COLUMNS = arrayOf("device_id", "device_name", "host", "port", "token", "paired_at", "group_name")

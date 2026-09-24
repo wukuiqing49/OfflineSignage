@@ -14,6 +14,7 @@
 - 修改 Gradle、Manifest 或发布配置：`.agents/workflows/change-build.md`
 - 修复 Android 问题：`.agents/workflows/fix-bug.md`
 - 修改多语言资源：`.agents/workflows/localize-content.md`
+- 功能测试、真机测试、增量回归或发布测试：`.agents/skills/android-functional-test-workflow/SKILL.md`
 
 ## 项目事实
 
@@ -31,4 +32,4 @@
 - 不用降低 targetSdk、吞异常或删除功能规避兼容问题。
 - 完成修改后运行受影响的门禁，并说明未验证范围。
 
-执行时先读取相关 Workflow，再读取它声明的 Rules、Skills 和配置事实。
+执行时先读取相关 Workflow；测试任务直接读取对应 Skill。再读取声明的 Rules、Skills 和配置事实。

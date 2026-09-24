@@ -1,0 +1,4 @@
+interface:
+  display_name: "Android 功能回归测试"
+  short_description: "按改动影响选择 Android 回归范围并记录可追溯测试结果"
+  default_prompt: "使用 $android-functional-test-workflow 为这个 Android 项目选择并执行合适的功能回归测试。"

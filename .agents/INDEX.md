@@ -50,6 +50,7 @@
 - `skills/android-i18n-workflow/`：国际化资源处理和 i18n 门禁。
 - `skills/android-build-workflow/`：Gradle/发布修改和构建门禁。
 - `skills/android-figma-workflow/`：Figma 拉取、规范化、映射、模板和验收门禁。
+- `skills/android-functional-test-workflow/`：按代码改动选择 Android 回归范围，并维护可追溯的测试计划、报告和通过基线。
 
 ## Prompts
 

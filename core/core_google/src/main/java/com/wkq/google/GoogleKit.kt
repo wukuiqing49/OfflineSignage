@@ -7,6 +7,7 @@ import com.wkq.google.billing.GoogleBillingManager
 import com.wkq.google.billing.gate.GoogleFeatureGateManager
 import com.wkq.google.firebase.GoogleFirebaseManager
 import com.wkq.google.rate.GoogleRateManager
+import com.wkq.google.commercial.GoogleCommercialManager
 
 /**
  * Google 能力统一入口。
@@ -39,6 +40,9 @@ object GoogleKit {
     val firebase: GoogleFirebaseManager
         get() = GoogleFirebaseManager
 
+    val commercial: GoogleCommercialManager
+        get() = GoogleCommercialManager
+
     /** 应用评分和反馈引导能力入口。 */
     val rate: GoogleRateManager
         get() = GoogleRateManager
@@ -55,6 +59,7 @@ object GoogleKit {
         GoogleBillingManager.initialize(context)
         GoogleFeatureGateManager.initialize(context, config.featureGateConfig)
         GoogleFirebaseManager.initialize(context, config)
+        GoogleCommercialManager.initialize(context, config.commercialConfig)
     }
 
     fun requireConfig(): GoogleKitConfig = config

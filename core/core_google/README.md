@@ -67,6 +67,30 @@ val entitlement = GoogleKit.billing.queryEntitlement()
 
 ## 可选能力
 
+### DevHub 安装与日活统计
+
+- 参考 SiteReport 的 `GoogleKit.commercial` 封装，使用 DevHub `1.2.0`，仅开启 `CORE_ONLY`。
+- `collectDeviceInfo=false`、`collectLocale=false`，不发送业务事件、媒体或局域网信息。
+- DevHub 默认未授权；用户在“法律与隐私 > 使用统计”主动开启。关闭后 SDK 停止请求并清除本地待上报队列，已上报记录不自动删除。
+- Firebase 保持既有 Release 行为，该开关只控制 DevHub。
+- `SignageService` 运行时每小时调用 `reportActive()`，SDK 按 UTC 日期去重；服务销毁时取消回调，Activity 恢复时由 SDK 补报。
+- Debug 默认不初始化 DevHub；本地测试可显式设置 `DEVHUB_DEBUG_ENABLED=true`，仍需用户授权。
+- SDK 初始化或上报失败不阻断本地运行。采集开关成功表示本地 SDK 状态更新成功，不代表后台已收到数据。
+
+共享 API 地址、客户端 App Key 和默认开关在已跟踪的 `app-config.properties`，拉取仓库即可取得。可选本机覆盖放在被忽略的 `devhub.properties`，模板见根目录 `devhub.properties.example`。读取优先级为同名环境变量、显式 `-P` 参数、本机覆盖、公开应用配置；不读取用户级 Gradle 文件中的同名 DevHub 配置，避免跨项目串用 App Key：
+
+```properties
+DEVHUB_API_URL=https://devhub.wukuiqing0409.workers.dev
+DEVHUB_APP_KEY=
+DEVHUB_ENABLED=true
+DEVHUB_DEBUG_ENABLED=false
+DEVHUB_PLAY_INTEGRITY_PROJECT_NUMBER=
+```
+
+JitPack 私有授权来自用户级 Gradle `authToken` 或 `JITPACK_TOKEN` 环境变量，不写入工程配置和日志。App Key 是客户端标识，会进入 APK；按用户要求随公开应用配置进入 Git。管理员密钥、JitPack Token 和签名密码仍不得提交。生产后台强制 Play Integrity 时必须配置匹配的项目编号，并在 Play 测试轨验证。
+
+本次未迁移 SiteReport 的登录关联、购买验单、活动及优惠码，也不调用报告专属的 `reportFirstReportStarted()`。现有本地购买与权益逻辑继续负责解锁。
+
 广告通过 `GoogleKitConfig.enableAds` 显式开启，并传入对应广告位 ID。评分仅在业务主动调用 `GoogleKit.rate.showIfNeeded(...)` 或 `GoogleKit.rate.show(...)` 时展示。它们属于公共库可选能力，当前 Local Signage 不调用。
 
 ## 签名

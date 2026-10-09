@@ -1,0 +1,2 @@
+# Optional local overrides; shared DevHub configuration is in app-config.properties.
+DEVHUB_DEBUG_ENABLED=false

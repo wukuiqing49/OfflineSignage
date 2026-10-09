@@ -52,6 +52,7 @@ dependencies {
     implementation(libs.google.play.billing)
     implementation(libs.google.play.services.ads)
     implementation(libs.google.play.review.ktx)
+    implementation(libs.devhub)
     releaseImplementation(platform(libs.firebase.bom))
     releaseImplementation(libs.firebase.analytics)
 

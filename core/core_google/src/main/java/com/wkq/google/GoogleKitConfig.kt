@@ -2,6 +2,7 @@ package com.wkq.google
 
 import com.wkq.google.billing.gate.GoogleFeatureGateConfig
 import com.wkq.google.billing.ui.GoogleBillingPlanConfig
+import com.wkq.google.commercial.GoogleCommercialConfig
 
 /**
  * Google 工具模块统一配置。
@@ -38,5 +39,6 @@ data class GoogleKitConfig(
     /** 评分弹窗展示的应用名称。为空时默认读取应用 label。 */
     val appName: String = "",
     /** 用户反馈接收邮箱，评分较低时用于拉起邮件客户端。 */
-    val feedbackEmail: String = ""
+    val feedbackEmail: String = "",
+    val commercialConfig: GoogleCommercialConfig = GoogleCommercialConfig()
 )

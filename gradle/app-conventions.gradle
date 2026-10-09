@@ -38,6 +38,28 @@ def signingValue = { String propertyName, String environmentName ->
 }
 def playLicensePublicKey = signingValue('playLicensePublicKey', 'PLAY_LICENSE_PUBLIC_KEY') ?: ''
 def escapedPlayLicensePublicKey = playLicensePublicKey.replace('\\', '\\\\').replace('"', '\\"')
+def devHubProperties = new Properties()
+def devHubPropertiesFile = rootProject.file('devhub.properties')
+if (devHubPropertiesFile.isFile()) {
+    devHubPropertiesFile.withInputStream { devHubProperties.load(it) }
+}
+def devHubValue = { String name, String fallback ->
+    providers.environmentVariable(name).orNull
+            ?: gradle.startParameter.projectProperties.get(name)
+            ?: devHubProperties.getProperty(name)
+            ?: appConfig.getProperty(name, fallback)
+}
+def devHubApiUrl = devHubValue('DEVHUB_API_URL', 'https://devhub.wukuiqing0409.workers.dev').trim()
+def devHubAppKey = devHubValue('DEVHUB_APP_KEY', '').trim()
+def devHubEnabled = devHubValue('DEVHUB_ENABLED', 'true').toBoolean()
+def devHubDebugEnabled = devHubValue('DEVHUB_DEBUG_ENABLED', 'false').toBoolean()
+def devHubIntegrityNumber = devHubValue('DEVHUB_PLAY_INTEGRITY_PROJECT_NUMBER', '').trim()
+if (devHubIntegrityNumber && !(devHubIntegrityNumber ==~ /[1-9]\d*/)) {
+    throw new GradleException('DEVHUB_PLAY_INTEGRITY_PROJECT_NUMBER must be a positive project number')
+}
+def quoteConfigString = { String value ->
+    '"' + value.replace('\\', '\\\\').replace('"', '\\"').replace('\r', '\\r').replace('\n', '\\n') + '"'
+}
 def appStoreFile = signingValue('storeFile', 'ANDROID_KEYSTORE_FILE')
 def appStorePassword = signingValue('storePassword', 'ANDROID_KEYSTORE_PASSWORD')
 def appKeyAlias = signingValue('keyAlias', 'ANDROID_KEY_ALIAS')
@@ -64,6 +86,11 @@ android {
         versionCode = calculatedVersionCode.toInteger()
         versionName = appVersionName
         buildConfigField 'String', 'PLAY_LICENSE_PUBLIC_KEY', "\"${escapedPlayLicensePublicKey}\""
+        buildConfigField 'boolean', 'DEVHUB_ENABLED', (devHubEnabled && !devHubAppKey.isBlank()).toString()
+        buildConfigField 'boolean', 'DEVHUB_DEBUG_ENABLED', devHubDebugEnabled.toString()
+        buildConfigField 'String', 'DEVHUB_API_URL', quoteConfigString(devHubApiUrl)
+        buildConfigField 'String', 'DEVHUB_APP_KEY', quoteConfigString(devHubAppKey)
+        buildConfigField 'String', 'DEVHUB_PLAY_INTEGRITY_PROJECT_NUMBER', quoteConfigString(devHubIntegrityNumber)
     }
 
     signingConfigs {

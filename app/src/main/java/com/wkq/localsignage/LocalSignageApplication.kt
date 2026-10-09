@@ -4,6 +4,7 @@ import android.app.Application
 import com.wkq.util.CoreUtils
 import com.wkq.util.CoreUtilsConfig
 import com.wkq.localsignage.feature.app.FeatureAppEntry
+import com.wkq.google.commercial.GoogleCommercialConfig
 
 class LocalSignageApplication : Application() {
 
@@ -21,7 +22,15 @@ class LocalSignageApplication : Application() {
             context = this,
             debug = BuildConfig.DEBUG,
             playLicensePublicKey = BuildConfig.PLAY_LICENSE_PUBLIC_KEY,
-            googleServerClientId = getString(R.string.default_web_client_id)
+            googleServerClientId = getString(R.string.default_web_client_id),
+            commercialConfig = GoogleCommercialConfig(
+                enabled = BuildConfig.DEVHUB_ENABLED &&
+                    (!BuildConfig.DEBUG || BuildConfig.DEVHUB_DEBUG_ENABLED),
+                apiUrl = BuildConfig.DEVHUB_API_URL,
+                appKey = BuildConfig.DEVHUB_APP_KEY,
+                playIntegrityCloudProjectNumber =
+                    BuildConfig.DEVHUB_PLAY_INTEGRITY_PROJECT_NUMBER.toLongOrNull()
+            )
         )
     }
 }

@@ -142,4 +142,8 @@
   <string name="enterprise_contact_action">Email developer</string>
   <string name="help_enterprise_deployment_body">Local Signage offers enterprise deployment and custom consultation for on-site use.\n\nTopics to discuss:\n- Offline content packages, USB import, and on-site delivery\n- Local-network control for multiple displays, scheduled playback, and display groups\n- A networked edition or a customer-managed private-network deployment plan\n- Signage-screen and TV-box hardware adaptation, auto-start, and kiosk setup\n- Branding, interface copy, and business-function customization\n\nFor an assessment, include the number of devices, use case, network availability, content types, and target delivery date. The solution, delivery scope, and quotation are confirmed after discussion.\n\nEmail: wukuiqing@gmail.com\nPhone: +86 18538537389</string>
   <string name="help_visual_enterprise_caption">Confirm the deployment approach, custom scope, and delivery method for the site.</string>
+  <string name="legal_analytics_title">Usage statistics</string>
+  <string name="legal_analytics_summary">Allow DevHub to send an installation identifier, app version and daily activity times to measure installs and active devices. Media, local network addresses, device models and account information are not sent. Optional; turn off at any time without affecting playback. Firebase Analytics is described separately in the Privacy Policy.</string>
+  <string name="legal_analytics_unavailable">DevHub statistics are unavailable in this build.</string>
+  <string name="legal_analytics_update_failed">Could not finish updating statistics. Check the switch state and try again.</string>
 </resources>

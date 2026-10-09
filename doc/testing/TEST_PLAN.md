@@ -1,5 +1,19 @@
 # 功能回归测试计划
 
+## DevHub 增量回归（2026-10-09）
+
+新增依赖和初始化影响 app 壳、core_google、feature_app 与法律页面。本轮保留现有 Firebase 和购买权益；不测试真实交易，不操作物理设备，不清空已有数据。
+
+| ID | 功能与源码 | 前置条件 / 命令 | 预期与方法 |
+| --- | --- | --- | --- |
+| DEVHUB-CONSENT | `GoogleCommercialManager.kt`, `DevHubConsentTest.kt` | `:feature:feature_app:testDebugUnitTest`；测试 key 与保留域名 `.invalid`，不向生产上报 | 未授权不生成安装身份或活跃队列；授权状态持久化；撤回清除活跃队列；关闭后服务触发不再入队。Robolectric |
+| DEVHUB-BUILD | 版本目录、settings、app conventions、Application | `:app:assembleDebug :app:assembleRelease :core:core_google:testDebugUnitTest` | 私有依赖解析、两变体编译、Release R8 打包成功；现有 core 单测通过 |
+| DEVHUB-LEGAL-UI | `LegalCenterActivity.kt`, `activity_legal_center.xml`, strings/raw | 静态 UI/i18n 门禁；模拟器安装并从应用打开法律与隐私页面 | 默认开关关闭；Debug 默认禁用；说明可滚动；小屏/字体/横竖屏/日夜模式未测场景单独记录 |
+| DEVHUB-DAILY-SERVICE | `SignageService.kt`, `GoogleCommercialManager.reportActive()` | 前台服务每小时回调；服务销毁取消回调 | 常驻设备跨 UTC 日期上报，不重复计数；真实跨日和后台计数需单独验收 |
+| DEVHUB-PRODUCTION | App Key、Play Integrity、生产 CMS | Play 测试轨授权启用后检查安装及活跃记录 | 生产收到记录、断网恢复、撤回及 Play Integrity。当前不以构建或本地开关成功替代后台验收 |
+
+已有 feature/core 单测作为共享初始化、存储、播放器与购买策略的增量回归；其他硬件、多设备同步、真实交易和公网统计验收不在本轮通过范围。新增用例的源码未提交，未建立覆盖未跟踪文件的可靠指纹前不推进通过基线。
+
 ## 环境与入口
 
 - 项目：Local Signage Android，Kotlin + XML + ViewBinding，MVVM。

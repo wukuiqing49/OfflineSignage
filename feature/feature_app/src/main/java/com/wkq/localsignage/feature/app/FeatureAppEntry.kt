@@ -3,6 +3,7 @@ package com.wkq.localsignage.feature.app
 import android.content.Context
 import com.wkq.google.GoogleKit
 import com.wkq.google.GoogleKitConfig
+import com.wkq.google.commercial.GoogleCommercialConfig
 import com.wkq.google.billing.gate.GoogleFeatureGateConfig
 import com.wkq.localsignage.monetization.MonetizationRepository
 import com.wkq.localsignage.feature.app.runtime.SignageRuntime
@@ -14,7 +15,8 @@ object FeatureAppEntry {
         context: Context,
         debug: Boolean,
         playLicensePublicKey: String,
-        googleServerClientId: String
+        googleServerClientId: String,
+        commercialConfig: GoogleCommercialConfig = GoogleCommercialConfig()
     ) {
         val appContext = context.applicationContext
         GoogleKit.initialize(
@@ -27,6 +29,7 @@ object FeatureAppEntry {
                 billingRequireAppAccount = false,
                 featureGateConfig = GoogleFeatureGateConfig(enabled = false),
                 enableFirebaseAnalytics = !debug,
+                commercialConfig = commercialConfig,
                 appName = appContext.getString(R.string.app_name),
                 feedbackEmail = "wukuiqing@gmail.com"
             )

@@ -1,6 +1,36 @@
 # 功能回归测试报告（最新一轮）
 
-最新结果见文末“修复后回归：控制台预览与窄屏操作区”；前序区块保留各自测试时的历史状态。
+最新结果见下方“DevHub 接入增量回归（2026-10-09）”；其余区块保留各自测试时的历史状态。
+
+## DevHub 接入增量回归（2026-10-09）
+
+- 模式：增量；时区 Asia/Singapore；HEAD `a8b0c0a`，本轮源码未提交。
+- 范围：DevHub 1.2.0 核心统计、app/core_google 初始化与依赖、服务日活触发、法律页面和多语言说明；保留 Firebase、购买权益与本地控制。
+- 新增用例结果：本次通过 3，失败 0，受阻 0，未执行 2。既有及新增单测合计 110 tests / 0 failures / 0 errors / 0 skipped。
+- 环境：JDK 17、Gradle 8.13、AGP 8.13.2、Kotlin 2.3.0；设备为 Android 36 `sdk_gphone64_x86_64` 模拟器，ADB 目标 `emulator-5556`；未操作物理设备。
+- 测试前该模拟器未安装本应用。安装 Debug 后以保留数据方式覆盖为同签名 Release，未清除数据。应用版本 `1.3.0` / `com.wkq.localsignage`。
+- 临时分辨率 `800x1280`、字体 `1.3`、深色模式已恢复为原始 `2560x1600`、字体 `1.0`、浅色模式。
+- 本轮未建立包含新源码内容的可靠工作区指纹，不推进 `TEST_BASELINE.json`；后续须重新选择这些新用例，不能将本报告当成全量发布保证。
+
+| 用例 / 检查 | 状态 | 命令或步骤 | 实际结果与证据 |
+| --- | --- | --- | --- |
+| DEVHUB-CONSENT | 本次通过 | `gradlew.bat :feature:feature_app:testDebugUnitTest :core:core_google:testDebugUnitTest :app:testDebugUnitTest --console=plain --max-workers=1 --no-parallel` | exit 0，42s；feature 102 / core_google 5 / app 3 单测通过。新增 `DevHubConsentTest` 验证未授权不生成安装身份、不入活跃队列，授权持久化，撤回清理队列，关闭后重复触发不再入队。仅使用测试 Key 与 `.invalid` 保留域名，未向生产上报。证据：`feature/feature_app/build/test-results/testDebugUnitTest/TEST-com.wkq.localsignage.analytics.DevHubConsentTest.xml` 及各模块 JUnit 报告 |
+| DEVHUB-BUILD | 本次通过 | `gradlew.bat :app:assembleDebug :app:assembleRelease :feature:feature_app:testDebugUnitTest :core:core_google:testDebugUnitTest --console=plain --max-workers=2`；修复测试编译后单独 `gradlew.bat :app:assembleRelease --console=plain --max-workers=1 --no-parallel` | Debug assemble 完成；最终 Release 命令 exit 0，8s；R8、资源压缩、签名与打包通过；私有 DevHub 依赖成功解析。APK 路径见下方 |
+| 架构 / 构建 / UI / i18n 门禁 | 本次通过 | `python -X utf8 .agents/skills/android-project-architecture-workflow/scripts/validate_architecture.py --project-root .`；`android-build-workflow/scripts/validate_build_output.py --project-root .`；UI 与 i18n 脚本按 Skill 声明扫描 app、feature_app、feature_res | 全部 exit 0。既有警告：内部 `Uri.fromFile`、局域网明文/缺少 networkSecurityConfig、既有 Insets/滚动/Pager 扫描提示、app 无本地 strings；未以本轮统计接入扩大其整改范围 |
+| DEVHUB-LEGAL-UI | 本次通过 | `adb -s emulator-5556 install --no-incremental -r <apk>`；启动 Splash，通过计费页进入法律与隐私；UIAutomator 检查开关属性并截图；临时小屏竖屏、深色、1.3 字体后滚动至末尾 | Debug：checked=false / enabled=false；Release：checked=false / enabled=true，说明完整。800x1280 深色、1.3 字体下开关和说明自然换行，底部可完整滚出，无重叠。UI 树及截图在 `build/functional-test/devhub-20261009/`；关键脱敏截图见 `doc/testing/evidence/devhub-20261009/`。设备上未开启采集 |
+| DEVHUB-DAILY-SERVICE | 未执行 | 服务每小时 `reportActive()`，销毁时取消回调；SDK `start()` 按 UTC 日期去重 | 代码路径与关闭状态单测已检查，但未执行真实跨 UTC 日期的常驻服务/后台计数验收 |
+| DEVHUB-PRODUCTION | 未执行 | Play 测试轨授权后核对 CMS 安装/日活、断网恢复、撤回和 Integrity | 本轮未向生产创建测试安装记录，未验证 CMS 收数；未配置或验证 Play Integrity 项目编号。开关更新成功不等于后台已收到数据 |
+
+初次并发构建和增量安装期间出现启动 ANR，系统日志同时显示 CPU / 内存压力。随后改用非增量安装、分步构建，Debug 与 Release 均可启动并打开目标页面；未将此观察当成长期性能验收。初次 app 缺少 core_google 依赖和测试 `getApplication` 泛型写法导致的编译错误已修复，最终通过结果如上。
+
+配置迁移补充验证：按用户要求将客户端 App Key 放入已跟踪的 `app-config.properties`。核对时发现用户级 Gradle 同名属性会覆盖项目 Key，已改为只接受环境变量、显式 `-P` 参数、本机覆盖和公开项目配置，忽略用户级同名 DevHub 属性。未改动本机其他项目配置。Debug / Release 生成值均与项目公开配置一致；重新执行 `:app:generateDebugBuildConfig :app:generateReleaseBuildConfig :app:assembleDebug :app:assembleRelease --console=plain --max-workers=1 --no-parallel`，exit 0，1m 55s。旧配置的设备 UI 测试未开启采集，因此未向错误的应用创建测试统计记录；下列产物为修正配置后的版本。
+
+产物：
+
+- Debug：`app/build/outputs/apk/debug/app-debug.apk`，SHA-256 `DC68E0799493D0EFEDF275E3EC74DF325965E9073B7F470FDD617FBB834ABCAD`。
+- Release：`app/build/outputs/apk/release/app-release.apk`，SHA-256 `A078D1550F1B84E433813F3F0421AB13724D06B6519564314B7039A670E27345`。
+
+未验证范围：其他 Android/TV/厂商设备、所有语言的设备视觉遍历、真实购买、真实跨日、生产断网补报、Play Integrity 与生产 CMS 收数；未重新认证整包 native/16KB 兼容性。后续按用户要求将客户端 App Key 移入公开的 `app-config.properties`；JitPack 授权、签名密码等秘密仍只存在未跟踪配置或环境变量。报告与模板不重复记录真实 Key/Token。
 
 ## 本轮上下文
 

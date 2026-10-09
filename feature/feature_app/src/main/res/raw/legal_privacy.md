@@ -1,5 +1,5 @@
-Effective date: August 20, 2026
-Document version: 1.1
+Effective date: October 9, 2026
+Document version: 1.2
 
 1. About the product
 
@@ -9,9 +9,11 @@ Local Signage is a local-first signage player. It does not require a Local Signa
 
 The app stores locally the images, videos, live-stream addresses, web pages, and HTML label content you add, along with playback configuration, device name, pairing state, and runtime settings. To provide local-network control, it processes local network addresses, a device identifier, pairing codes, and necessary diagnostic information. A paired controller on the local network can access and manage content on this device.
 
-3. Google services
+3. Google services and optional statistics
 
 Purchases and license verification use Google Play Billing. Google handles payment accounts, orders, and payment methods under its own policies; this app does not receive complete payment details. Release builds enable Firebase Analytics to collect app interactions and app/device diagnostic information for product improvement; local debug builds disable it. The Google Mobile Ads SDK is included as an unused shared capability, but advertising is disabled and the app does not request the Google advertising ID permission or display ads.
+
+Optional DevHub statistics are off by default. You can opt in or withdraw in Legal and privacy > Usage statistics. When enabled, DevHub sends a generated installation identifier, app version, first-open time and daily activity times over HTTPS to the developer-operated DevHub service hosted on Cloudflare. Device model, system version, locale, media, local network addresses, pairing tokens and account information are not included in these statistics. Network requests also necessarily expose the connecting public IP address to the service infrastructure. Turning the switch off stops new DevHub requests and clears pending local statistics; it does not erase records already received by the server. Contact the developer support email below for deletion assistance. Playback and local control remain available offline and with statistics disabled. This switch controls DevHub only; Firebase Analytics is described above.
 
 4. Permission use
 

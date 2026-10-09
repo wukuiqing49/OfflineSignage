@@ -142,4 +142,8 @@
   <string name="enterprise_contact_action">개발자에게 이메일 문의</string>
   <string name="help_enterprise_deployment_body">Local Signage는 현장 사용을 위한 기업 배포 및 맞춤 상담을 제공합니다.\n\n상담 가능 항목:\n- 오프라인 콘텐츠 패키지, USB 가져오기 및 현장 납품\n- 로컬 네트워크 다중 화면 제어, 예약 재생 및 기기 그룹\n- 네트워크 버전 또는 고객 관리형 사설 네트워크 배포 계획\n- 사이니지 화면 및 TV Box 하드웨어 맞춤, 자동 시작 및 키오스크 설정\n- 브랜드 표시, 화면 문구 및 업무 기능 맞춤\n\n검토를 위해 기기 수, 사용 환경, 네트워크 사용 여부, 콘텐츠 유형 및 희망 납기를 알려 주세요. 솔루션, 납품 범위 및 견적은 상담 후 확정됩니다.\n\n이메일: wukuiqing@gmail.com\n전화: +86 18538537389</string>
   <string name="help_visual_enterprise_caption">현장별 배포 방식, 맞춤 범위 및 납품 방식을 확인합니다.</string>
+  <string name="legal_analytics_title">사용 통계</string>
+  <string name="legal_analytics_summary">설치 수와 활성 기기 수를 집계하기 위해 DevHub에 설치 식별자, 앱 버전 및 일별 활동 시간을 전송하도록 허용합니다. 미디어, 로컬 네트워크 주소, 기기 모델 및 계정 정보는 전송하지 않습니다. 선택 사항이며 재생에 영향을 주지 않고 언제든 끌 수 있습니다. Firebase Analytics는 개인정보 처리방침에 별도로 설명되어 있습니다.</string>
+  <string name="legal_analytics_unavailable">이 버전에서는 DevHub 통계를 사용할 수 없습니다.</string>
+  <string name="legal_analytics_update_failed">통계 설정 변경을 완료하지 못했습니다. 스위치 상태를 확인하고 다시 시도하세요.</string>
 </resources>

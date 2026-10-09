@@ -142,4 +142,8 @@
   <string name="enterprise_contact_action">開発者にメールで相談</string>
   <string name="help_enterprise_deployment_body">Local Signage では、現場向けの法人導入とカスタム相談に対応します。\n\n相談できる内容：\n- オフラインコンテンツパッケージ、USB インポート、現場納品\n- ローカルネットワーク上の複数画面制御、スケジュール再生、端末グループ\n- ネットワーク版またはお客様管理のプライベートネットワーク導入計画\n- サイネージ画面・TV Box のハードウェア適合、自動起動、キオスク設定\n- ブランド表示、画面文言、業務機能のカスタマイズ\n\n評価のため、端末台数、利用場面、ネットワークの有無、コンテンツ種別、希望納期をお知らせください。導入案、納品範囲、見積もりは相談後に確定します。\n\nメール：wukuiqing@gmail.com\n電話：+86 18538537389</string>
   <string name="help_visual_enterprise_caption">現場ごとに導入方法、カスタム範囲、納品方法を確認します。</string>
+  <string name="legal_analytics_title">利用統計</string>
+  <string name="legal_analytics_summary">インストール数とアクティブ端末数の集計のため、DevHub にインストール識別子、アプリのバージョン、日ごとの利用時刻を送信することを許可します。メディア、ローカルネットワークのアドレス、機種、アカウント情報は送信しません。任意の設定で、再生に影響せずいつでも無効にできます。Firebase Analytics についてはプライバシーポリシーを参照してください。</string>
+  <string name="legal_analytics_unavailable">このバージョンでは DevHub 統計を利用できません。</string>
+  <string name="legal_analytics_update_failed">統計設定の更新を完了できませんでした。スイッチの状態を確認して再試行してください。</string>
 </resources>

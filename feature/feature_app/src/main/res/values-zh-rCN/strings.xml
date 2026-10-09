@@ -142,4 +142,8 @@
   <string name="enterprise_contact_action">发送邮件咨询</string>
   <string name="help_enterprise_deployment_body">Local Signage 可根据现场需求提供企业部署与定制咨询。\n\n可协商的内容：\n- 离线内容包、U 盘导入与现场交付流程\n- 局域网多设备控制、定时播放与分组管理\n- 网络版本或客户自管私有网络的部署方案\n- 广告机与电视盒子硬件适配、开机自启和 Kiosk 配置\n- 品牌标识、界面文案与业务功能定制\n\n为便于评估，请说明设备数量、使用场景、是否联网、内容类型和计划交付时间。具体方案、交付范围与报价以沟通确认结果为准。\n\n邮箱：wukuiqing@gmail.com\n电话：+86 18538537389</string>
   <string name="help_visual_enterprise_caption">按现场需求确认部署方式、定制范围与交付流程。</string>
+  <string name="legal_analytics_title">使用统计</string>
+  <string name="legal_analytics_summary">允许 DevHub 上传安装标识、应用版本和每日活跃时间，用于统计安装量与活跃设备。不上传媒体、局域网地址、机型或账号信息。此项为可选设置，可随时关闭，不影响播放。Firebase Analytics 的说明请见隐私政策。</string>
+  <string name="legal_analytics_unavailable">此版本未启用 DevHub 统计。</string>
+  <string name="legal_analytics_update_failed">统计设置未能完成更新，请检查开关状态后重试。</string>
 </resources>

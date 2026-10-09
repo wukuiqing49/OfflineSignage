@@ -22,9 +22,16 @@ import com.wkq.localsignage.feature.app.R as FeatureAppR
 import com.wkq.localsignage.feature.app.discovery.LocalDeviceDiscovery
 import com.wkq.localsignage.feature.app.player.SignagePlaybackController
 import com.wkq.localsignage.feature.app.server.KtorSignageServer
+import com.wkq.google.GoogleKit
 
 class SignageService : Service() {
     private val networkHandler = Handler(Looper.getMainLooper())
+    private val reportActive = object : Runnable {
+        override fun run() {
+            GoogleKit.commercial.reportActive()
+            networkHandler.postDelayed(this, 60 * 60 * 1000L)
+        }
+    }
     private var connectivityManager: ConnectivityManager? = null
     private val startDiscovery = Runnable {
         val state = SignageRuntime.state()
@@ -48,6 +55,7 @@ class SignageService : Service() {
         super.onCreate()
         createNotificationChannel()
         startForeground(NOTIFICATION_ID, notification())
+        networkHandler.post(reportActive)
         SignageRuntime.initialize(this)
         val state = SignageRuntime.state()
         LocalDeviceDiscovery.start(this, state.deviceId, state.deviceName, SignageRuntime.SERVER_PORT)
@@ -73,6 +81,7 @@ class SignageService : Service() {
     }
 
     override fun onDestroy() {
+        networkHandler.removeCallbacks(reportActive)
         networkHandler.removeCallbacks(restartDiscovery)
         networkHandler.removeCallbacks(startDiscovery)
         connectivityManager?.let { manager -> runCatching { manager.unregisterNetworkCallback(networkCallback) } }

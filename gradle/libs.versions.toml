@@ -27,6 +27,7 @@ playBilling = "9.1.0"
 playServicesAds = "24.8.0"
 playReview = "2.0.2"
 firebaseBom = "34.13.0"
+devhub = "1.2.0"
 googleServices = "4.4.4"
 wkq-core-base = "v1.3.0"
 wkq-core-utils = "v1.1.1"
@@ -66,6 +67,7 @@ google-play-services-ads = { module = "com.google.android.gms:play-services-ads"
 google-play-review-ktx = { module = "com.google.android.play:review-ktx", version.ref = "playReview" }
 firebase-bom = { module = "com.google.firebase:firebase-bom", version.ref = "firebaseBom" }
 firebase-analytics = { module = "com.google.firebase:firebase-analytics" }
+devhub = { module = "com.github.wukuiqing49:DevHub", version.ref = "devhub" }
 wkq-core-base = { module = "com.github.wukuiqing49:AndroidCoreBase", version.ref = "wkq-core-base" }
 wkq-core-utils = { module = "com.github.wukuiqing49:AndroidCoreUtils", version.ref = "wkq-core-utils" }
 

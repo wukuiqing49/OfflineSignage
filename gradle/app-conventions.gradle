@@ -38,6 +38,12 @@ def signingValue = { String propertyName, String environmentName ->
 }
 def playLicensePublicKey = signingValue('playLicensePublicKey', 'PLAY_LICENSE_PUBLIC_KEY') ?: ''
 def escapedPlayLicensePublicKey = playLicensePublicKey.replace('\\', '\\\\').replace('"', '\\"')
+def sharedDevHubProperties = new Properties()
+def sharedDevHubPropertiesFile = rootProject.file('gradle/devhub-config.properties')
+if (!sharedDevHubPropertiesFile.isFile()) {
+    throw new GradleException('Missing shared DevHub configuration: gradle/devhub-config.properties')
+}
+sharedDevHubPropertiesFile.withInputStream { sharedDevHubProperties.load(it) }
 def devHubProperties = new Properties()
 def devHubPropertiesFile = rootProject.file('devhub.properties')
 if (devHubPropertiesFile.isFile()) {
@@ -47,7 +53,7 @@ def devHubValue = { String name, String fallback ->
     providers.environmentVariable(name).orNull
             ?: gradle.startParameter.projectProperties.get(name)
             ?: devHubProperties.getProperty(name)
-            ?: appConfig.getProperty(name, fallback)
+            ?: sharedDevHubProperties.getProperty(name, fallback)
 }
 def devHubApiUrl = devHubValue('DEVHUB_API_URL', 'https://devhub.wukuiqing0409.workers.dev').trim()
 def devHubAppKey = devHubValue('DEVHUB_APP_KEY', '').trim()

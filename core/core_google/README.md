@@ -77,7 +77,7 @@ val entitlement = GoogleKit.billing.queryEntitlement()
 - Debug 默认不初始化 DevHub；本地测试可显式设置 `DEVHUB_DEBUG_ENABLED=true`，仍需用户授权。
 - SDK 初始化或上报失败不阻断本地运行。采集开关成功表示本地 SDK 状态更新成功，不代表后台已收到数据。
 
-共享 API 地址、客户端 App Key 和默认开关在已跟踪的 `app-config.properties`，拉取仓库即可取得。可选本机覆盖放在被忽略的 `devhub.properties`，模板见根目录 `devhub.properties.example`。读取优先级为同名环境变量、显式 `-P` 参数、本机覆盖、公开应用配置；不读取用户级 Gradle 文件中的同名 DevHub 配置，避免跨项目串用 App Key：
+共享 API 地址、客户端 App Key 和默认开关在已跟踪的 `gradle/devhub-config.properties`，拉取仓库即可取得。可选本机覆盖放在被忽略的 `devhub.properties`，模板见根目录 `devhub.properties.example`。读取优先级为同名环境变量、显式 `-P` 参数、本机覆盖、共享 DevHub 配置；不读取用户级 Gradle 文件中的同名 DevHub 配置，避免跨项目串用 App Key。启用条件按构建变体判断：Release APK/AAB 启用 SDK，Debug 测试包默认不初始化；Release 仍需用户授权才上报：
 
 ```properties
 DEVHUB_API_URL=https://devhub.wukuiqing0409.workers.dev

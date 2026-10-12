@@ -1,2 +1,2 @@
-# Optional local overrides; shared DevHub configuration is in app-config.properties.
+# Optional local overrides; shared configuration is in gradle/devhub-config.properties.
 DEVHUB_DEBUG_ENABLED=false

@@ -70,7 +70,7 @@ val entitlement = GoogleKit.billing.queryEntitlement()
 ### DevHub 安装与日活统计
 
 - 参考 SiteReport 的 `GoogleKit.commercial` 封装，使用 DevHub `1.2.0`，仅开启 `CORE_ONLY`。
-- `collectDeviceInfo=false`、`collectLocale=false`，不发送业务事件、媒体或局域网信息。
+- `collectDeviceInfo=true`、`collectLocale=true`，授权后采集设备厂商、机型、Android 版本和语言区域；不发送业务事件、媒体或局域网信息。
 - DevHub 默认未授权；用户在“法律与隐私 > 使用统计”主动开启。关闭后 SDK 停止请求并清除本地待上报队列，已上报记录不自动删除。
 - Firebase 保持既有 Release 行为，该开关只控制 DevHub。
 - `SignageService` 运行时每小时调用 `reportActive()`，SDK 按 UTC 日期去重；服务销毁时取消回调，Activity 恢复时由 SDK 补报。

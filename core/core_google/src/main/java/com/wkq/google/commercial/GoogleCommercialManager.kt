@@ -7,7 +7,7 @@ import com.devhub.sdk.AnalyticsMode
 import com.devhub.sdk.DevHub
 import com.devhub.sdk.DevHubConfig
 
-/** Optional install/daily-active statistics; no media, device or account data. */
+/** Optional install/daily-active statistics with device and locale metadata. */
 object GoogleCommercialManager {
     private const val TAG = "SignageDevHub"
     private const val CONSENT_KEY = "collection_consent_v1"
@@ -32,8 +32,8 @@ object GoogleCommercialManager {
                     storageNamespace = "local_signage",
                     collectionEnabled = preferences?.getBoolean(CONSENT_KEY, false) == true,
                     analyticsMode = AnalyticsMode.CORE_ONLY,
-                    collectDeviceInfo = false,
-                    collectLocale = false,
+                    collectDeviceInfo = true,
+                    collectLocale = true,
                     allowedEventProperties = emptySet(),
                     playIntegrityCloudProjectNumber = config.playIntegrityCloudProjectNumber,
                     onError = { Log.w(TAG, it) }

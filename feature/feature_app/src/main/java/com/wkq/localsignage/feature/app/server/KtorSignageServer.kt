@@ -123,7 +123,10 @@ class KtorSignageServer(context: Context, private val port: Int) {
 
     fun start() {
         if (engine != null) return
-        broadcastScope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
+        broadcastScope = CoroutineScope(SupervisorJob() + Dispatchers.IO +
+            kotlinx.coroutines.CoroutineExceptionHandler { _, error ->
+                android.util.Log.e("SignageServer", "BACKGROUND_TASK_FAILED", error)
+            })
         val updates = Channel<Unit>(Channel.CONFLATED)
         stateUpdates = updates
         broadcastScope?.launch {
@@ -1414,13 +1417,19 @@ class KtorSignageServer(context: Context, private val port: Int) {
     }
 
     private suspend fun retryDeviceAssignments() {
+        var retryDelay = ASSIGNMENT_RETRY_INTERVAL_MS
         while (true) {
-            val assignments = SignageRuntime.deviceAssignments()
-                .filter { it.state == "PENDING" || it.state == "FAILED" }
-            coroutineScope {
-                assignments.map { assignment -> async { deployAssignment(assignment) } }.awaitAll()
+            val successful = retryAttempt(onError = {
+                android.util.Log.e("SignageServer", "ASSIGNMENT_RETRY_FAILED", it)
+            }) {
+                val assignments = SignageRuntime.deviceAssignments()
+                    .filter { it.state == "PENDING" || it.state == "FAILED" }
+                coroutineScope {
+                    assignments.map { assignment -> async { deployAssignment(assignment) } }.awaitAll()
+                }
             }
-            delay(ASSIGNMENT_RETRY_INTERVAL_MS)
+            retryDelay = if (successful) ASSIGNMENT_RETRY_INTERVAL_MS else (retryDelay * 2).coerceAtMost(300_000L)
+            delay(retryDelay)
         }
     }
 

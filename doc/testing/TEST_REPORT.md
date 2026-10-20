@@ -1,6 +1,29 @@
 # 功能回归测试报告（最新一轮）
 
-最新结果见下方“DevHub 接入增量回归（2026-10-09）”；其余区块保留各自测试时的历史状态。
+最新结果见下方“崩溃风险加固（2026-10-20）”；其余区块保留各自测试时的历史状态。
+
+## 崩溃风险加固（2026-10-20）
+
+- 模式：增量；本轮源码未提交，保留此前前台服务修复。本次通过 5 组，失败 0，受阻 0，未执行 1 组设备场景。
+- 范围：页面解绑、主网页及 HTML 叠加层的 renderer 退出处理、诊断写入失败、初始化重试、设备任务同步异常边界。未改动依赖、SDK、Manifest、计费权益、统计授权设置；未删除数据库或用户内容。
+- CRASH-LIFECYCLE：本次通过，WebViewRecoveryTest 3 tests / 0 failures / 0 errors。验证失效 WebView 替换后布局位置/id/尺寸/可见性保持、旧实例不重复替换、页面释放后不重建、detach 清理 owner 且可重复调用。属于 Robolectric 和内部状态测试，不等于系统真实 renderer 退出验收。
+- CRASH-STORAGE：本次通过，StorageFailureBoundaryTest 4 tests / 0 failures / 0 errors。隔离测试数据库 `PRAGMA query_only=ON` 注入写失败，验证内存错误保留、错误记录写失败后不二次抛出、恢复写入、原 Store 初始化失败后重试成功；验证非存储 IllegalStateException 原样传播。
+- CRASH-RETRY：本次通过，RetryAttemptTest 2 tests / 0 failures / 0 errors。验证失败后下一轮仍可成功、CancellationException 原样传播。生产循环失败时 60 秒起退避，最大 300 秒；成功轮次回到 30 秒。
+- CRASH-REGRESSION：本次通过。`gradlew.bat :feature:feature_app:testDebugUnitTest :app:testDebugUnitTest :app:assembleDebug --console=plain --max-workers=1 --no-parallel`，最终 exit 0，3m 50s；feature_app 111 + app 3 = 114 tests，0 failures / 0 errors / 0 skipped，含新增 9 项。证据 `build/crash-hardening-verification.log` 及两个模块 `build/test-results/testDebugUnitTest/TEST-*.xml`；APK `app/build/outputs/apk/debug/app-debug.apk`。
+- 验证进程临时使用 Gradle `-Xmx512m -XX:MaxMetaspaceSize=384m`、Kotlin in-process、Test 堆 64–128m（临时 init script），未修改仓库构建配置。初次测试编译因 Robolectric getApplication 不接受泛型参数失败；修正后整套命令通过。
+- 静态门禁：本次通过，架构/UI/i18n 脚本均 exit 0，`git diff --check` 通过。证据 `build/crash-hardening-architecture.log`、`build/crash-hardening-ui.log`、`build/crash-hardening-i18n.log`。既有警告包含内部 Uri.fromFile、Insets/滚动/非 Tab ViewPager2 提示、app 无本地 strings；未作为本轮整改项。
+- CRASH-DEVICE：未执行。ADB 检测到两台物理设备，未选择目标或安装覆盖。未验证真实 renderer 退出、多 WebView 共用 renderer 的系统回调顺序、真机磁盘满/损坏、长时间播放、后台服务恢复、错误提示在小屏/大字体/日夜模式下的视觉效果；Release 未构建。本次只降低已识别风险，不代表所有异常均已消除。
+- 不推进 TEST_BASELINE.json：未建立本轮源码工作区可靠指纹。原有无关测试基线保留。
+
+## 前台服务启动拒绝修复（2026-10-20）
+
+- 模式：增量；修改 MainActivity 启动时机、SignageService 提升前台失败的生命周期处理和任务移除恢复方式。未降低 SDK、未变更 Manifest 或开机恢复策略。
+- 本次通过 1，失败 0，受阻 0，未执行 2；本次通过仅指构建/既有单测，不代表拒绝路径已在设备复现。
+- FGS-BUILD：`:app:testDebugUnitTest :app:assembleDebug --console=plain --max-workers=1 --no-parallel` 最终 exit 0，34s；现有 BootRestorePolicyTest 3 tests / 0 failures / 0 errors。产物 `app/build/outputs/apk/debug/app-debug.apk`；证据 `build/fgs-fix-retry.log` 和 `app/build/test-results/testDebugUnitTest/TEST-com.wkq.localsignage.BootRestorePolicyTest.xml`。
+- 首次执行因 Kotlin daemon 断连和测试 JVM 内存提交不足退出 1；重跑临时使用 Gradle `-Xmx384m -XX:MaxMetaspaceSize=256m`、Kotlin in-process，临时 init script 将 Test 堆设为 64–128m。未修改仓库构建内存配置。期间一次命令因 PowerShell 未引用带点的 `-P` 参数失败，修正引用后通过。
+- FGS-REJECT、FGS-LIFECYCLE：未执行。ADB 检测到两台物理设备，未选择设备或安装覆盖；未验证实际拒绝、重进页面、任务移除、系统回收和播放/局域网控制闭环；Release 未构建。
+- 静态检查：`git diff --check` 通过。对代码检查确认：仅处理 API 31+ 的 ForegroundServiceStartNotAllowedException，其他异常继续抛出；拒绝后停止服务且返回 START_NOT_STICKY，不初始化运行时资源，也不释放页面播放器；正常启动保留 START_STICKY 和 stopWithTask=false。
+- 本轮不推进 TEST_BASELINE.json；未生成可靠工作区指纹，原始堆栈缺少异常消息、系统版本及触发场景，不能断言唯一触发入口。
 
 ## DevHub 接入增量回归（2026-10-09）
 

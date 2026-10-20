@@ -46,6 +46,16 @@ class SplashActivity : BaseActivity<ActivitySplashBinding>() {
     override fun initData() = Unit
 
     private fun navigateNext() {
+        if (!SignageRuntime.tryInitialize(this)) {
+            androidx.appcompat.app.AlertDialog.Builder(this)
+                .setTitle(com.wkq.localsignage.feature.app.R.string.storage_unavailable_title)
+                .setMessage(com.wkq.localsignage.feature.app.R.string.storage_unavailable_message)
+                .setPositiveButton(com.wkq.localsignage.feature.app.R.string.storage_retry) { _, _ -> navigateNext() }
+                .setNegativeButton(android.R.string.cancel) { _, _ -> finish() }
+                .setCancelable(false)
+                .show()
+            return
+        }
         val nextIntent = if (!welcomeCompleted() && SignageRuntime.resources().isEmpty()) {
             Intent(this, WelcomeActivity::class.java)
         } else {

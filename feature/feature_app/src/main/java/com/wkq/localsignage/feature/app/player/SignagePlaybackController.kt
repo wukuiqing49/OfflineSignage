@@ -47,6 +47,7 @@ import com.wkq.localsignage.feature.app.model.SignageResource
 import com.wkq.localsignage.feature.app.model.SignageScene
 import com.wkq.localsignage.feature.app.model.SceneLayoutTemplate
 import com.wkq.localsignage.feature.app.runtime.SignageRuntime
+import com.wkq.localsignage.feature.app.storage.storageAttempt
 import java.util.concurrent.FutureTask
 import java.util.concurrent.TimeoutException
 import java.util.concurrent.TimeUnit
@@ -75,6 +76,7 @@ object SignagePlaybackController {
     private var sceneDurationMs: Long? = null
     private var fallbackActive = false
     private var pendingRetry: Runnable? = null
+    private var pendingRendererRecovery: Runnable? = null
     private val retryAttempts = mutableMapOf<String, Int>()
     private val failedSceneIds = mutableSetOf<String>()
     private val tickerAnimators = mutableListOf<ObjectAnimator>()
@@ -87,7 +89,9 @@ object SignagePlaybackController {
     private val webRefresh = Runnable { views?.webView?.reload(); scheduleWebRefresh() }
     private val positionSaver = object : Runnable {
         override fun run() {
-            if (desiredPlaying) SignageRuntime.setPosition(currentPositionMs())
+            if (!storageAttempt(::onPlaybackStorageFailure) {
+                if (desiredPlaying) SignageRuntime.setPosition(currentPositionMs())
+            }) return
             mainHandler.postDelayed(this, POSITION_SAVE_INTERVAL_MS)
         }
     }
@@ -106,22 +110,24 @@ object SignagePlaybackController {
     }
     private val scheduleSupervisor = object : Runnable {
         override fun run() {
-            val calendar = Calendar.getInstance()
-            val active = PlaylistSchedulePolicy.active(
-                SignageRuntime.playlistSchedules(),
-                calendar.get(Calendar.DAY_OF_WEEK),
-                calendar.get(Calendar.HOUR_OF_DAY) * 60 + calendar.get(Calendar.MINUTE)
-            )
-            if (active?.id != activeScheduleId) {
-                activeScheduleId = active?.id
-                active?.let { schedule ->
-                    if (SignageRuntime.playlist(schedule.playlistId) != null) {
-                        SignageRuntime.selectPlaylist(schedule.playlistId)
-                        // A schedule is an autonomous playback instruction, including after a cold start.
-                        desiredPlaying = true
-                        loadPlaylist(restorePosition = false, forceReload = true, followCurrentScene = false)
-                        publish()
+            storageAttempt(::onPlaybackStorageFailure) {
+                val calendar = Calendar.getInstance()
+                val active = PlaylistSchedulePolicy.active(
+                    SignageRuntime.playlistSchedules(),
+                    calendar.get(Calendar.DAY_OF_WEEK),
+                    calendar.get(Calendar.HOUR_OF_DAY) * 60 + calendar.get(Calendar.MINUTE)
+                )
+                if (active?.id != activeScheduleId) {
+                    active?.let { schedule ->
+                        if (SignageRuntime.playlist(schedule.playlistId) != null) {
+                            SignageRuntime.selectPlaylist(schedule.playlistId)
+                            // A schedule is an autonomous playback instruction, including after a cold start.
+                            desiredPlaying = true
+                            loadPlaylist(restorePosition = false, forceReload = true, followCurrentScene = false)
+                            publish()
+                        }
                     }
+                    activeScheduleId = active?.id
                 }
             }
             mainHandler.postDelayed(this, SCHEDULE_CHECK_INTERVAL_MS)
@@ -194,10 +200,10 @@ object SignagePlaybackController {
 
     fun detach(playbackViews: SignagePlaybackViews) {
         if (playbackViews.released) return
+        if (views !== playbackViews) return
         playbackViews.released = true
         if (playbackViews.playerView.player === player) playbackViews.playerView.player = null
         releaseWebView(playbackViews.webView, destroy = true)
-        if (views !== playbackViews) return
         clearOverlays(playbackViews.overlayContainer)
         playbackViews.sidebarContainer.removeAllViews()
         textAnimator?.cancel()
@@ -380,6 +386,12 @@ object SignagePlaybackController {
     }
 
     private fun renderCurrent(restorePosition: Boolean) {
+        storageAttempt(::onPlaybackStorageFailure) {
+            renderCurrentFromStore(restorePosition)
+        }
+    }
+
+    private fun renderCurrentFromStore(restorePosition: Boolean) {
         cancelSceneCallbacks()
         textAnimator?.cancel()
         textAnimator = null
@@ -611,6 +623,12 @@ object SignagePlaybackController {
     }
 
     private fun handleSceneFailure(errorCode: String) {
+        storageAttempt(::onPlaybackStorageFailure) {
+            handleSceneFailureFromStore(errorCode)
+        }
+    }
+
+    private fun handleSceneFailureFromStore(errorCode: String) {
         val scene = currentScene() ?: return clearPlayback(errorCode)
         val attempts = retryAttempts[scene.id] ?: 0
         val resource = SignageRuntime.resource(scene.resourceId)
@@ -676,6 +694,19 @@ object SignagePlaybackController {
         }
         webView.webChromeClient = null
         webView.webViewClient = object : WebViewClient() {
+            override fun onRenderProcessGone(view: WebView, detail: android.webkit.RenderProcessGoneDetail): Boolean {
+                val owner = views
+                mainHandler.removeCallbacks(webLoadTimeout)
+                mainHandler.removeCallbacks(webRefresh)
+                if (owner != null && replaceFailedWebView(owner, view)) {
+                    configureWebView(owner.webView)
+                    scheduleRendererFailure(owner, "WEB_RENDERER_GONE")
+                } else {
+                    (view.parent as? ViewGroup)?.removeView(view)
+                    view.destroy()
+                }
+                return true
+            }
             @Suppress("DEPRECATION", "OVERRIDE_DEPRECATION")
             override fun shouldOverrideUrlLoading(view: WebView, url: String): Boolean = !isAllowedWebUri(Uri.parse(url))
 
@@ -693,15 +724,22 @@ object SignagePlaybackController {
                 val file = runCatching { SignageRuntime.webPackageFile(resource, relative) }.getOrNull()
                     ?.takeIf { it.isFile } ?: return blockedWebResponse()
                 val mime = URLConnection.guessContentTypeFromName(file.name) ?: "application/octet-stream"
-                return WebResourceResponse(mime, if (mime.startsWith("text/") || mime.contains("javascript")) "UTF-8" else null, FileInputStream(file))
+                return try {
+                    WebResourceResponse(mime, if (mime.startsWith("text/") || mime.contains("javascript")) "UTF-8" else null, FileInputStream(file))
+                } catch (error: java.io.IOException) {
+                    android.util.Log.w("SignagePlayback", "WEB_RESOURCE_OPEN_FAILED", error)
+                    blockedWebResponse()
+                }
             }
 
             override fun onPageFinished(view: WebView, url: String) {
+                if (views?.webView !== view || views?.released == true) return
                 mainHandler.removeCallbacks(webLoadTimeout)
                 retryAttempts.remove(currentScene()?.id)
             }
 
             override fun onReceivedError(view: WebView, request: WebResourceRequest, error: WebResourceError) {
+                if (views?.webView !== view || views?.released == true) return
                 if (request.isForMainFrame) handleSceneFailure("WEB_${error.errorCode}")
             }
         }
@@ -716,7 +754,6 @@ object SignagePlaybackController {
         webView.stopLoading()
         webView.loadUrl("about:blank")
         webView.webChromeClient = null
-        webView.webViewClient = WebViewClient()
         if (destroy) {
             (webView.parent as? ViewGroup)?.removeView(webView)
             webView.removeAllViews()
@@ -832,6 +869,14 @@ object SignagePlaybackController {
         }
         webChromeClient = null
         webViewClient = object : WebViewClient() {
+            override fun onRenderProcessGone(view: WebView, detail: android.webkit.RenderProcessGoneDetail): Boolean {
+                val owner = views
+                htmlOverlayViews.remove(view)
+                (view.parent as? ViewGroup)?.removeView(view)
+                view.destroy()
+                if (owner != null) scheduleRendererFailure(owner, "HTML_RENDERER_GONE")
+                return true
+            }
             @Suppress("DEPRECATION", "OVERRIDE_DEPRECATION")
             override fun shouldOverrideUrlLoading(view: WebView, url: String): Boolean = true
 
@@ -876,7 +921,6 @@ object SignagePlaybackController {
             webView.stopLoading()
             webView.loadUrl("about:blank")
             (webView.parent as? ViewGroup)?.removeView(webView)
-            webView.webViewClient = WebViewClient()
             webView.webChromeClient = null
             webView.removeAllViews()
             webView.destroy()
@@ -986,6 +1030,18 @@ object SignagePlaybackController {
         mainHandler.removeCallbacks(webRefresh)
         pendingRetry?.let(mainHandler::removeCallbacks)
         pendingRetry = null
+        pendingRendererRecovery?.let(mainHandler::removeCallbacks)
+        pendingRendererRecovery = null
+    }
+
+    private fun scheduleRendererFailure(owner: SignagePlaybackViews, code: String) {
+        val sceneId = currentScene()?.id
+        // 主网页和多个 HTML 叠加层可能共用同一渲染进程，一次退出只推进一次重试。
+        pendingRendererRecovery?.let(mainHandler::removeCallbacks)
+        pendingRendererRecovery = Runnable {
+            pendingRendererRecovery = null
+            if (views === owner && !owner.released && currentScene()?.id == sceneId) handleSceneFailure(code)
+        }.also(mainHandler::post)
     }
 
     private fun currentPositionMs(): Long = when {
@@ -1013,9 +1069,22 @@ object SignagePlaybackController {
     }
 
     private fun publish() {
-        listener?.onStateChanged(
-            SignageRuntime.state().copy(playing = desiredPlaying, positionMs = currentPositionMs())
-        )
+        storageAttempt(::onPlaybackStorageFailure) {
+            listener?.onStateChanged(
+                SignageRuntime.state().copy(playing = desiredPlaying, positionMs = currentPositionMs())
+            )
+        }
+    }
+
+    private fun onPlaybackStorageFailure(error: Exception) {
+        // 故障兜底不能再次依赖数据库，否则会在错误处理过程中二次崩溃。
+        android.util.Log.e("SignagePlayback", "PLAYBACK_STORAGE_UNAVAILABLE", error)
+        desiredPlaying = false
+        cancelSceneCallbacks()
+        player?.pause()
+        textAnimator?.pause()
+        tickerAnimators.forEach { it.pause() }
+        views?.webView?.onPause()
     }
 
     private fun runOnMainAndWait(block: () -> Boolean): Boolean {

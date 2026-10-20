@@ -57,8 +57,9 @@ class MainActivity : BaseActivity<ActivityMainBinding>(), PlaybackListener {
         val slop = ViewConfiguration.get(this).scaledTouchSlop
         slop * slop
     }
-    private val playbackViews: SignagePlaybackViews
-        get() = SignagePlaybackViews(
+    private var playbackAttached = false
+    private val playbackViews: SignagePlaybackViews by lazy(LazyThreadSafetyMode.NONE) {
+        SignagePlaybackViews(
             playerView = binding.playerView,
             imageSlideshow = binding.imageSlideshow,
             webView = binding.webView,
@@ -67,6 +68,7 @@ class MainActivity : BaseActivity<ActivityMainBinding>(), PlaybackListener {
             blurBackgroundView = binding.blurBackgroundView,
             sidebarContainer = binding.sidebarContainer
         )
+    }
     private val pairingHandler = Handler(Looper.getMainLooper())
     private val hidePlaybackControls = Runnable {
         binding.playbackStatusBar.isVisible = false
@@ -82,16 +84,21 @@ class MainActivity : BaseActivity<ActivityMainBinding>(), PlaybackListener {
     }
 
     override fun initView() {
+        if (!SignageRuntime.tryInitialize(this)) {
+            startActivity(Intent(this, SplashActivity::class.java))
+            finish()
+            return
+        }
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) {
             window.attributes = window.attributes.apply {
                 layoutInDisplayCutoutMode = WindowManager.LayoutParams.LAYOUT_IN_DISPLAY_CUTOUT_MODE_SHORT_EDGES
             }
         }
-        ContextCompat.startForegroundService(this, Intent(this, SignageService::class.java))
         SignagePlaybackController.initialize(this)
         WindowCompat.setDecorFitsSystemWindows(window, false)
         applyDisplaySettings()
         SignagePlaybackController.attach(playbackViews, this)
+        playbackAttached = true
         onBackPressedDispatcher.addCallback(this, object : androidx.activity.OnBackPressedCallback(true) {
             override fun handleOnBackPressed() {
                 if (binding.pairingPanel.isVisible &&
@@ -226,6 +233,16 @@ class MainActivity : BaseActivity<ActivityMainBinding>(), PlaybackListener {
 
     override fun onResume() {
         super.onResume()
+        if (!playbackAttached) return
+        try {
+            ContextCompat.startForegroundService(this, Intent(this, SignageService::class.java))
+        } catch (error: Exception) {
+            if (Build.VERSION.SDK_INT < Build.VERSION_CODES.S ||
+                error !is android.app.ForegroundServiceStartNotAllowedException
+            ) throw error
+            android.util.Log.w("MainActivity", "FOREGROUND_START_REJECTED_WAIT_FOR_RESUME", error)
+            SignageRuntime.setError("FOREGROUND_SERVICE_START_NOT_ALLOWED")
+        }
         applyDisplaySettings()
         pairingHandler.removeCallbacks(pairingRefresh)
         pairingHandler.post(pairingRefresh)
@@ -545,7 +562,7 @@ class MainActivity : BaseActivity<ActivityMainBinding>(), PlaybackListener {
         pairingHandler.removeCallbacks(pairingRefresh)
         pairingHandler.removeCallbacks(hidePlaybackControls)
         pairingHandler.removeCallbacks(trialExpiryRefresh)
-        SignagePlaybackController.detach(playbackViews)
+        if (playbackAttached) SignagePlaybackController.detach(playbackViews)
         window.clearFlags(android.view.WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
         super.onDestroy()
     }

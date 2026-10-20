@@ -146,4 +146,7 @@
   <string name="legal_analytics_summary">DevHub darf eine Installationskennung, die App-Version, tägliche Aktivitätszeiten, den Gerätehersteller, das Gerätemodell, die Android-Version sowie Sprache und Region zur Messung von Installationen und aktiven Geräten senden. Medien, lokale Netzwerkadressen und Kontoinformationen werden nicht gesendet. Freiwillig und jederzeit ohne Auswirkungen auf die Wiedergabe abschaltbar. Firebase Analytics wird separat in der Datenschutzerklärung beschrieben.</string>
   <string name="legal_analytics_unavailable">DevHub-Statistiken sind in dieser Version nicht verfügbar.</string>
   <string name="legal_analytics_update_failed">Die Statistik-Einstellung konnte nicht vollständig aktualisiert werden. Prüfen Sie den Schalter und versuchen Sie es erneut.</string>
+  <string name="storage_unavailable_title">Lokaler Speicher nicht verfügbar</string>
+  <string name="storage_unavailable_message">Die lokalen Daten konnten nicht geöffnet werden. Gib Gerätespeicher frei und versuche es erneut. Wende dich bei anhaltenden Problemen an den Support. Deine Inhalte wurden nicht gelöscht.</string>
+  <string name="storage_retry">Erneut versuchen</string>
 </resources>

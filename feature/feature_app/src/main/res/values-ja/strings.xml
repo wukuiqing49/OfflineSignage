@@ -146,4 +146,7 @@
   <string name="legal_analytics_summary">インストール数とアクティブ端末数の集計のため、DevHub にインストール識別子、アプリのバージョン、日ごとの利用時刻、端末メーカー、機種、Android のバージョン、言語と地域を送信することを許可します。メディア、ローカルネットワークのアドレス、アカウント情報は送信しません。任意の設定で、再生に影響せずいつでも無効にできます。Firebase Analytics についてはプライバシーポリシーを参照してください。</string>
   <string name="legal_analytics_unavailable">このバージョンでは DevHub 統計を利用できません。</string>
   <string name="legal_analytics_update_failed">統計設定の更新を完了できませんでした。スイッチの状態を確認して再試行してください。</string>
+  <string name="storage_unavailable_title">ローカルストレージを利用できません</string>
+  <string name="storage_unavailable_message">ローカルデータを開けませんでした。端末の空き容量を増やして再試行してください。問題が続く場合はサポートにお問い合わせください。コンテンツは削除されていません。</string>
+  <string name="storage_retry">再試行</string>
 </resources>

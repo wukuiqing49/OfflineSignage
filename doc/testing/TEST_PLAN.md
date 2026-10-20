@@ -1,5 +1,23 @@
 # 功能回归测试计划
 
+## 崩溃风险加固（2026-10-20）
+
+- 增量范围：MainActivity 页面绑定、SignagePlaybackController/WebViewRecovery、SignageStore/StorageFailureBoundary、SignageRuntime/启动与服务入口、KtorSignageServer/RetryAttempt，以及存储故障提示的现有九个语言目录。
+- CRASH-LIFECYCLE：同一实例 attach/detach，重复 detach 无副作用；WebViewRecoveryTest 检查 owner 清理、失效实例替换、布局位置保留和销毁页面的迟到回调。
+- CRASH-STORAGE：StorageFailureBoundaryTest 将隔离测试数据库设为 query_only，验证错误状态保留在内存、诊断写入失败不抛出、恢复写入、初始化失败后使用原 Store 重试；非存储编程错误仍抛出。
+- CRASH-RETRY：RetryAttemptTest 验证失败上报后可执行下一轮、CancellationException 原样传播。
+- CRASH-REGRESSION：执行 `:feature:feature_app:testDebugUnitTest :app:testDebugUnitTest :app:assembleDebug`；架构、UI、i18n 门禁；检查日志与 JUnit XML。
+- CRASH-DEVICE：真机连续进入退出、真实 renderer 退出、多 WebView 共用 renderer、存储满/损坏、启动重试弹窗的小屏/字体/日夜模式、后台同步恢复未执行。本轮两台连接设备未选目标，不安装覆盖已有应用。
+- 保留此前前台服务修复；不变更依赖、Manifest、SDK、计费或统计同意配置。无可靠本轮工作区指纹，不推进 TEST_BASELINE.json。
+
+## 前台服务启动拒绝修复（2026-10-20）
+
+- 增量范围：`MainActivity.kt`、`SignageService.kt`；不变更 Manifest、SDK、开机恢复策略或统计配置。
+- FGS-BUILD：执行 `:app:testDebugUnitTest :app:assembleDebug`，验证 app 编译、现有开机恢复策略单测和打包。
+- FGS-REJECT：设备上复现服务创建时提升前台被拒绝，预期不崩溃、不初始化 Server/发现/统计、不循环重启；返回 MainActivity 后恢复服务。
+- FGS-LIFECYCLE：设备上验证正常启动、返回前台、最近任务移除、系统回收恢复和局域网控制。两台已连接物理设备尚未选择目标，本轮不安装覆盖；设备用例未执行。
+- 不复测无关的计费、多语言和统计收数；不推进缺少本轮工作区指纹及设备证据的基线。
+
 ## DevHub 增量回归（2026-10-09）
 
 新增依赖和初始化影响 app 壳、core_google、feature_app 与法律页面。本轮保留现有 Firebase 和购买权益；不测试真实交易，不操作物理设备，不清空已有数据。

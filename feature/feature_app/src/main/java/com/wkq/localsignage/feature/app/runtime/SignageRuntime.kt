@@ -43,6 +43,11 @@ object SignageRuntime {
         requireStore().ensureDefaultContent()
     }
 
+    fun tryInitialize(context: Context): Boolean =
+        com.wkq.localsignage.feature.app.storage.storageAttempt(
+            onFailure = { android.util.Log.e("SignageRuntime", "STORAGE_INITIALIZATION_FAILED", it) }
+        ) { initialize(context) }
+
     fun startServer(context: Context) = initialize(context)
     fun stopServer() = Unit
 

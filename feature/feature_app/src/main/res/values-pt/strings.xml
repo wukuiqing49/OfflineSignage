@@ -146,4 +146,7 @@
   <string name="legal_analytics_summary">Permite que o DevHub envie um identificador de instalação, a versão do app, os horários de atividade diária, o fabricante e o modelo do dispositivo, a versão do Android e o idioma e a região para medir instalações e dispositivos ativos. Não são enviados mídias, endereços de rede local ou dados de contas. É opcional e pode ser desativado a qualquer momento sem afetar a reprodução. O Firebase Analytics é descrito separadamente na Política de Privacidade.</string>
   <string name="legal_analytics_unavailable">As estatísticas do DevHub não estão disponíveis nesta versão.</string>
   <string name="legal_analytics_update_failed">Não foi possível concluir a alteração. Confira o estado do interruptor e tente novamente.</string>
+  <string name="storage_unavailable_title">Armazenamento local indisponível</string>
+  <string name="storage_unavailable_message">Não foi possível abrir os dados locais. Libere espaço e tente novamente. Se o problema persistir, entre em contato com o suporte. Seu conteúdo não foi excluído.</string>
+  <string name="storage_retry">Tentar novamente</string>
 </resources>

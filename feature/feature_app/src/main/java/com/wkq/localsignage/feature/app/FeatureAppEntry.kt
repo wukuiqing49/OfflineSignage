@@ -39,7 +39,8 @@ object FeatureAppEntry {
             playLicensePublicKey = playLicensePublicKey,
             allowMissingPublicKey = debug
         )
-        SignageRuntime.initialize(appContext)
+        // 存储故障交给启动页展示重试入口，不删除数据库或在 Application 中崩溃。
+        SignageRuntime.tryInitialize(appContext)
     }
 
     fun isAvailable(): Boolean = CoreUtils.isInitialized()

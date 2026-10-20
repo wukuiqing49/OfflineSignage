@@ -70,6 +70,9 @@ class SignageStore(context: Context) : java.io.Closeable {
     private var positionMs = 0L
     private var positionRevision = 0L
     private var checkpointError: String? = null
+    private var diagnosticError: String? = null
+    private var hasVolatileError = false
+    private var volatileError: String? = null
     private val checkpointExecutor = Executors.newSingleThreadExecutor { task ->
         Thread(task, "signage-checkpoint").apply { isDaemon = true }
     }
@@ -1048,7 +1051,7 @@ class SignageStore(context: Context) : java.io.Closeable {
             getMeta(database.readableDatabase, KEY_VOLUME)?.toIntOrNull() ?: 80,
             getMeta(database.readableDatabase, KEY_MUTED)?.toBoolean() ?: false,
             positionMs,
-            checkpointError ?: getMeta(database.readableDatabase, KEY_ERROR), port,
+            checkpointError ?: diagnosticError ?: (if (hasVolatileError) volatileError else getMeta(database.readableDatabase, KEY_ERROR)), port,
             getMeta(database.readableDatabase, KEY_COMMAND_REVISION)?.toLongOrNull() ?: 0L
         )
     }
@@ -1061,7 +1064,12 @@ class SignageStore(context: Context) : java.io.Closeable {
         positionRevision += 1
         positionWriter.submit(positionRevision to positionMs)
     }
-    fun setError(value: String?) = synchronized(lock) { setMeta(database.writableDatabase, KEY_ERROR, value) }
+    fun setError(value: String?) = synchronized(lock) {
+        volatileError = value
+        hasVolatileError = !storageAttempt(
+            onFailure = { Log.e(TAG, "ERROR_STATE_WRITE_FAILED", it) }
+        ) { setMeta(database.writableDatabase, KEY_ERROR, value) }
+    }
 
     fun settings(): SignageSettings = synchronized(lock) {
         SignageSettings(
@@ -1088,18 +1096,26 @@ class SignageStore(context: Context) : java.io.Closeable {
     }
 
     fun recordPlaybackError(mediaId: String?, sceneId: String?, errorCode: String, action: String, attempt: Int) = synchronized(lock) {
-        database.writableDatabase.insert("playback_errors", null, ContentValues().apply {
-            put("media_id", mediaId)
-            put("scene_id", sceneId)
-            put("error_code", errorCode.take(MAX_ERROR_CODE_LENGTH))
-            put("action", action.take(MAX_ERROR_ACTION_LENGTH))
-            put("attempt", attempt)
-            put("created_at", System.currentTimeMillis())
-        })
-        database.writableDatabase.execSQL(
-            "DELETE FROM playback_errors WHERE id NOT IN (SELECT id FROM playback_errors ORDER BY id DESC LIMIT ?)",
-            arrayOf(MAX_ERROR_HISTORY.toString())
-        )
+        storageAttempt(onFailure = {
+            diagnosticError = "PLAYBACK_ERROR_HISTORY_WRITE_FAILED"
+            Log.e(TAG, "PLAYBACK_ERROR_HISTORY_WRITE_FAILED", it)
+        }) {
+            val rowId = database.writableDatabase.insert("playback_errors", null, ContentValues().apply {
+                put("media_id", mediaId)
+                put("scene_id", sceneId)
+                put("error_code", errorCode.take(MAX_ERROR_CODE_LENGTH))
+                put("action", action.take(MAX_ERROR_ACTION_LENGTH))
+                put("attempt", attempt)
+                put("created_at", System.currentTimeMillis())
+            })
+            if (rowId == -1L) throw android.database.sqlite.SQLiteException("PLAYBACK_ERROR_WRITE_FAILED")
+            database.writableDatabase.execSQL(
+                "DELETE FROM playback_errors WHERE id NOT IN (SELECT id FROM playback_errors ORDER BY id DESC LIMIT ?)",
+                arrayOf(MAX_ERROR_HISTORY.toString())
+            )
+            diagnosticError = null
+        }
+        Unit
     }
 
     fun playbackErrors(limit: Int = MAX_ERROR_HISTORY): List<PlaybackErrorRecord> = synchronized(lock) {

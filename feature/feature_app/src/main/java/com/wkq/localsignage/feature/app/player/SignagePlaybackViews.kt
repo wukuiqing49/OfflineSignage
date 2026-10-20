@@ -10,7 +10,7 @@ import androidx.viewpager2.widget.ViewPager2
 data class SignagePlaybackViews(
     val playerView: PlayerView,
     val imageSlideshow: ViewPager2,
-    val webView: WebView,
+    var webView: WebView,
     val textView: TextView,
     val overlayContainer: FrameLayout,
     val blurBackgroundView: ImageView,

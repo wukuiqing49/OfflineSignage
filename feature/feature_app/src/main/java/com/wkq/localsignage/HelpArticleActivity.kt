@@ -8,14 +8,13 @@ import android.net.Uri
 import android.provider.Settings
 import android.view.View
 import android.widget.Toast
-import com.wkq.base.activity.BaseActivity
 import com.wkq.localsignage.feature.app.R
 import com.wkq.localsignage.feature.app.databinding.ActivityLegalDocumentBinding
 
-class HelpArticleActivity : BaseActivity<ActivityLegalDocumentBinding>() {
+class HelpArticleActivity : SignageActivity<ActivityLegalDocumentBinding>() {
     override fun initView() {
-        enableEdgeToEdgeSystemBars(binding.toolbarContainer)
-        binding.toolbarContainer.applySystemBarPadding(horizontal = true)
+        enableEdgeToEdgeSystemBars()
+        binding.toolbarContainer.applySystemBarPadding(top = true, horizontal = true)
         binding.documentScroll.applySystemBarPadding(bottom = true, horizontal = true)
         binding.toolbar.setNavigationOnClickListener { finish() }
         val articleType = intent.getStringExtra(EXTRA_ARTICLE)

@@ -1,5 +1,18 @@
 # 功能回归测试计划
 
+## 全面屏与大屏适配增量回归（2026-10-20）
+
+共享 Activity、主题、Manifest 和 Insets 变更影响全部原生页面，选中下列测试；播放/服务/存储保留现有单测回归。真实交易、生产统计、多设备同步与长期播放未在本轮设备验收。
+
+| ID | 关联源码与方法 | 预期 |
+| --- | --- | --- |
+| EDGE-UNIT | PlaybackOrientationPolicyTest、SystemBarInsetsTest；app/feature_app testDebugUnitTest | 大屏/多窗口遵从系统，小屏保留用户显式方向；系统栏/刘海/IME padding 不累积 |
+| EDGE-BUILD | SignageActivity、themes、Manifest；assembleDebug、assembleDebugAndroidTest、assembleRelease；四项静态门禁 | 不固定启动/欢迎方向，允许调整尺寸；现代全面屏入口，R8/签名/打包成功 |
+| EDGE-PHONE | DeviceUiAudit compact en-US / 1.0 / system-portrait；1080x2400 density420、浅色、手势导航 | 配对、帮助、文章、计费、法律及隐私滚动前后，系统栏不遮挡、无省略或垂直溢出 |
+| EDGE-TABLET | DeviceUiAudit compact en-US / 1.3 / tablet-landscape；2560x1600 density240、深色、三键任务栏 | 大屏遵从系统横屏，页面可滚动，避开任务栏；与手机范围相同 |
+| EDGE-RELEASE | 保留数据覆盖 Release；Splash -> Welcome -> Main；欢迎页从平板横屏调整为手机竖屏 | R8 后 ViewBinding 正常，欢迎页面重排，入口可操作 |
+| EDGE-REMAINING | 实体设备、实际分屏拖拽、API23–35 UI、Play Console 新版本扫描 | 本轮未执行，不能由模拟器或策略单测代替 |
+
 ## 崩溃风险加固（2026-10-20）
 
 - 增量范围：MainActivity 页面绑定、SignagePlaybackController/WebViewRecovery、SignageStore/StorageFailureBoundary、SignageRuntime/启动与服务入口、KtorSignageServer/RetryAttempt，以及存储故障提示的现有九个语言目录。

@@ -1,14 +1,13 @@
 package com.wkq.localsignage
 
 import android.content.res.Configuration
-import com.wkq.base.activity.BaseActivity
 import com.wkq.localsignage.feature.app.databinding.ActivityHelpBinding
 
-class HelpActivity : BaseActivity<ActivityHelpBinding>() {
+class HelpActivity : SignageActivity<ActivityHelpBinding>() {
     override fun initView() {
         binding.toolbar.wrapTitle()
-        enableEdgeToEdgeSystemBars(binding.toolbarContainer)
-        binding.toolbarContainer.applySystemBarPadding(horizontal = true)
+        enableEdgeToEdgeSystemBars()
+        binding.toolbarContainer.applySystemBarPadding(top = true, horizontal = true)
         binding.helpScroll.applySystemBarPadding(bottom = true, horizontal = true)
         binding.toolbar.setNavigationOnClickListener { finish() }
         binding.quickStartButton.setOnClickListener { openArticle(HelpArticleActivity.ARTICLE_QUICK_START) }

@@ -3,15 +3,14 @@ package com.wkq.localsignage
 import android.content.Context
 import android.content.Intent
 import android.content.res.Configuration
-import com.wkq.base.activity.BaseActivity
 import com.wkq.localsignage.feature.app.R
 import com.wkq.localsignage.feature.app.databinding.ActivityLegalDocumentBinding
 import java.nio.charset.StandardCharsets
 
-class LegalDocumentActivity : BaseActivity<ActivityLegalDocumentBinding>() {
+class LegalDocumentActivity : SignageActivity<ActivityLegalDocumentBinding>() {
     override fun initView() {
-        enableEdgeToEdgeSystemBars(binding.toolbarContainer)
-        binding.toolbarContainer.applySystemBarPadding(horizontal = true)
+        enableEdgeToEdgeSystemBars()
+        binding.toolbarContainer.applySystemBarPadding(top = true, horizontal = true)
         binding.documentScroll.applySystemBarPadding(bottom = true, horizontal = true)
         binding.toolbar.setNavigationOnClickListener { finish() }
         val (title, document) = documentResources(intent.getStringExtra(EXTRA_DOCUMENT))

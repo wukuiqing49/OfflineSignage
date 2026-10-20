@@ -9,11 +9,9 @@ import android.view.ViewGroup
 import android.widget.LinearLayout
 import android.widget.Toast
 import androidx.activity.viewModels
-import androidx.core.view.doOnLayout
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.lifecycleScope
 import androidx.lifecycle.repeatOnLifecycle
-import com.wkq.base.activity.BaseActivity
 import com.wkq.google.billing.GoogleProduct
 import com.wkq.localsignage.feature.app.R
 import com.wkq.localsignage.feature.app.databinding.ActivityBillingBinding
@@ -27,7 +25,7 @@ import kotlinx.coroutines.launch
 import java.util.concurrent.TimeUnit
 import kotlin.math.max
 
-class BillingActivity : BaseActivity<ActivityBillingBinding>() {
+class BillingActivity : SignageActivity<ActivityBillingBinding>() {
     private val viewModel by viewModels<BillingViewModel>()
     private var subscriptionProduct: GoogleProduct? = null
     private var hasPositionedContent = false
@@ -35,8 +33,8 @@ class BillingActivity : BaseActivity<ActivityBillingBinding>() {
 
     override fun initView() {
         binding.toolbar.wrapTitle()
-        enableEdgeToEdgeSystemBars(binding.toolbarContainer)
-        binding.toolbarContainer.applySystemBarPadding(horizontal = true)
+        enableEdgeToEdgeSystemBars()
+        binding.toolbarContainer.applySystemBarPadding(top = true, horizontal = true)
         binding.contentScroll.applySystemBarPadding(bottom = true, horizontal = true)
         if (resources.configuration.uiMode and Configuration.UI_MODE_TYPE_MASK ==
             Configuration.UI_MODE_TYPE_TELEVISION
@@ -46,7 +44,9 @@ class BillingActivity : BaseActivity<ActivityBillingBinding>() {
             binding.billingRoot.requestFocus()
         }
         binding.toolbar.setNavigationOnClickListener { finish() }
-        binding.planContainer.doOnLayout { configurePlanLayout(it.width) }
+        binding.planContainer.addOnLayoutChangeListener { _, left, _, right, _, oldLeft, _, oldRight, _ ->
+            if (right - left != oldRight - oldLeft) configurePlanLayout(right - left)
+        }
         binding.subscriptionButton.setOnClickListener { subscriptionProduct?.let(::launchPurchase) }
         // Launch offer: annual only. Legacy monthly and lifetime purchases are still restored by the repository.
         binding.monthlyPanel.visibility = View.GONE

@@ -2,7 +2,6 @@ package com.wkq.localsignage
 
 import android.content.Intent
 import android.content.res.ColorStateList
-import android.content.pm.ActivityInfo
 import android.content.pm.PackageManager
 import android.content.res.Configuration
 import android.os.Build
@@ -17,14 +16,16 @@ import android.view.WindowManager
 import android.widget.LinearLayout
 import androidx.core.content.ContextCompat
 import androidx.activity.result.contract.ActivityResultContracts
-import androidx.core.view.WindowCompat
+import androidx.core.view.ViewCompat
+import androidx.core.view.doOnAttach
+import androidx.core.view.updatePadding
+import androidx.core.view.updateLayoutParams
 import androidx.core.view.WindowInsetsCompat
 import androidx.core.view.WindowInsetsControllerCompat
 import androidx.core.view.isVisible
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.lifecycleScope
 import androidx.lifecycle.repeatOnLifecycle
-import com.wkq.base.activity.BaseActivity
 import com.wkq.localsignage.databinding.ActivityMainBinding
 import com.wkq.localsignage.feature.app.model.PlaybackListener
 import com.wkq.localsignage.feature.app.R as FeatureAppR
@@ -40,7 +41,7 @@ import java.util.concurrent.TimeUnit
 import kotlin.math.max
 import kotlin.math.min
 
-class MainActivity : BaseActivity<ActivityMainBinding>(), PlaybackListener {
+class MainActivity : SignageActivity<ActivityMainBinding>(), PlaybackListener {
     private var appliedKeepScreenAwake: Boolean? = null
     private var appliedFullscreen: Boolean? = null
     private var pairingManuallyOpened = false
@@ -89,13 +90,8 @@ class MainActivity : BaseActivity<ActivityMainBinding>(), PlaybackListener {
             finish()
             return
         }
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) {
-            window.attributes = window.attributes.apply {
-                layoutInDisplayCutoutMode = WindowManager.LayoutParams.LAYOUT_IN_DISPLAY_CUTOUT_MODE_SHORT_EDGES
-            }
-        }
         SignagePlaybackController.initialize(this)
-        WindowCompat.setDecorFitsSystemWindows(window, false)
+        installPlaybackInsets()
         applyDisplaySettings()
         SignagePlaybackController.attach(playbackViews, this)
         playbackAttached = true
@@ -154,7 +150,10 @@ class MainActivity : BaseActivity<ActivityMainBinding>(), PlaybackListener {
             val width = right - left
             val height = bottom - top
             if (width != oldRight - oldLeft || height != oldBottom - oldTop) {
-                configurePairingLayout(width, height)
+                configurePairingLayout(
+                    width - binding.pairingPanel.paddingLeft - binding.pairingPanel.paddingRight,
+                    height - binding.pairingPanel.paddingTop - binding.pairingPanel.paddingBottom
+                )
             }
         }
         configureTvFocusTargets()
@@ -428,11 +427,11 @@ class MainActivity : BaseActivity<ActivityMainBinding>(), PlaybackListener {
 
     private fun applyDisplaySettings() {
         val settings = SignageRuntime.settings()
-        val targetOrientation = when (settings.orientation) {
-            "LANDSCAPE" -> ActivityInfo.SCREEN_ORIENTATION_LANDSCAPE
-            "PORTRAIT" -> ActivityInfo.SCREEN_ORIENTATION_PORTRAIT
-            else -> ActivityInfo.SCREEN_ORIENTATION_UNSPECIFIED
-        }
+        val targetOrientation = PlaybackOrientationPolicy.resolve(
+            settings.orientation,
+            resources.configuration.smallestScreenWidthDp,
+            Build.VERSION.SDK_INT >= Build.VERSION_CODES.N && isInMultiWindowMode
+        )
         if (requestedOrientation != targetOrientation) requestedOrientation = targetOrientation
         if (appliedKeepScreenAwake != settings.keepScreenAwake) {
             if (settings.keepScreenAwake) {
@@ -453,7 +452,53 @@ class MainActivity : BaseActivity<ActivityMainBinding>(), PlaybackListener {
                 show(WindowInsetsCompat.Type.systemBars())
             }
         }
-        appliedFullscreen = shouldFullscreen
+        if (appliedFullscreen != shouldFullscreen) {
+            appliedFullscreen = shouldFullscreen
+            ViewCompat.requestApplyInsets(binding.root)
+        }
+    }
+
+    private fun installPlaybackInsets() {
+        val controls = binding.playbackStatusBar.layoutParams as android.widget.FrameLayout.LayoutParams
+        val controlTop = controls.topMargin
+        val controlEnd = controls.marginEnd
+        val badge = binding.trialExpiredBadge.layoutParams as android.widget.FrameLayout.LayoutParams
+        val badgeTop = badge.topMargin
+        val badgeStart = badge.marginStart
+        ViewCompat.setOnApplyWindowInsetsListener(binding.root) { root, insets ->
+            val safe = insets.getInsets(WindowInsetsCompat.Type.systemBars() or WindowInsetsCompat.Type.displayCutout())
+            val fullscreen = appliedFullscreen == true
+            val rtl = root.layoutDirection == View.LAYOUT_DIRECTION_RTL
+            // 播放画面可铺满屏幕；可操作控件必须避开系统栏和刘海。
+            root.updatePadding(
+                left = if (fullscreen) 0 else safe.left,
+                top = if (fullscreen) 0 else safe.top,
+                right = if (fullscreen) 0 else safe.right,
+                bottom = if (fullscreen) 0 else safe.bottom
+            )
+            binding.pairingPanel.updatePadding(
+                left = if (fullscreen) safe.left else 0,
+                top = if (fullscreen) safe.top else 0,
+                right = if (fullscreen) safe.right else 0,
+                bottom = if (fullscreen) safe.bottom else 0
+            )
+            binding.playbackStatusBar.updateLayoutParams<android.widget.FrameLayout.LayoutParams> {
+                topMargin = controlTop + if (fullscreen) safe.top else 0
+                marginEnd = controlEnd + if (fullscreen) (if (rtl) safe.left else safe.right) else 0
+            }
+            binding.trialExpiredBadge.updateLayoutParams<android.widget.FrameLayout.LayoutParams> {
+                topMargin = badgeTop + if (fullscreen) safe.top else 0
+                marginStart = badgeStart + if (fullscreen) (if (rtl) safe.right else safe.left) else 0
+            }
+            if (binding.pairingPanel.width > 0 && binding.pairingPanel.height > 0) {
+                configurePairingLayout(
+                    binding.pairingPanel.width - binding.pairingPanel.paddingLeft - binding.pairingPanel.paddingRight,
+                    binding.pairingPanel.height - binding.pairingPanel.paddingTop - binding.pairingPanel.paddingBottom
+                )
+            }
+            insets
+        }
+        binding.root.doOnAttach(ViewCompat::requestApplyInsets)
     }
 
     private fun refreshPairingPanel() {

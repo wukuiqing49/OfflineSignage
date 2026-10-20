@@ -1,6 +1,20 @@
 # 功能回归测试报告（最新一轮）
 
-最新结果见下方“崩溃风险加固（2026-10-20）”；其余区块保留各自测试时的历史状态。
+最新结果见下方“全面屏与大屏适配（2026-10-20）”；其余区块保留各自测试时的历史状态。
+
+## 全面屏与大屏适配（2026-10-20）
+
+- 增量模式，main / HEAD d648970，本轮修改未提交。开始前 pull --ff-only 返回已是最新。版本仍为 1.4.0 / 1004000，compile/target 36，未降低 SDK。通过 5 组，最终失败 0、受阻 0，未执行 1 组（EDGE-REMAINING）。
+- 改动：统一 WindowCompat.enableEdgeToEdge，覆盖 BaseActivity 默认重复 Insets；移除应用自身旧系统栏颜色/shortEdges 配置；页面避让系统栏与刘海，滚动区支持 IME。播放保留全屏背景，控件在安全区。Manifest 允许 resize，启动/欢迎不锁横屏，大屏和多窗口播放不申请固定方向；欢迎/套餐布局在尺寸变化后重排。
+- EDGE-UNIT：本次通过。app 7 + feature_app 113 = 120 tests，0 failures/errors/skipped；新增方向策略 4 项、Insets 2 项（Robolectric API35）。命令 `gradlew.bat :app:testDebugUnitTest :feature:feature_app:testDebugUnitTest :app:assembleDebug :app:assembleDebugAndroidTest :app:assembleRelease --console=plain --max-workers=1 --no-parallel`，临时 init script Test 堆 128–512m、forkEvery=8，Kotlin in-process。JUnit XML 为两个模块 build/test-results/testDebugUnitTest/TEST-*.xml；日志 build/edge-to-edge-retry.log。此组合命令测试通过后 Release 内存不足，构建单独重跑见下一项。
+- EDGE-BUILD：本次通过。最终 `gradlew.bat :app:assembleDebug :app:assembleDebugAndroidTest :app:assembleRelease --console=plain --max-workers=1 --no-parallel -Pkotlin.compiler.execution.strategy=in-process`，exit 0 / 4m53s；使用项目原有 Gradle 2GB 堆配置。证据 build/edge-packaging.log；APK app/build/outputs/apk/{debug,release}/app-{debug,release}.apk。架构/UI/build/i18n 四门禁 exit0（build/edge-*-gate.log），git diff --check 通过。既有 Insets、多消费者、滚动及非 Tab ViewPager 等扫描警告保留，不等于视觉错误。
+- EDGE-PHONE、EDGE-TABLET：本次通过。专用 Android36 x86_64 模拟器 emulator-5558，未操作物理设备。命令 `adb -s emulator-5558 shell am instrument -w -e mode compact -e locale en-US -e fontScale <1.0|1.3> -e orientation <system-portrait|tablet-landscape> com.wkq.localsignage.test/com.wkq.localsignage.DeviceUiAudit`。两次均 result=Audited 14 page states / code=-1；实际方向分别为 portrait=1 / landscape=2。页面包括配对、帮助、两篇文章、计费、法律、隐私，均含滚动后状态；JSON 未发现 ellipsis 或 verticalOverflow，检查帮助/计费/法律截图无系统栏遮挡。计费为无 Play 商品可用状态，未验证真实价格卡片或交易。
+- 手机配置 1080x2400 / density420 / 浅色 / 字体1.0 / 手势；平板配置 2560x1600 / density240 / 深色 / 字体1.3 / 三键任务栏。报告及原始截图在 build/functional-test/edge-20261020/；含配对凭据的原始截图仅留忽略目录，不复制到 Git。可跨电脑复核的非敏感截图见 [evidence/edge-20261020](evidence/edge-20261020)。
+- EDGE-RELEASE：本次通过。保留数据安装同签名 Release 成功；Splash 进入 Welcome，检查平板横屏深色与手机竖屏浅色布局，按钮完整可见，点击 Start setup 后 MainActivity resumed。截图 release-welcome-*.png 在上述 evidence 目录。曾启用 tall cutout 模拟 overlay，但截图未确认实际刘海轮廓，实体刘海效果不记为通过；Insets 刘海值由单测覆盖。
+- 测试过程失败记录：初次低堆测试出现 Robolectric OOM，改为上述 512m 后120项通过；低 Gradle Metaspace 上限导致 R8 daemon 退出，恢复项目配置后构建通过。首次模拟器进程启动 ANR，后续运行完成；UI 巡检最初被系统全屏提示遮挡，确认提示后重跑；`en` 与实际 `en-US` 严格断言不匹配导致测试 runner 抛出异常，改用实际 locale 后两轮通过。这些测试环境失败不计为最终生产崩溃修复证据。
+- 已恢复模拟器原始分辨率/密度、字体1.0、浅色、自动旋转1/user_rotation0、手势导航与 cutout overlay；恢复原空 immersive_mode_confirmations。未清空数据库、卸载应用或开启统计采集。
+- EDGE-REMAINING：未执行。实体设备、实际分屏拖拽/折叠屏、API23–35 页面、真实商品卡片、长期播放与 Play Console 上传后复扫。旧1.3.0条目不会因本地代码改变消失，不能保证依赖库的弃用 API 警告全部清除。未打包 AAB、未上传或发布。
+- 不推进 TEST_BASELINE.json：本轮未建立包含未提交/未跟踪源码的可靠指纹，历史基线保持。
 
 ## 崩溃风险加固（2026-10-20）
 

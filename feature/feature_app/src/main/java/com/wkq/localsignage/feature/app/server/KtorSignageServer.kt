@@ -439,13 +439,7 @@ class KtorSignageServer(context: Context, private val port: Int) {
                     if (!call.authorized()) return@post
                     try {
                         val body = call.receiveText()
-                        val settings = SignageSettings(
-                            fallbackSceneId = jsonString(body, "fallbackSceneId"),
-                            keepScreenAwake = jsonBoolean(body, "keepScreenAwake") ?: true,
-                            autoResume = jsonBoolean(body, "autoResume") ?: true,
-                            fullscreen = jsonBoolean(body, "fullscreen") ?: true,
-                            orientation = jsonString(body, "orientation") ?: "AUTO"
-                        )
+                        val settings = applySettingsPatch(body, SignageRuntime.settings())
                         SignageRuntime.setSettings(settings)
                         call.respondJson(settingsJson())
                     } catch (error: IllegalArgumentException) {

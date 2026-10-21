@@ -22,7 +22,6 @@ import kotlinx.coroutines.sync.withLock
 
 object MonetizationRepository {
     const val PRO_SUBSCRIPTION_ID = "pro_subscription"
-    // Kept for restoring historical purchases; the launch purchase screen offers annual Pro only.
     const val LIFETIME_PRODUCT_ID = "pro_lifetime"
     const val MONTHLY_BASE_PLAN_ID = "pro-month"
     val monthlyBasePlanIds = setOf(MONTHLY_BASE_PLAN_ID, "pro-mouth")
@@ -91,14 +90,17 @@ object MonetizationRepository {
         _uiState.value = previousState.copy(loading = true, errorMessage = "")
         var catalogError: Throwable? = null
         val catalog = if (loadCatalog) {
-            GoogleKit.billing.queryConfiguredCatalog().getOrElse {
+            combineBillingCatalog(
+                GoogleKit.billing.queryProducts(listOf(PRO_SUBSCRIPTION_ID), GoogleProductType.SUBS),
+                GoogleKit.billing.queryProducts(listOf(LIFETIME_PRODUCT_ID), GoogleProductType.IN_APP)
+            ).getOrElse {
                 catalogError = it
                 GoogleBillingCatalog()
             }
         } else {
             previousState.catalog
         }
-        if (loadCatalog && catalogError == null && !catalog.hasAllConfiguredProducts()) {
+        if (loadCatalog && catalogError == null && !catalog.availablePlans().hasAny) {
             catalogError = IllegalStateException("Configured Google Play products are unavailable.")
         }
         val subscriptionResult = GoogleKit.billing.queryActivePurchases(GoogleProductType.SUBS)
@@ -158,13 +160,6 @@ object MonetizationRepository {
                 ?: lifetimeResult.exceptionOrNull()?.message
                 ?: ""
         )
-    }
-
-    private fun GoogleBillingCatalog.hasAllConfiguredProducts(): Boolean {
-        val hasYearly = subscriptions.any {
-            it.baseProductId == PRO_SUBSCRIPTION_ID && it.basePlanId == YEARLY_BASE_PLAN_ID
-        }
-        return hasYearly
     }
 
     private suspend fun processPurchaseUpdate(purchases: List<GooglePurchase>) {

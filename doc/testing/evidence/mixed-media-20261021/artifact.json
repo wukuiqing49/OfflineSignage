@@ -1,0 +1,6 @@
+{
+  "apk": "app/build/outputs/apk/debug/app-debug.apk",
+  "sha256": "98abb592e017adc07debf202ec5a838baf152cafe7614a470ee7fd9dc4ca15c5",
+  "androidApi": 36,
+  "virtualOnly": true
+}

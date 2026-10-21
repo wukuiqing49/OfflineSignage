@@ -1,0 +1,6 @@
+<resources>
+    <!-- 横屏低高度窗口减少留白，帮助、法律与授权正文仍完整滚动。 -->
+    <dimen name="billing_screen_padding">16dp</dimen>
+    <dimen name="welcome_compact_screen_padding">16dp</dimen>
+    <dimen name="welcome_compact_content_gap">20dp</dimen>
+</resources>

@@ -1,0 +1,71 @@
+Applications Memory Usage (in Kilobytes):
+Uptime: 179298 Realtime: 179298
+
+** MEMINFO in pid 2837 [com.wkq.localsignage] **
+                   Pss  Private  Private  SwapPss      Rss     Heap     Heap     Heap
+                 Total    Dirty    Clean    Dirty    Total     Size    Alloc     Free
+                ------   ------   ------   ------   ------   ------   ------   ------
+  Native Heap    27602    27584        8       33    28776    42904    35508     3317
+  Dalvik Heap    23720    19652     4028       19    26100    22641    11321    11320
+ Dalvik Other    13952     6072       28        0    22204
+        Stack     2988     2988        0        0     2992
+       Ashmem      335      172        0        0     1124
+    Other dev       32        0       28        0      508
+     .so mmap    10704     1396     4132       12    51104
+    .jar mmap     3399        0      452        0    49352
+    .apk mmap    39353      504    21132        0    62356
+    .ttf mmap      241        0        8        0     1140
+    .dex mmap       50        0        0        0     1048
+    .oat mmap       31        0        0        0     1832
+    .art mmap     6458     5108     1032     3941    25192
+   Other mmap    14638     5164      844        0    24484
+      Unknown    49669    49660        4        4    50156
+        TOTAL   197181   118300    31696     4009   348368    65545    46829    14637
+
+ App Summary
+                       Pss(KB)                        Rss(KB)
+                        ------                         ------
+           Java Heap:    25792                          51292
+         Native Heap:    27584                          28776
+                Code:    27876                         182784
+               Stack:     2988                           2992
+            Graphics:        0                              0
+       Private Other:    65756
+              System:    47185
+             Unknown:                                   82524
+
+           TOTAL PSS:   197181            TOTAL RSS:   348368       TOTAL SWAP PSS:     4009
+
+ Objects
+               Views:       69         ViewRootImpl:        1
+         AppContexts:        7           Activities:        1
+              Assets:       23        AssetManagers:        0
+       Local Binders:       49        Proxy Binders:       76
+       Parcel memory:       17         Parcel count:       70
+    Death Recipients:        5             WebViews:        1
+
+ Native Allocations
+                         Count                       Total(kB)
+                        ------                         ------
+    Other (malloced):      838                             78
+ Other (nonmalloced):      129                             87
+   Bitmap (malloced):        1                              4
+Bitmap (nonmalloced):        1                              4
+
+ SQL
+         MEMORY_USED:      492
+  PAGECACHE_OVERFLOW:      172          MALLOC_SIZE:       46
+
+ DATABASES
+      pgsz     dbsz   Lookaside(b) cache hits cache misses cache size  Dbname
+PER CONNECTION STATS
+         4       56             68   135    55     6  /data/user/0/com.wkq.localsignage/databases/com.google.android.datatransport.events
+         4      128            123 12647    80    12  /data/user/0/com.wkq.localsignage/databases/signage.db
+         4       96            106     4    40     6  /data/user/0/com.wkq.localsignage/no_backup/androidx.work.workdb
+         4        8                    0     0     0    (attached) temp
+         4       96             32     2    21     3  /data/user/0/com.wkq.localsignage/no_backup/androidx.work.workdb (2)
+POOL STATS
+     cache hits  cache misses    cache size  Dbname
+            135            56           191  /data/user/0/com.wkq.localsignage/databases/com.google.android.datatransport.events
+          12647            81         12728  /data/user/0/com.wkq.localsignage/databases/signage.db
+              8            82            90  /data/user/0/com.wkq.localsignage/no_backup/androidx.work.workdb

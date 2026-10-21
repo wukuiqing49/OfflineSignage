@@ -1,0 +1,70 @@
+Applications Memory Usage (in Kilobytes):
+Uptime: 76086 Realtime: 76086
+
+** MEMINFO in pid 2837 [com.wkq.localsignage] **
+                   Pss  Private  Private  SwapPss      Rss     Heap     Heap     Heap
+                 Total    Dirty    Clean    Dirty    Total     Size    Alloc     Free
+                ------   ------   ------   ------   ------   ------   ------   ------
+  Native Heap    22722    22708        4       31    23900    37772    31316     2135
+  Dalvik Heap     9094     9052        4       84    11496    18270     9135     9135
+ Dalvik Other    17206    13296        0        0    21516
+        Stack     2248     2248        0        0     2252
+       Ashmem      341      172        0        0     1120
+    Other dev       16        0       12        0      472
+     .so mmap     8216     1376     1848       12    49032
+    .jar mmap     3299        0      376        0    49320
+    .apk mmap    39339      504    21488        0    62072
+    .ttf mmap      241        0        8        0     1140
+    .dex mmap       50        0        0        0     1048
+    .oat mmap       31        0        0        0     1832
+    .art mmap     9333     9000       32       59    28052
+   Other mmap    12432     5308      636        0    20148
+      Unknown    49609    49600        4        0    50096
+        TOTAL   174363   113264    24412      186   323496    56042    40451    11270
+
+ App Summary
+                       Pss(KB)                        Rss(KB)
+                        ------                         ------
+           Java Heap:    18084                          39548
+         Native Heap:    22708                          23900
+                Code:    25944                         172604
+               Stack:     2248                           2252
+            Graphics:        0                              0
+       Private Other:    68692
+              System:    36687
+             Unknown:                                   85192
+
+           TOTAL PSS:   174363            TOTAL RSS:   323496       TOTAL SWAP PSS:      186
+
+ Objects
+               Views:       81         ViewRootImpl:        2
+         AppContexts:        9           Activities:        2
+              Assets:       23        AssetManagers:        0
+       Local Binders:       56        Proxy Binders:       79
+       Parcel memory:       16         Parcel count:       64
+    Death Recipients:        8             WebViews:        1
+
+ Native Allocations
+                         Count                       Total(kB)
+                        ------                         ------
+    Other (malloced):      873                             82
+ Other (nonmalloced):      151                            103
+   Bitmap (malloced):        3                             69
+
+ SQL
+         MEMORY_USED:      492
+  PAGECACHE_OVERFLOW:      172          MALLOC_SIZE:       46
+
+ DATABASES
+      pgsz     dbsz   Lookaside(b) cache hits cache misses cache size  Dbname
+PER CONNECTION STATS
+         4       56             68   135    49     6  /data/user/0/com.wkq.localsignage/databases/com.google.android.datatransport.events
+         4      128            123   707    40    12  /data/user/0/com.wkq.localsignage/databases/signage.db
+         4       96            106     4    30     6  /data/user/0/com.wkq.localsignage/no_backup/androidx.work.workdb
+         4        8                    0     0     0    (attached) temp
+         4       96             32     2    15     3  /data/user/0/com.wkq.localsignage/no_backup/androidx.work.workdb (2)
+POOL STATS
+     cache hits  cache misses    cache size  Dbname
+            135            50           185  /data/user/0/com.wkq.localsignage/databases/com.google.android.datatransport.events
+            707            41           748  /data/user/0/com.wkq.localsignage/databases/signage.db
+              8            66            74  /data/user/0/com.wkq.localsignage/no_backup/androidx.work.workdb

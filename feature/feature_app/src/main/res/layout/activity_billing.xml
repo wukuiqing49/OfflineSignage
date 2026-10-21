@@ -1,5 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
-<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+<LinearLayout
+    xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:app="http://schemas.android.com/apk/res-auto"
     android:id="@+id/billing_root"
     android:layout_width="match_parent"
@@ -7,13 +8,11 @@
     android:background="@color/billing_background"
     android:focusableInTouchMode="true"
     android:orientation="vertical">
-
     <FrameLayout
         android:id="@+id/toolbar_container"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:background="@color/billing_surface">
-
         <com.google.android.material.appbar.MaterialToolbar
             android:id="@+id/toolbar"
             android:layout_width="match_parent"
@@ -23,12 +22,10 @@
             app:title="@string/billing_title"
             app:titleTextColor="@color/billing_text_primary" />
     </FrameLayout>
-
     <FrameLayout
         android:layout_width="match_parent"
         android:layout_height="0dp"
         android:layout_weight="1">
-
         <ScrollView
             android:id="@+id/content_scroll"
             android:layout_width="match_parent"
@@ -36,11 +33,9 @@
             android:clipToPadding="false"
             android:fillViewport="true"
             android:scrollbars="none">
-
             <androidx.constraintlayout.widget.ConstraintLayout
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content">
-
                 <LinearLayout
                     android:id="@+id/billing_content"
                     android:layout_width="0dp"
@@ -50,281 +45,287 @@
                     app:layout_constraintEnd_toEndOf="parent"
                     app:layout_constraintStart_toStartOf="parent"
                     app:layout_constraintTop_toTopOf="parent"
-                    app:layout_constraintWidth_max="@dimen/billing_content_max_width">
-
+                    app:layout_constraintWidth_max="@dimen/billing_content_max_width"
+                    android:baselineAligned="false">
                     <LinearLayout
+                        android:id="@+id/billing_summary_column"
                         android:layout_width="match_parent"
                         android:layout_height="wrap_content"
-                        android:background="@drawable/bg_billing_status"
-                        android:orientation="vertical"
-                        android:padding="@dimen/app_spacing_large">
-
-                        <TextView
+                        android:orientation="vertical">
+                        <LinearLayout
                             android:layout_width="match_parent"
                             android:layout_height="wrap_content"
-                            android:text="@string/billing_current_version"
+                            android:background="@drawable/bg_billing_status"
+                            android:orientation="vertical"
+                            android:padding="@dimen/app_spacing_large">
+                            <TextView
+                                android:layout_width="match_parent"
+                                android:layout_height="wrap_content"
+                                android:text="@string/billing_current_version"
+                                android:textColor="@color/billing_text_secondary"
+                                android:textSize="13sp" />
+                            <TextView
+                                android:id="@+id/entitlement_status"
+                                android:layout_width="match_parent"
+                                android:layout_height="wrap_content"
+                                android:layout_marginTop="6dp"
+                                android:textColor="@color/billing_text_primary"
+                                android:textSize="22sp"
+                                android:textStyle="bold" />
+                            <TextView
+                                android:id="@+id/pending_notice"
+                                android:layout_width="match_parent"
+                                android:layout_height="wrap_content"
+                                android:layout_marginTop="@dimen/app_spacing_small"
+                                android:text="@string/billing_pending_notice"
+                                android:textColor="@color/billing_warning"
+                                android:textSize="14sp"
+                                android:visibility="gone" />
+                            <TextView
+                                android:id="@+id/billing_error"
+                                android:layout_width="match_parent"
+                                android:layout_height="wrap_content"
+                                android:layout_marginTop="@dimen/app_spacing_small"
+                                android:textColor="@color/billing_error"
+                                android:textSize="14sp"
+                                android:visibility="gone" />
+                            <com.google.android.material.button.MaterialButton
+                                style="@style/Widget.Material3.Button.TextButton"
+                                android:id="@+id/retry_catalog_button"
+                                android:layout_width="wrap_content"
+                                android:layout_height="wrap_content"
+                                android:layout_marginTop="@dimen/app_spacing_small"
+                                android:text="@string/billing_retry_catalog"
+                                android:visibility="gone"
+                                app:cornerRadius="@dimen/ui_corner_radius"
+                                android:minHeight="48dp" />
+                            <TextView
+                                android:layout_width="match_parent"
+                                android:layout_height="wrap_content"
+                                android:layout_marginTop="@dimen/app_spacing_small"
+                                android:text="@string/billing_play_account_note"
+                                android:textColor="@color/billing_text_secondary"
+                                android:textSize="13sp" />
+                            <com.google.android.material.button.MaterialButton
+                                android:id="@+id/manage_subscription_button"
+                                style="@style/Widget.Material3.Button.TextButton"
+                                android:layout_width="wrap_content"
+                                android:layout_height="wrap_content"
+                                android:layout_marginTop="@dimen/app_spacing_small"
+                                android:minWidth="0dp"
+                                android:text="@string/billing_manage_subscription"
+                                android:visibility="gone"
+                                app:cornerRadius="@dimen/ui_corner_radius"
+                                android:minHeight="48dp" />
+                        </LinearLayout>
+                        <TextView
+                            android:id="@+id/pro_benefits"
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:layout_marginTop="@dimen/app_spacing_large"
+                            android:background="@drawable/bg_billing_plan"
+                            android:padding="@dimen/app_spacing_large"
+                            android:text="@string/billing_pro_benefits"
                             android:textColor="@color/billing_text_secondary"
-                            android:textSize="13sp" />
-
+                            android:textSize="14sp"
+                            android:lineSpacingExtra="4dp" />
+                    </LinearLayout>
+                    <LinearLayout
+                        android:id="@+id/billing_actions_column"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:orientation="vertical">
                         <TextView
-                            android:id="@+id/entitlement_status"
+                            android:id="@+id/plan_section_title"
                             android:layout_width="match_parent"
                             android:layout_height="wrap_content"
-                            android:layout_marginTop="6dp"
+                            android:layout_marginTop="@dimen/app_spacing_medium"
+                            android:text="@string/billing_choose_plan"
                             android:textColor="@color/billing_text_primary"
-                            android:textSize="22sp"
+                            android:textSize="18sp"
                             android:textStyle="bold" />
-
-                        <TextView
-                            android:id="@+id/pending_notice"
+                        <LinearLayout
+                            android:id="@+id/plan_container"
                             android:layout_width="match_parent"
                             android:layout_height="wrap_content"
-                            android:layout_marginTop="@dimen/app_spacing_small"
-                            android:text="@string/billing_pending_notice"
-                            android:textColor="@color/billing_warning"
-                            android:textSize="14sp"
-                            android:visibility="gone" />
-
-                        <TextView
-                            android:id="@+id/billing_error"
+                            android:layout_marginTop="@dimen/app_spacing_medium"
+                            android:baselineAligned="false"
+                            android:orientation="horizontal">
+                            <LinearLayout
+                                android:id="@+id/monthly_panel"
+                                android:layout_width="0dp"
+                                android:layout_height="wrap_content"
+                                android:layout_weight="1"
+                                android:background="@drawable/bg_billing_plan"
+                                android:orientation="vertical"
+                                android:padding="@dimen/app_spacing_large">
+                                <TextView
+                                    android:layout_width="match_parent"
+                                    android:layout_height="wrap_content"
+                                    android:text="@string/billing_monthly_title"
+                                    android:textColor="@color/billing_text_primary"
+                                    android:textSize="18sp"
+                                    android:textStyle="bold" />
+                                <TextView
+                                    android:id="@+id/monthly_price"
+                                    android:layout_width="match_parent"
+                                    android:layout_height="wrap_content"
+                                    android:layout_marginTop="@dimen/app_spacing_medium"
+                                    android:textColor="@color/billing_accent"
+                                    android:textSize="26sp"
+                                    android:textStyle="bold" />
+                                <TextView
+                                    android:layout_width="match_parent"
+                                    android:layout_height="wrap_content"
+                                    android:layout_marginTop="@dimen/app_spacing_small"
+                                    android:text="@string/billing_monthly_description"
+                                    android:textColor="@color/billing_text_secondary"
+                                    android:textSize="14sp" />
+                                <com.google.android.material.button.MaterialButton
+                                    android:id="@+id/monthly_button"
+                                    style="@style/Widget.Material3.Button.OutlinedButton"
+                                    android:layout_width="match_parent"
+                                    android:layout_height="wrap_content"
+                                    android:layout_marginTop="@dimen/app_spacing_large"
+                                    android:enabled="false"
+                                    android:text="@string/billing_subscribe_monthly"
+                                    app:cornerRadius="@dimen/ui_corner_radius"
+                                    android:minHeight="48dp" />
+                            </LinearLayout>
+                            <LinearLayout
+                                android:id="@+id/subscription_panel"
+                                android:layout_width="0dp"
+                                android:layout_height="wrap_content"
+                                android:layout_marginStart="@dimen/app_spacing_medium"
+                                android:layout_weight="1"
+                                android:background="@drawable/bg_billing_plan_recommended"
+                                android:orientation="vertical"
+                                android:padding="@dimen/app_spacing_large">
+                                <TextView
+                                    android:layout_width="wrap_content"
+                                    android:layout_height="wrap_content"
+                                    android:background="@drawable/bg_welcome_label"
+                                    android:paddingStart="10dp"
+                                    android:paddingTop="5dp"
+                                    android:paddingEnd="10dp"
+                                    android:paddingBottom="5dp"
+                                    android:text="@string/billing_recommended"
+                                    android:textColor="@color/billing_accent"
+                                    android:textSize="12sp"
+                                    android:textStyle="bold" />
+                                <TextView
+                                    android:layout_width="match_parent"
+                                    android:layout_height="wrap_content"
+                                    android:layout_marginTop="@dimen/app_spacing_medium"
+                                    android:text="@string/billing_subscription_title"
+                                    android:textColor="@color/billing_text_primary"
+                                    android:textSize="18sp"
+                                    android:textStyle="bold" />
+                                <TextView
+                                    android:id="@+id/subscription_price"
+                                    android:layout_width="match_parent"
+                                    android:layout_height="wrap_content"
+                                    android:layout_marginTop="@dimen/app_spacing_small"
+                                    android:textColor="@color/billing_accent"
+                                    android:textSize="26sp"
+                                    android:textStyle="bold" />
+                                <TextView
+                                    android:layout_width="match_parent"
+                                    android:layout_height="wrap_content"
+                                    android:layout_marginTop="@dimen/app_spacing_small"
+                                    android:text="@string/billing_subscription_description"
+                                    android:textColor="@color/billing_text_secondary"
+                                    android:textSize="14sp" />
+                                <com.google.android.material.button.MaterialButton
+                                    android:id="@+id/subscription_button"
+                                    android:layout_width="match_parent"
+                                    android:layout_height="wrap_content"
+                                    android:layout_marginTop="@dimen/app_spacing_large"
+                                    android:enabled="false"
+                                    android:text="@string/billing_subscribe"
+                                    app:cornerRadius="@dimen/ui_corner_radius"
+                                    android:minHeight="48dp" />
+                            </LinearLayout>
+                            <LinearLayout
+                                android:id="@+id/lifetime_panel"
+                                android:layout_width="0dp"
+                                android:layout_height="wrap_content"
+                                android:layout_marginStart="@dimen/app_spacing_medium"
+                                android:layout_weight="1"
+                                android:background="@drawable/bg_billing_plan"
+                                android:orientation="vertical"
+                                android:padding="@dimen/app_spacing_large">
+                                <TextView
+                                    android:layout_width="match_parent"
+                                    android:layout_height="wrap_content"
+                                    android:text="@string/billing_lifetime_title"
+                                    android:textColor="@color/billing_text_primary"
+                                    android:textSize="18sp"
+                                    android:textStyle="bold" />
+                                <TextView
+                                    android:id="@+id/lifetime_price"
+                                    android:layout_width="match_parent"
+                                    android:layout_height="wrap_content"
+                                    android:layout_marginTop="@dimen/app_spacing_medium"
+                                    android:textColor="@color/billing_accent"
+                                    android:textSize="26sp"
+                                    android:textStyle="bold" />
+                                <TextView
+                                    android:layout_width="match_parent"
+                                    android:layout_height="wrap_content"
+                                    android:layout_marginTop="@dimen/app_spacing_small"
+                                    android:text="@string/billing_lifetime_description"
+                                    android:textColor="@color/billing_text_secondary"
+                                    android:textSize="14sp" />
+                                <com.google.android.material.button.MaterialButton
+                                    android:id="@+id/lifetime_button"
+                                    style="@style/Widget.Material3.Button.OutlinedButton"
+                                    android:layout_width="match_parent"
+                                    android:layout_height="wrap_content"
+                                    android:layout_marginTop="@dimen/app_spacing_large"
+                                    android:enabled="false"
+                                    android:text="@string/billing_buy_lifetime"
+                                    app:cornerRadius="@dimen/ui_corner_radius"
+                                    android:minHeight="48dp" />
+                            </LinearLayout>
+                        </LinearLayout>
+                        <com.google.android.material.button.MaterialButton
+                            android:id="@+id/restore_button"
+                            style="@style/Widget.Material3.Button.OutlinedButton"
                             android:layout_width="match_parent"
                             android:layout_height="wrap_content"
-                            android:layout_marginTop="@dimen/app_spacing_small"
-                            android:textColor="@color/billing_error"
-                            android:textSize="14sp"
-                            android:visibility="gone" />
-
+                            android:layout_marginTop="@dimen/app_spacing_medium"
+                            android:text="@string/billing_restore"
+                            app:cornerRadius="@dimen/ui_corner_radius"
+                            android:minHeight="48dp" />
                         <TextView
                             android:layout_width="match_parent"
                             android:layout_height="wrap_content"
-                            android:layout_marginTop="@dimen/app_spacing_small"
-                            android:text="@string/billing_play_account_note"
+                            android:layout_marginTop="@dimen/app_spacing_large"
+                            android:gravity="center"
+                            android:text="@string/billing_legal_note"
                             android:textColor="@color/billing_text_secondary"
                             android:textSize="13sp" />
-
                         <com.google.android.material.button.MaterialButton
-                            android:id="@+id/manage_subscription_button"
+                            android:id="@+id/legal_center_button"
                             style="@style/Widget.Material3.Button.TextButton"
                             android:layout_width="wrap_content"
                             android:layout_height="wrap_content"
-                            android:layout_marginTop="@dimen/app_spacing_small"
+                            android:layout_gravity="center_horizontal"
                             android:minWidth="0dp"
-                            android:text="@string/billing_manage_subscription"
-                            android:visibility="gone" />
+                            android:text="@string/legal_center_title"
+                            app:cornerRadius="@dimen/ui_corner_radius"
+                            android:minHeight="48dp" />
                     </LinearLayout>
-
-                    <TextView
-                        android:id="@+id/pro_benefits"
-                        android:layout_width="match_parent"
-                        android:layout_height="wrap_content"
-                        android:layout_marginTop="@dimen/app_spacing_large"
-                        android:background="@drawable/bg_billing_plan"
-                        android:padding="@dimen/app_spacing_large"
-                        android:text="@string/billing_pro_benefits"
-                        android:textColor="@color/billing_text_secondary"
-                        android:textSize="14sp"
-                        android:lineSpacingExtra="4dp" />
-
-                    <TextView
-                        android:id="@+id/plan_section_title"
-                        android:layout_width="match_parent"
-                        android:layout_height="wrap_content"
-                        android:layout_marginTop="@dimen/app_spacing_medium"
-                        android:text="@string/billing_choose_plan"
-                        android:textColor="@color/billing_text_primary"
-                        android:textSize="18sp"
-                        android:textStyle="bold" />
-
-                    <LinearLayout
-                        android:id="@+id/plan_container"
-                        android:layout_width="match_parent"
-                        android:layout_height="wrap_content"
-                        android:layout_marginTop="@dimen/app_spacing_medium"
-                        android:baselineAligned="false"
-                        android:orientation="horizontal">
-
-                        <LinearLayout
-                            android:id="@+id/monthly_panel"
-                            android:layout_width="0dp"
-                            android:layout_height="wrap_content"
-                            android:layout_weight="1"
-                            android:background="@drawable/bg_billing_plan"
-                            android:orientation="vertical"
-                            android:padding="@dimen/app_spacing_large">
-
-                            <TextView
-                                android:layout_width="match_parent"
-                                android:layout_height="wrap_content"
-                                android:text="@string/billing_monthly_title"
-                                android:textColor="@color/billing_text_primary"
-                                android:textSize="18sp"
-                                android:textStyle="bold" />
-
-                            <TextView
-                                android:id="@+id/monthly_price"
-                                android:layout_width="match_parent"
-                                android:layout_height="wrap_content"
-                                android:layout_marginTop="@dimen/app_spacing_medium"
-                                android:textColor="@color/billing_accent"
-                                android:textSize="26sp"
-                                android:textStyle="bold" />
-
-                            <TextView
-                                android:layout_width="match_parent"
-                                android:layout_height="wrap_content"
-                                android:layout_marginTop="@dimen/app_spacing_small"
-                                android:text="@string/billing_monthly_description"
-                                android:textColor="@color/billing_text_secondary"
-                                android:textSize="14sp" />
-
-                            <com.google.android.material.button.MaterialButton
-                                android:id="@+id/monthly_button"
-                                style="@style/Widget.Material3.Button.OutlinedButton"
-                                android:layout_width="match_parent"
-                                android:layout_height="wrap_content"
-                                android:layout_marginTop="@dimen/app_spacing_large"
-                                android:enabled="false"
-                                android:text="@string/billing_subscribe_monthly" />
-                        </LinearLayout>
-
-                        <LinearLayout
-                            android:id="@+id/subscription_panel"
-                            android:layout_width="0dp"
-                            android:layout_height="wrap_content"
-                            android:layout_marginStart="@dimen/app_spacing_medium"
-                            android:layout_weight="1"
-                            android:background="@drawable/bg_billing_plan_recommended"
-                            android:orientation="vertical"
-                            android:padding="@dimen/app_spacing_large">
-
-                            <TextView
-                                android:layout_width="wrap_content"
-                                android:layout_height="wrap_content"
-                                android:background="@drawable/bg_welcome_label"
-                                android:paddingStart="10dp"
-                                android:paddingTop="5dp"
-                                android:paddingEnd="10dp"
-                                android:paddingBottom="5dp"
-                                android:text="@string/billing_recommended"
-                                android:textColor="@color/billing_accent"
-                                android:textSize="12sp"
-                                android:textStyle="bold" />
-
-                            <TextView
-                                android:layout_width="match_parent"
-                                android:layout_height="wrap_content"
-                                android:layout_marginTop="@dimen/app_spacing_medium"
-                                android:text="@string/billing_subscription_title"
-                                android:textColor="@color/billing_text_primary"
-                                android:textSize="18sp"
-                                android:textStyle="bold" />
-
-                            <TextView
-                                android:id="@+id/subscription_price"
-                                android:layout_width="match_parent"
-                                android:layout_height="wrap_content"
-                                android:layout_marginTop="@dimen/app_spacing_small"
-                                android:textColor="@color/billing_accent"
-                                android:textSize="26sp"
-                                android:textStyle="bold" />
-
-                            <TextView
-                                android:layout_width="match_parent"
-                                android:layout_height="wrap_content"
-                                android:layout_marginTop="@dimen/app_spacing_small"
-                                android:text="@string/billing_subscription_description"
-                                android:textColor="@color/billing_text_secondary"
-                                android:textSize="14sp" />
-
-                            <com.google.android.material.button.MaterialButton
-                                android:id="@+id/subscription_button"
-                                android:layout_width="match_parent"
-                                android:layout_height="wrap_content"
-                                android:layout_marginTop="@dimen/app_spacing_large"
-                                android:enabled="false"
-                                android:text="@string/billing_subscribe" />
-                        </LinearLayout>
-
-                        <LinearLayout
-                            android:id="@+id/lifetime_panel"
-                            android:layout_width="0dp"
-                            android:layout_height="wrap_content"
-                            android:layout_marginStart="@dimen/app_spacing_medium"
-                            android:layout_weight="1"
-                            android:background="@drawable/bg_billing_plan"
-                            android:orientation="vertical"
-                            android:padding="@dimen/app_spacing_large">
-
-                            <TextView
-                                android:layout_width="match_parent"
-                                android:layout_height="wrap_content"
-                                android:text="@string/billing_lifetime_title"
-                                android:textColor="@color/billing_text_primary"
-                                android:textSize="18sp"
-                                android:textStyle="bold" />
-
-                            <TextView
-                                android:id="@+id/lifetime_price"
-                                android:layout_width="match_parent"
-                                android:layout_height="wrap_content"
-                                android:layout_marginTop="@dimen/app_spacing_medium"
-                                android:textColor="@color/billing_accent"
-                                android:textSize="26sp"
-                                android:textStyle="bold" />
-
-                            <TextView
-                                android:layout_width="match_parent"
-                                android:layout_height="wrap_content"
-                                android:layout_marginTop="@dimen/app_spacing_small"
-                                android:text="@string/billing_lifetime_description"
-                                android:textColor="@color/billing_text_secondary"
-                                android:textSize="14sp" />
-
-                            <com.google.android.material.button.MaterialButton
-                                android:id="@+id/lifetime_button"
-                                style="@style/Widget.Material3.Button.OutlinedButton"
-                                android:layout_width="match_parent"
-                                android:layout_height="wrap_content"
-                                android:layout_marginTop="@dimen/app_spacing_large"
-                                android:enabled="false"
-                                android:text="@string/billing_buy_lifetime" />
-                        </LinearLayout>
-                    </LinearLayout>
-
-                    <com.google.android.material.button.MaterialButton
-                        android:id="@+id/restore_button"
-                        style="@style/Widget.Material3.Button.OutlinedButton"
-                        android:layout_width="match_parent"
-                        android:layout_height="wrap_content"
-                        android:layout_marginTop="@dimen/app_spacing_medium"
-                        android:text="@string/billing_restore" />
-
-                    <TextView
-                        android:layout_width="match_parent"
-                        android:layout_height="wrap_content"
-                        android:layout_marginTop="@dimen/app_spacing_large"
-                        android:gravity="center"
-                        android:text="@string/billing_legal_note"
-                        android:textColor="@color/billing_text_secondary"
-                        android:textSize="13sp" />
-
-                    <com.google.android.material.button.MaterialButton
-                        android:id="@+id/legal_center_button"
-                        style="@style/Widget.Material3.Button.TextButton"
-                        android:layout_width="wrap_content"
-                        android:layout_height="wrap_content"
-                        android:layout_gravity="center_horizontal"
-                        android:minWidth="0dp"
-                        android:text="@string/legal_center_title" />
                 </LinearLayout>
             </androidx.constraintlayout.widget.ConstraintLayout>
         </ScrollView>
-
         <com.google.android.material.progressindicator.CircularProgressIndicator
             android:id="@+id/progress_indicator"
-            android:layout_width="48dp"
-            android:layout_height="48dp"
-            android:layout_gravity="center"
-            android:visibility="gone" />
+            android:layout_width="24dp"
+            android:layout_height="24dp"
+            android:layout_gravity="top|end"
+            android:visibility="gone"
+            android:layout_margin="@dimen/app_spacing_medium" />
     </FrameLayout>
 </LinearLayout>

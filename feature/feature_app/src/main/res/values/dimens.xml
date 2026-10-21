@@ -3,6 +3,7 @@
     <dimen name="app_spacing_medium">16dp</dimen>
     <dimen name="app_spacing_large">24dp</dimen>
     <dimen name="pairing_screen_padding">24dp</dimen>
+    <dimen name="pairing_stack_breakpoint">560dp</dimen>
     <dimen name="pairing_qr_size">240dp</dimen>
     <dimen name="pairing_qr_pixels">512px</dimen>
     <dimen name="pairing_content_gap">48dp</dimen>
@@ -20,4 +21,6 @@
     <dimen name="billing_compact_breakpoint">720dp</dimen>
     <dimen name="billing_content_max_width">1120dp</dimen>
     <dimen name="document_content_max_width">840dp</dimen>
+    <dimen name="ui_corner_radius">8dp</dimen>
+    <dimen name="ui_columns_breakpoint">760dp</dimen>
 </resources>

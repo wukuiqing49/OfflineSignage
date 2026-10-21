@@ -3,7 +3,9 @@ package com.wkq.localsignage
 import android.app.Activity
 import android.app.Instrumentation
 import android.content.Intent
-import android.content.pm.ActivityInfo
+import com.wkq.localsignage.feature.app.runtime.SignageRuntime
+import com.wkq.localsignage.feature.app.model.SignageSettings
+import androidx.core.content.edit
 import android.graphics.Bitmap
 import android.graphics.Rect
 import android.os.Bundle
@@ -25,6 +27,8 @@ class DeviceUiAudit : Instrumentation() {
     private lateinit var output: File
     private val pages = JSONArray()
     private var originalLocales = LocaleListCompat.getEmptyLocaleList()
+    private var originalSettings: SignageSettings? = null
+    private var originalWelcome = false
     @Volatile private var resumedActivity: Activity? = null
 
     override fun onCreate(arguments: Bundle?) {
@@ -33,9 +37,6 @@ class DeviceUiAudit : Instrumentation() {
     }
 
     override fun callActivityOnCreate(activity: Activity, icicle: Bundle?) {
-        if (args.getString("orientation") == "portrait" && activity !is MainActivity) {
-            activity.requestedOrientation = ActivityInfo.SCREEN_ORIENTATION_PORTRAIT
-        }
         super.callActivityOnCreate(activity, icicle)
         activity.window.addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
     }
@@ -51,8 +52,32 @@ class DeviceUiAudit : Instrumentation() {
             "-" + args.getString("orientation", "landscape")).apply { mkdirs() }
         try {
             runOnMainSync {
-                originalLocales = AppCompatDelegate.getApplicationLocales()
-                AppCompatDelegate.setApplicationLocales(LocaleListCompat.forLanguageTags(args.getString("locale", "en")))
+                originalSettings = SignageRuntime.settings()
+                args.getString("preference")?.let { preference ->
+                    SignageRuntime.setSettings(requireNotNull(originalSettings).copy(orientation = preference))
+                }
+                originalLocales = if (android.os.Build.VERSION.SDK_INT >= 33) {
+                    LocaleListCompat.wrap(targetContext.getSystemService(android.app.LocaleManager::class.java).applicationLocales)
+                } else AppCompatDelegate.getApplicationLocales()
+                setAuditLocales(LocaleListCompat.forLanguageTags(args.getString("locale", "en")))
+            }
+            waitForIdleSync()
+            SystemClock.sleep(500)
+            if (args.getString("mode") == "billing") {
+                auditBillingPlans()
+                restoreConfiguration()
+                finish(Activity.RESULT_OK, Bundle().apply { putString("result", "Audited ${pages.length()} billing states (test fixtures)") })
+                return
+            }
+            if (args.getString("welcome") == "true") {
+                check(SignageRuntime.resources().isEmpty()) { "Onboarding audit requires an empty test device" }
+                val preferences = targetContext.getSharedPreferences("local_signage_onboarding", 0)
+                originalWelcome = preferences.getBoolean("welcome_completed", false)
+                preferences.edit { putBoolean("welcome_completed", false) }
+                val welcome = launch(Intent(targetContext, WelcomeActivity::class.java))
+                capture(welcome, "welcome")
+                scrollAndCapture(welcome, "welcome-bottom")
+                runOnMainSync { welcome.finish() }
             }
             val main = launch(Intent(targetContext, MainActivity::class.java))
             runOnMainSync {
@@ -77,6 +102,13 @@ class DeviceUiAudit : Instrumentation() {
             SystemClock.sleep(2500)
             capture(billing, "billing")
             scrollAndCapture(billing, "billing-bottom")
+            runOnMainSync {
+                val retry = billing.findViewById<View>(com.wkq.localsignage.feature.app.R.id.retry_catalog_button)
+                if (retry.isShown) {
+                    retry.performClick()
+                    check(billing.findViewById<View>(com.wkq.localsignage.feature.app.R.id.content_scroll).visibility == View.VISIBLE)
+                }
+            }
             runOnMainSync { billing.finish() }
             val legal = launch(Intent(targetContext, LegalCenterActivity::class.java))
             capture(legal, "legal")
@@ -92,19 +124,80 @@ class DeviceUiAudit : Instrumentation() {
             }
             runOnMainSync { main.finish() }
             File(output, "report.json").writeText(pages.toString(2))
-            runOnMainSync { AppCompatDelegate.setApplicationLocales(originalLocales) }
+            restoreConfiguration()
             finish(Activity.RESULT_OK, Bundle().apply { putString("result", "Audited ${pages.length()} page states") })
         } catch (failure: Throwable) {
             File(output, "failure.txt").writeText(failure.stackTraceToString())
-            runOnMainSync { AppCompatDelegate.setApplicationLocales(originalLocales) }
+            restoreConfiguration()
             finish(Activity.RESULT_CANCELED, Bundle().apply { putString("failure", failure.toString()) })
         }
+    }
+
+    /** 仅测试 APK 注入页面状态，不替换生产商品、不发起真实购买。 */
+    private fun auditBillingPlans() {
+        val activity = launch(Intent(targetContext, BillingActivity::class.java))
+        SystemClock.sleep(5000)
+        val month = com.wkq.google.billing.GoogleProduct(
+            productId = "pro_subscription:pro-month", productType = "subs", title = "TEST monthly",
+            description = "UI fixture", formattedPrice = "$4.99", offerToken = "test-month", basePlanId = "pro-month", billingPeriod = "P1M"
+        )
+        val year = month.copy(productId = "pro_subscription:pro-yearly", basePlanId = "pro-yearly", billingPeriod = "P1Y", formattedPrice = "$39.99", offerToken = "test-year")
+        val lifetime = month.copy(productId = "pro_lifetime", baseProductId = "pro_lifetime", productType = "inapp", basePlanId = "", billingPeriod = "", formattedPrice = "$99.99", offerToken = "test-life")
+        val render = BillingActivity::class.java.getDeclaredMethod("render", com.wkq.localsignage.monetization.MonetizationUiState::class.java).apply { isAccessible = true }
+        val fixtures = listOf(
+            Triple("all", com.wkq.google.billing.GoogleBillingCatalog(listOf(month, year), listOf(lifetime)), listOf(true, true, true)),
+            Triple("partial", com.wkq.google.billing.GoogleBillingCatalog(oneTimeProducts = listOf(lifetime)), listOf(false, false, true)),
+            Triple("unavailable", com.wkq.google.billing.GoogleBillingCatalog(), listOf(false, false, false))
+        )
+        val buttons = listOf(com.wkq.localsignage.feature.app.R.id.monthly_button, com.wkq.localsignage.feature.app.R.id.subscription_button, com.wkq.localsignage.feature.app.R.id.lifetime_button)
+        val panels = listOf(com.wkq.localsignage.feature.app.R.id.monthly_panel, com.wkq.localsignage.feature.app.R.id.subscription_panel, com.wkq.localsignage.feature.app.R.id.lifetime_panel)
+        for ((name, catalog, enabled) in fixtures) {
+            runOnMainSync {
+                render.invoke(activity, com.wkq.localsignage.monetization.MonetizationUiState(
+                    entitlement = com.wkq.localsignage.monetization.EntitlementState(com.wkq.localsignage.monetization.EntitlementType.TRIAL_ACTIVE, 0L, System.currentTimeMillis() + 86400000L),
+                    catalog = catalog, catalogLoaded = true, errorMessage = if (name == "unavailable") "Test unavailable" else ""
+                ))
+                panels.forEach { check(activity.findViewById<View>(it).visibility == View.VISIBLE) }
+                buttons.forEachIndexed { index, id -> check(activity.findViewById<View>(id).isEnabled == enabled[index]) { "Wrong purchase availability: $name/$index" } }
+                activity.findViewById<ScrollView>(com.wkq.localsignage.feature.app.R.id.content_scroll).scrollTo(0, 0)
+            }
+            capture(activity, "billing-fixture-$name")
+            scrollAndCapture(activity, "billing-fixture-$name-bottom")
+        }
+        runOnMainSync { activity.finish() }
+    }
+
+    private fun restoreConfiguration() {
+        runOnMainSync {
+            originalSettings?.let(SignageRuntime::setSettings)
+            if (args.getString("welcome") == "true") {
+                targetContext.getSharedPreferences("local_signage_onboarding", 0).edit {
+                    putBoolean("welcome_completed", originalWelcome)
+                }
+            }
+            setAuditLocales(originalLocales)
+        }
+    }
+
+    private fun setAuditLocales(locales: LocaleListCompat) {
+        if (android.os.Build.VERSION.SDK_INT >= 33) {
+            targetContext.getSystemService(android.app.LocaleManager::class.java).applicationLocales =
+                android.os.LocaleList.forLanguageTags(locales.toLanguageTags())
+        } else AppCompatDelegate.setApplicationLocales(locales)
     }
 
     private fun launch(intent: Intent): Activity {
         val launched = startActivitySync(intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK))
         waitForIdleSync()
         SystemClock.sleep(1100)
+        val deadline = SystemClock.uptimeMillis() + 8_000
+        while (SystemClock.uptimeMillis() < deadline) {
+            val current = resumedActivity?.takeIf { it.javaClass == launched.javaClass } ?: launched
+            var ready = false
+            runOnMainSync { ready = !current.isDestroyed && current.window.decorView.hasWindowFocus() }
+            if (ready) return current
+            SystemClock.sleep(100)
+        }
         return resumedActivity?.takeIf { it.javaClass == launched.javaClass } ?: launched
     }
 
@@ -133,9 +226,17 @@ class DeviceUiAudit : Instrumentation() {
             "Application is obscured by $activePackage; unlock device and close system panels before running the audit"
         }
         val views = JSONArray()
+        val actualLocale = activity.resources.configuration.locales[0]
+        val expectedLocale = java.util.Locale.forLanguageTag(args.getString("locale", "en"))
+        // Android 可补全 zh-Hans-CN 等脚本信息，按请求的语言/地区验证。
+        check(actualLocale.language == expectedLocale.language &&
+            (expectedLocale.country.isEmpty() || actualLocale.country == expectedLocale.country)) {
+            "Unexpected locale ${actualLocale.toLanguageTag()}, expected $expectedLocale on $name"
+        }
+        check(kotlin.math.abs(activity.resources.configuration.fontScale - args.getString("fontScale", "1.0").toFloat()) < 0.01f) {
+            "Unexpected font scale on $name"
+        }
         runOnMainSync {
-            check(activity.resources.configuration.locales[0].toLanguageTag() == args.getString("locale", "en"))
-            check(kotlin.math.abs(activity.resources.configuration.fontScale - args.getString("fontScale", "1.0").toFloat()) < 0.01f)
             fun inspect(view: View) {
                 if (!view.isShown) return
                 if (view is TextView && view.text.isNotEmpty()) {
@@ -158,8 +259,12 @@ class DeviceUiAudit : Instrumentation() {
             }
             inspect(activity.window.decorView)
         }
+        args.getString("expectedOrientation")?.toInt()?.let { expected ->
+            check(activity.resources.configuration.orientation == expected) { "Unexpected orientation on $name" }
+        }
         pages.put(JSONObject().put("page", name).put("views", views)
             .put("orientation", activity.resources.configuration.orientation))
+        File(output, "report.json").writeText(pages.toString(2))
         // 包含配对凭据的原始截图仅写应用私有测试目录，拉取后同样只保留在忽略的 build 目录。
         uiAutomation.takeScreenshot()?.let { bitmap ->
             File(output, "$name.png").outputStream().use { bitmap.compress(Bitmap.CompressFormat.PNG, 100, it) }

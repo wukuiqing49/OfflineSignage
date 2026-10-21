@@ -1,0 +1,12 @@
+{
+  "portrait": [
+    1200,
+    1920
+  ],
+  "landscapeRestored": [
+    1920,
+    1200
+  ],
+  "originalRotationRestored": "0",
+  "originalAccelerometerRestored": "1"
+}

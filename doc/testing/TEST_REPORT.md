@@ -1,6 +1,69 @@
 # 功能回归测试报告（最新一轮）
 
-最新结果见下方“全面屏与大屏适配（2026-10-20）”；其余区块保留各自测试时的历史状态。
+最新结果见下方“开放三档购买套餐（2026-10-21）”；其余区块保留各自测试时的历史状态。
+
+
+
+## 开放三档购买套餐（2026-10-21）
+
+- 用户明确授权恢复月度、年度和永久版新购入口。移除隐藏面板和仅年付筛选；三个按钮各自绑定精确商品与offer，发起购买时统一防重复点击。保留Play新鲜商品校验，不硬编码生产价格。
+- SUBS/INAPP独立查询并合并可用结果，缺少年付不再让月付/永久版一起消失。三张卡片始终展示，无有效价格或offer的卡片显示价格不可用且不可购买；支持pro-month及历史pro-mouth。宽屏三卡横排，窄屏/大字体纵排；帮助9个语言资源目录及中英购买说明同步。
+- BILLING-PLANS-UNIT：**本次通过**。feature_app共126项，0 failures/errors/skipped，其中新增BillingPlansTest 7项，覆盖三档选取、月付别名、仅永久、无效价格/offer、单侧加载失败、双侧失败。日志 `build/billing-plans-build.log`（构建及测试2m47s）。完整app单测未重复执行，不将历史3项计入本轮。
+- BILLING-PLANS-BUILD：**本次通过**。Debug与测试APK构建成功；最后布局改动后再次assembleDebug/assembleDebugAndroidTest，48s成功，`build/billing-plans-final-build.log`。没有修改依赖、Manifest或SDK。APK及源码指纹见 [artifact.json](evidence/billing-plans-20261021/artifact.json)。
+- BILLING-PLANS-GATES：**本次通过**。UI/i18n/架构及git diff --check通过；既有非Tab ViewPager、内部Uri.fromFile提示保留。日志 `build/billing-{ui,i18n,architecture}-gate.log`。
+- BILLING-PLANS-UI：**本次通过**。专用emulator-5564 / Android36：英文浅色宽屏1920×1200/160dpi/字体1.0；中文深色竖屏1080×2400/420dpi/字体1.3。`DeviceUiAudit -e mode billing`在测试APK内注入全部可用、仅永久可用、全部不可用三种页面状态，每种含顶部/底部，共 **12状态**，均code=-1，面板可见及按钮启用断言通过，JSON无ellipsis/verticalOverflow。人工检查宽屏三卡和竖屏底部按钮可达。
+- **上述价格与offer均是UI测试夹具，不是Google Play真实商品响应；未点击购买、未真实扣款，也没有将夹具放入生产APK。** 原始数据在 `build/functional-test/billing-plans/`；[共享截图与JSON](evidence/billing-plans-20261021)已添加测试价格标识。日志 `build/billing-ui-wide.log`、`build/billing-ui-portrait.log`。
+- 虚拟机启动时出现SystemUI ANR，按控件树识别后关闭系统弹窗；应用巡检最终正常完成。仅使用专用AVD，完成后恢复测试前显示参数并关闭，不操作物理设备。
+- 汇总：4组通过，最终失败0，受阻0；真实Play商品发布/地区可用性、购买/退款/恢复交易、Release未执行。Play未返回的月度或永久商品仍显示价格不可用，需后台商品实际可用后才能购买。
+- 本次建立完整app/core/feature/gradle及公开构建配置文件SHA-256清单，包含未跟踪源码；更新TEST_BASELINE中本次两条BILLING-PLANS用例，其余基线不动。[源码清单](evidence/billing-plans-20261021/source-manifest.json)。未提交或推送。
+
+## 视频、HTML 混播与系统重启（2026-10-21）
+
+- 本轮继续验证上一轮缺口，仍使用独立 Android36 AVD `localsignage_ui_20261021`。没有改动生产 Kotlin/XML，没有重复声称执行上一轮122项单测/48页面矩阵。新增可复跑测试脚本、执行说明、用例映射和脱敏证据；修正剩余工作清单中将已有双区模板/排期列为未实现的过时表述。
+- 最终结果：**脚本8项通过 + 旋转1项通过，失败0，受阻0**。24小时、实体设备硬解、流媒体及API23–35设备属于未执行范围。实际运行命令 `python -X utf8 doc/testing/scripts/run_virtual_mixed_media.py --device emulator-5564 --video build/functional-test/mixed-media/motion.mp4 --seconds 300`，exit0；日志 `build/mixed-media-test.log`。脚本语法检查与 `git diff --check` 通过。
+- MIXED-VIDEO：生成12秒640×360/24fps H.264测试图，经真实HTTP上传。播放器位置推进；两张间隔截图像素变化，人工确认运动测试图渲染。只证明此编码在虚拟机解码路径可用，不推断实体硬件解码。
+- MIXED-HTML：本地HTML蓝色背景、正文和JS计数器可见；控件树包含正文，间隔截图计数器变化。初次控件树读取过早失败，增加渲染等待后通过；没有修改生产WebView来规避测试。
+- MIXED-OFFLINE：关闭虚拟机Wi-Fi/移动数据，用ADB转发读取本地HTTP状态，视频、PNG、HTML三种资源均轮播且error为空。恢复网络后继续运行。
+- MIXED-BOOT：执行真实 `adb reboot`；开机广播日志确认“Android 15+ defers media playback restore until the user opens the app.”。显式打开Splash后恢复原混播列表。结论是**系统重启后手动打开可恢复**，不表述为Android36无人值守开机自启。
+- MIXED-SOAK：实际 **302秒 / 147次采样 / 50次素材切换**，3类素材均覆盖，持续playing且error为空，前后应用PID相同。主进程PSS从174363KB到192328KB，中间采样197181KB；结束时1个Activity、1个WebView。开始时尚有2个Activity，冷热阶段与素材类型不同，这组数据不能证明无内存泄漏，更不能代替24小时验收。
+- MIXED-ROTATE：持续混播中实际旋转为1200×1920，再恢复1920×1200。截图确认竖屏视频按FIT保留上下黑边；混播断言持续通过。第一次仅改user_rotation时自动旋转仍开启，截图维持横屏，不计通过；随后保存原设置、临时锁定旋转并在finally恢复，实际方向验证通过。未对“同一视频位置无缝衔接”做逐帧断言。
+- MIXED-CLEANUP：删除本轮新增资源、场景、列表，恢复初始设置/列表并恢复网络；仅清理专用AVD生成的测试数据。测试结束后关闭该AVD，未操作物理设备或其他模拟器。
+- 环境与重试：虚拟机SystemUI曾ANR，按控件树确认后关闭系统弹窗并记录环境事件；不是应用自身崩溃。首次重启只等待5秒导致开机广播未到，且ADB转发已重置，使清理失败；改为等待实际开机广播、重建转发后重跑完成。只对已确认无原有内容的专用AVD重置本轮测试数据。最终日志无失败项。
+- 证据：[完整结果](evidence/mixed-media-20261021/report.json)、[持续运行统计](evidence/mixed-media-20261021/soak-summary.json)、[视频/HTML预览](evidence/mixed-media-20261021/mixed-playback-preview.png)、[旋转记录](evidence/mixed-media-20261021/rotation.json)、[APK指纹](evidence/mixed-media-20261021/artifact.json)。证据不包含Token或连接二维码。
+- 复跑说明：[scripts/README.md](scripts/README.md)。脚本使用内存Token，当前不做8小时Token续期，因此不能直接用86400参数宣称支持24小时方案；长期测试还需续期、周期采样与失败留证。
+- TEST_BASELINE.json不推进：沿用上一轮构建的Debug APK（已记录SHA-256），未建立本轮与APK严格对应的源码工作区指纹。源码未提交/推送。
+
+## UI 样式优化与独立虚拟机回归（2026-10-21）
+
+- 增量验证，main / HEAD de3edf6 + 未提交工作区。完成欢迎页标题层级、连接页主次操作、帮助/授权响应双栏、统一日夜色板/按钮、授权重新加载、方向契约与设置局部更新。样式分析见 [优化记录](../../docs/LOCAL_SIGNAGE_UI_REFINEMENT_CN.md)。本节覆盖上一轮 UI 受阻项，不回写历史结果。
+- UI-UNIT：通过。feature_app 119 + app 3 = **122 tests**，0 failures/errors/skipped；包含方向策略6项与真实 Ktor HTTP 设置更新回归。命令 `gradlew.bat :app:assembleDebug :app:assembleDebugAndroidTest :feature:feature_app:testDebugUnitTest :app:testDebugUnitTest --console=plain --max-workers=1 --no-parallel -Pkotlin.compiler.execution.strategy=in-process`。日志 `build/ui-refinement-build.log`（6m4s）；最终资源构建 `build/ui-refinement-final-build.log`（27s）；巡检 runner 修正构建 `build/ui-audit-runner-build.log`（38s），均成功。
+- UI-GATES：UI、i18n、架构、构建检查通过，git diff --check 通过；最终 app/feature UI 和 i18n 分别扫描。既有非 Tab ViewPager、局域网明文服务、系统栏主题提示仍保留。构建通过不替代视觉验证。
+- UI-DEVICE：独立新建 AVD `localsignage_ui_20261021` / emulator-5564，Android36 google_apis x86_64。未操作物理设备或其他 AVD。三组巡检均 `Audited 16 page states / code=-1`，共 **48 个页面状态**；包括欢迎、连接、帮助、两篇文章、授权、法律中心和隐私正文及各自滚动底部。JSON 无 ellipsis/verticalOverflow，人工检查欢迎、帮助、连接、授权的截图层级与可达性。
+
+| 配置 | 分辨率/密度 | 主题/语言/字体 | 方向 |
+| --- | --- | --- | --- |
+| 手机横屏 | 1080x2400 / 420dpi | 浅色 / en-US / 1.0 | LANDSCAPE，实际2 |
+| 手机竖屏 | 1080x2400 / 420dpi | 深色 / zh-CN / 1.3 | PORTRAIT，实际1 |
+| 平板横屏 | 1920x1200 / 160dpi | 深色 / zh-CN / 1.3 | 系统横屏，实际2 |
+
+- 可复跑命令：`adb -s emulator-5564 shell am instrument -w -e mode compact -e locale en-US -e fontScale 1.0 -e orientation phone-landscape -e preference LANDSCAPE -e expectedOrientation 2 -e welcome true com.wkq.localsignage.test/com.wkq.localsignage.DeviceUiAudit`；其余配置替换 locale/fontScale/orientation/preference/expectedOrientation。日志 `build/ui-audit-phone-landscape.log`、`build/ui-audit-phone-portrait.log`、`build/ui-audit-tablet-landscape.log`。原始截图与报告在 `build/functional-test/ui-refinement/`，连接凭据仅存忽略目录。
+- UI-PLAYBACK：通过 **9 项**：首次引导与配对、局部设置保留方向、PNG 上传并播放、暂停、恢复、双素材列表切换、关闭虚拟机 Wi-Fi/移动数据后本地轮播、force-stop 后重新启动恢复原列表、测试数据清理。通过 ADB 转发访问真实 HTTP 服务。三张播放截图中心 RGB 与上传素材一致，确认实际渲染；重启恢复截图有按比例适配的上下黑边。日志 `build/ui-playback-smoke.log`，结果 [playback-results.json](evidence/ui-refinement-20261021/playback-results.json)。不将进程重启等同于系统重启。
+- 过程问题：独立虚拟机初启曾出现 SystemUI ANR；UI runner 的 API33+语言切换及中文脚本标签断言修正后通过。首次播放测试在重启服务的暂时断连时提前退出，补齐测试脚本启动等待的断连重试后9项全通过；只重置新建 AVD 内本轮生成的应用测试数据。未修改生产异常处理来规避失败。
+- [可共享截图](evidence/ui-refinement-20261021)：三组欢迎、帮助、授权及播放画面；不含配对码、Token、二维码。测试后清理生成素材/场景/列表并恢复网络。
+- 未执行：真实购买/商品价格卡、API23–35设备 UI、实际分屏拖动、视频硬件解码与旋转连续性、系统开机恢复、24小时播放、实体电视遥控、Release/AAB 发布。本轮仅 Debug 和虚拟机验证。API35方向由单测覆盖，不代表该版本设备验收。
+- 不推进 TEST_BASELINE.json：未建立完整未提交源码指纹；保留历史基线。源码未提交、未推送。
+
+## 横屏与页面适配（2026-10-21）
+
+- 增量模式，Asia/Singapore，main / HEAD de3edf6，源码未提交。修改共享页面方向策略、新设备方向默认值、连接页响应布局/滚动位置、手动连接面板状态恢复、欢迎页文字与横屏间距。未改 SDK、Manifest、签名或依赖。
+- ORIENT-UNIT：本次通过。`:feature:feature_app:testDebugUnitTest :app:testDebugUnitTest`：feature_app 118 + app 3 = 121 tests，0 failures/errors/skipped。共享方向用例 5 项，包含默认横屏、显式方向、AUTO 跟随设备、大屏和多窗口。旧 app 专属策略及测试迁移至 feature_app。大屏 >=600dp/多窗口继续遵循系统窗口方向，不强制锁定；已有 AUTO/PORTRAIT 配置保留。
+- ORIENT-BUILD：本次通过。`gradlew.bat :app:assembleDebug :app:assembleDebugAndroidTest :feature:feature_app:testDebugUnitTest :app:testDebugUnitTest --console=plain --max-workers=1 --no-parallel -Pkotlin.compiler.execution.strategy=in-process`，exit 0 / 2m2s；最后资源调整后补跑两项 assemble，exit 0 / 8s。日志 `build/orientation-verification.log`、`build/orientation-final-build.log`；Debug APK 为 `app/build/outputs/apk/debug/app-debug.apk`。首次构建出现 Runtime 对 storageAttempt 的全限定引用解析错误，改为显式 import 后通过。
+- ORIENT-GATES：本次通过。UI、架构、i18n、build 四门禁及 git diff --check 均 exit 0。既有警告包括内部 Uri.fromFile、Insets 多页面消费者、非 Tab ViewPager、明文局域网服务及主题项提示，不当作视觉验证。
+- ORIENT-UI：受阻（部分页面已观察）。专用目标 emulator-5558，Android36，1080x2400 / density420，浅色、en-US、字体1.0；保留数据覆盖安装 Debug 和测试 APK 成功。`adb -s emulator-5558 shell am instrument -w -e mode compact -e locale en-US -e fontScale 1.0 -e orientation phone com.wkq.localsignage.test/com.wkq.localsignage.DeviceUiAudit`。首轮被系统首次全屏提示遮挡；通过控件树定位 Got it 并关闭后重跑。生成连接、帮助、两篇文章、授权、法律中心共12张页面/滚动截图，但法律正文阶段失去窗口焦点而以 failure/code=0 退出，不能判定完整巡检通过；同期系统日志显示其他应用由 shell 启动并接管前台，不继续改动共享模拟器配置。
+- 实际检查连接页、帮助、授权及授权滚动底部截图：横屏展示，二维码与信息左右排列，帮助标题避开系统栏，恢复购买和法律入口能完整滚出。只代表这些截图状态，不代表所有页面/字体/主题均通过。商品不可用，未验证真实价格或交易。
+- 原始截图（含临时配对信息）只留 `build/functional-test/orientation-final/`，不提交；非敏感帮助、授权、法律中心截图见 [evidence/orientation-20261021](evidence/orientation-20261021)。巡检未正常结束，没有完整 JSON 报告；不宣称已完成所有控件溢出断言。
+- ORIENT-REMAINING：未执行。竖屏/分屏、大字体与深色主题本轮设备验证、首次欢迎页、手动连接面板旋转恢复、视频旋转连续性、实体电视遥控、Release 和真实购买。未操作两台物理设备，未清库/卸载，未改变系统字体或分辨率。代码中的对应适配不等于上述设备验收通过。
+- 汇总：通过3组（单测、构建、静态门禁），最终失败0组，受阻1组，未执行1组。固定基线不推进：本轮未建立可靠工作区指纹，保留原有基线。
 
 ## 全面屏与大屏适配（2026-10-20）
 

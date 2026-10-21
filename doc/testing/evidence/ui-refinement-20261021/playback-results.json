@@ -1,0 +1,38 @@
+[
+  {
+    "case": "onboarding-and-pairing",
+    "status": "PASS"
+  },
+  {
+    "case": "partial-settings-preserve-direction",
+    "status": "PASS"
+  },
+  {
+    "case": "upload-and-image-playback",
+    "status": "PASS"
+  },
+  {
+    "case": "pause",
+    "status": "PASS"
+  },
+  {
+    "case": "resume",
+    "status": "PASS"
+  },
+  {
+    "case": "playlist-advances",
+    "status": "PASS"
+  },
+  {
+    "case": "offline-local-playback",
+    "status": "PASS"
+  },
+  {
+    "case": "process-relaunch-restores-playlist",
+    "status": "PASS"
+  },
+  {
+    "case": "test-data-cleanup",
+    "status": "PASS"
+  }
+]

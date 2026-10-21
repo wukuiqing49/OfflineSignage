@@ -1,18 +1,17 @@
 <?xml version="1.0" encoding="utf-8"?>
-<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+<LinearLayout
+    xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:app="http://schemas.android.com/apk/res-auto"
     android:id="@+id/help_root"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
     android:background="@color/billing_background"
     android:orientation="vertical">
-
     <FrameLayout
         android:id="@+id/toolbar_container"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:background="@color/billing_surface">
-
         <com.google.android.material.appbar.MaterialToolbar
             android:id="@+id/toolbar"
             android:layout_width="match_parent"
@@ -22,7 +21,6 @@
             app:title="@string/help_title"
             app:titleTextColor="@color/billing_text_primary" />
     </FrameLayout>
-
     <ScrollView
         android:id="@+id/help_scroll"
         android:layout_width="match_parent"
@@ -31,11 +29,9 @@
         android:clipToPadding="false"
         android:fillViewport="true"
         android:scrollbars="none">
-
         <androidx.constraintlayout.widget.ConstraintLayout
             android:layout_width="match_parent"
             android:layout_height="wrap_content">
-
             <LinearLayout
                 android:layout_width="0dp"
                 android:layout_height="wrap_content"
@@ -46,15 +42,7 @@
                 app:layout_constraintEnd_toEndOf="parent"
                 app:layout_constraintStart_toStartOf="parent"
                 app:layout_constraintTop_toTopOf="parent"
-                app:layout_constraintWidth_max="@dimen/document_content_max_width">
-
-                <ImageView
-                    android:layout_width="match_parent"
-                    android:layout_height="64dp"
-                    android:contentDescription="@null"
-                    android:scaleType="fitCenter"
-                    android:src="@drawable/illustration_help_pairing" />
-
+                app:layout_constraintWidth_max="@dimen/billing_content_max_width">
                 <TextView
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
@@ -62,103 +50,128 @@
                     android:text="@string/help_intro"
                     android:textColor="@color/billing_text_secondary"
                     android:textSize="14sp" />
-
-                <com.google.android.material.button.MaterialButton
-                    android:id="@+id/quick_start_button"
-                    style="@style/Widget.Material3.Button.OutlinedButton"
+                <LinearLayout
+                    android:id="@+id/help_groups"
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
-                    android:layout_marginTop="12dp"
-                    android:gravity="start|center_vertical"
-                    android:text="@string/help_quick_start_title"
-                    app:cornerRadius="4dp"
-                    app:icon="@drawable/ic_chevron_right_24"
-                    app:iconGravity="textEnd" />
-
-                <com.google.android.material.button.MaterialButton
-                    android:id="@+id/content_button"
-                    style="@style/Widget.Material3.Button.OutlinedButton"
-                    android:layout_width="match_parent"
-                    android:layout_height="wrap_content"
-                    android:layout_marginTop="@dimen/app_spacing_small"
-                    android:gravity="start|center_vertical"
-                    android:text="@string/help_content_title"
-                    app:cornerRadius="4dp"
-                    app:icon="@drawable/ic_chevron_right_24"
-                    app:iconGravity="textEnd" />
-
-                <com.google.android.material.button.MaterialButton
-                    android:id="@+id/html_button"
-                    style="@style/Widget.Material3.Button.OutlinedButton"
-                    android:layout_width="match_parent"
-                    android:layout_height="wrap_content"
-                    android:layout_marginTop="@dimen/app_spacing_small"
-                    android:gravity="start|center_vertical"
-                    android:text="@string/help_html_title"
-                    app:cornerRadius="4dp"
-                    app:icon="@drawable/ic_chevron_right_24"
-                    app:iconGravity="textEnd" />
-
-                <com.google.android.material.button.MaterialButton
-                    android:id="@+id/playback_button"
-                    style="@style/Widget.Material3.Button.OutlinedButton"
-                    android:layout_width="match_parent"
-                    android:layout_height="wrap_content"
-                    android:layout_marginTop="@dimen/app_spacing_small"
-                    android:gravity="start|center_vertical"
-                    android:text="@string/help_playback_title"
-                    app:cornerRadius="4dp"
-                    app:icon="@drawable/ic_chevron_right_24"
-                    app:iconGravity="textEnd" />
-
-                <com.google.android.material.button.MaterialButton
-                    android:id="@+id/multi_device_button"
-                    style="@style/Widget.Material3.Button.OutlinedButton"
-                    android:layout_width="match_parent"
-                    android:layout_height="wrap_content"
-                    android:layout_marginTop="@dimen/app_spacing_small"
-                    android:gravity="start|center_vertical"
-                    android:text="@string/help_multi_device_title"
-                    app:cornerRadius="4dp"
-                    app:icon="@drawable/ic_chevron_right_24"
-                    app:iconGravity="textEnd" />
-
-                <com.google.android.material.button.MaterialButton
-                    android:id="@+id/autostart_button"
-                    style="@style/Widget.Material3.Button.OutlinedButton"
-                    android:layout_width="match_parent"
-                    android:layout_height="wrap_content"
-                    android:layout_marginTop="@dimen/app_spacing_small"
-                    android:gravity="start|center_vertical"
-                    android:text="@string/help_autostart_title"
-                    app:cornerRadius="4dp"
-                    app:icon="@drawable/ic_chevron_right_24"
-                    app:iconGravity="textEnd" />
-
-                <com.google.android.material.button.MaterialButton
-                    android:id="@+id/troubleshooting_button"
-                    style="@style/Widget.Material3.Button.OutlinedButton"
-                    android:layout_width="match_parent"
-                    android:layout_height="wrap_content"
-                    android:layout_marginTop="@dimen/app_spacing_small"
-                    android:gravity="start|center_vertical"
-                    android:text="@string/help_troubleshooting_title"
-                    app:cornerRadius="4dp"
-                    app:icon="@drawable/ic_chevron_right_24"
-                    app:iconGravity="textEnd" />
-
-                <com.google.android.material.button.MaterialButton
-                    android:id="@+id/purchase_button"
-                    style="@style/Widget.Material3.Button.OutlinedButton"
-                    android:layout_width="match_parent"
-                    android:layout_height="wrap_content"
-                    android:layout_marginTop="@dimen/app_spacing_small"
-                    android:gravity="start|center_vertical"
-                    android:text="@string/help_purchase_title"
-                    app:cornerRadius="4dp"
-                    app:icon="@drawable/ic_chevron_right_24"
-                    app:iconGravity="textEnd" />
-
+                    android:orientation="vertical"
+                    android:layout_marginTop="@dimen/app_spacing_large"
+                    android:baselineAligned="false">
+                    <LinearLayout
+                        android:id="@+id/help_publish_column"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:orientation="vertical"
+                        android:background="@drawable/bg_billing_plan"
+                        android:padding="@dimen/app_spacing_medium">
+                        <TextView
+                            style="@style/TextAppearance.LocalSignage.Section"
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:text="@string/help_publish_group" />
+                        <com.google.android.material.button.MaterialButton
+                            android:id="@+id/quick_start_button"
+                            style="@style/Widget.LocalSignage.TopicButton"
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:layout_marginTop="@dimen/app_spacing_small"
+                            android:gravity="start|center_vertical"
+                            android:text="@string/help_quick_start_title"
+                            app:cornerRadius="@dimen/ui_corner_radius"
+                            app:icon="@drawable/ic_chevron_right_24"
+                            app:iconGravity="end" />
+                        <com.google.android.material.button.MaterialButton
+                            android:id="@+id/content_button"
+                            style="@style/Widget.LocalSignage.TopicButton"
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:layout_marginTop="@dimen/app_spacing_small"
+                            android:gravity="start|center_vertical"
+                            android:text="@string/help_content_title"
+                            app:cornerRadius="@dimen/ui_corner_radius"
+                            app:icon="@drawable/ic_chevron_right_24"
+                            app:iconGravity="end" />
+                        <com.google.android.material.button.MaterialButton
+                            android:id="@+id/html_button"
+                            style="@style/Widget.LocalSignage.TopicButton"
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:layout_marginTop="@dimen/app_spacing_small"
+                            android:gravity="start|center_vertical"
+                            android:text="@string/help_html_title"
+                            app:cornerRadius="@dimen/ui_corner_radius"
+                            app:icon="@drawable/ic_chevron_right_24"
+                            app:iconGravity="end" />
+                        <com.google.android.material.button.MaterialButton
+                            android:id="@+id/playback_button"
+                            style="@style/Widget.LocalSignage.TopicButton"
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:layout_marginTop="@dimen/app_spacing_small"
+                            android:gravity="start|center_vertical"
+                            android:text="@string/help_playback_title"
+                            app:cornerRadius="@dimen/ui_corner_radius"
+                            app:icon="@drawable/ic_chevron_right_24"
+                            app:iconGravity="end" />
+                    </LinearLayout>
+                    <LinearLayout
+                        android:id="@+id/help_manage_column"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:orientation="vertical"
+                        android:background="@drawable/bg_billing_plan"
+                        android:padding="@dimen/app_spacing_medium">
+                        <TextView
+                            style="@style/TextAppearance.LocalSignage.Section"
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:text="@string/help_manage_group" />
+                        <com.google.android.material.button.MaterialButton
+                            android:id="@+id/multi_device_button"
+                            style="@style/Widget.LocalSignage.TopicButton"
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:layout_marginTop="@dimen/app_spacing_small"
+                            android:gravity="start|center_vertical"
+                            android:text="@string/help_multi_device_title"
+                            app:cornerRadius="@dimen/ui_corner_radius"
+                            app:icon="@drawable/ic_chevron_right_24"
+                            app:iconGravity="end" />
+                        <com.google.android.material.button.MaterialButton
+                            android:id="@+id/autostart_button"
+                            style="@style/Widget.LocalSignage.TopicButton"
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:layout_marginTop="@dimen/app_spacing_small"
+                            android:gravity="start|center_vertical"
+                            android:text="@string/help_autostart_title"
+                            app:cornerRadius="@dimen/ui_corner_radius"
+                            app:icon="@drawable/ic_chevron_right_24"
+                            app:iconGravity="end" />
+                        <com.google.android.material.button.MaterialButton
+                            android:id="@+id/troubleshooting_button"
+                            style="@style/Widget.LocalSignage.TopicButton"
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:layout_marginTop="@dimen/app_spacing_small"
+                            android:gravity="start|center_vertical"
+                            android:text="@string/help_troubleshooting_title"
+                            app:cornerRadius="@dimen/ui_corner_radius"
+                            app:icon="@drawable/ic_chevron_right_24"
+                            app:iconGravity="end" />
+                        <com.google.android.material.button.MaterialButton
+                            android:id="@+id/purchase_button"
+                            style="@style/Widget.LocalSignage.TopicButton"
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:layout_marginTop="@dimen/app_spacing_small"
+                            android:gravity="start|center_vertical"
+                            android:text="@string/help_purchase_title"
+                            app:cornerRadius="@dimen/ui_corner_radius"
+                            app:icon="@drawable/ic_chevron_right_24"
+                            app:iconGravity="end" />
+                    </LinearLayout>
+                </LinearLayout>
                 <com.google.android.material.button.MaterialButton
                     android:id="@+id/legal_button"
                     style="@style/Widget.Material3.Button.TextButton"

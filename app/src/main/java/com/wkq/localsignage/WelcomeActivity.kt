@@ -60,7 +60,7 @@ class WelcomeActivity : SignageActivity<ActivityWelcomeBinding>() {
     override fun initData() = Unit
 
     private fun configureWelcomeLayout(availableWidth: Int, availableHeight: Int) {
-        val compactWidth = availableWidth < resources.getDimensionPixelSize(FeatureAppR.dimen.pairing_compact_breakpoint)
+        val compactWidth = availableWidth / resources.configuration.fontScale.coerceAtLeast(1f) < resources.getDimensionPixelSize(FeatureAppR.dimen.pairing_compact_breakpoint)
         val compactHeight = availableHeight < resources.getDimensionPixelSize(FeatureAppR.dimen.pairing_compact_height_breakpoint)
         val compact = compactWidth || compactHeight
         val padding = resources.getDimensionPixelSize(
@@ -85,12 +85,15 @@ class WelcomeActivity : SignageActivity<ActivityWelcomeBinding>() {
                 marginStart = if (compactWidth) 0 else gap
                 topMargin = if (compactWidth) gap else 0
             }
-        binding.welcomeTitle.textSize = if (compactHeight) 25f else 36f
-        binding.welcomeSummary.textSize = if (compactHeight) 14f else 17f
-        binding.welcomeSummary.maxLines = if (compactHeight) 3 else 5
-        binding.welcomeOfflineNote.visibility = if (compactHeight) View.GONE else View.VISIBLE
-        binding.welcomeSetupTitle.textSize = if (compactHeight) 18f else 22f
-        binding.welcomeIntro.visibility = if (compactHeight && !compactWidth) View.GONE else View.VISIBLE
+        // XML id 沿用历史命名：title 是品牌标签，summary 才是主标题。
+        binding.welcomeTitle.textSize = 12f
+        binding.welcomeSummary.textSize = if (compactHeight) 28f else 36f
+        binding.welcomeSummary.maxLines = Int.MAX_VALUE
+        binding.welcomeOfflineNote.visibility = View.VISIBLE
+        binding.welcomeOfflineNote.textSize = if (compactHeight) 14f else 17f
+        binding.welcomeOfflineNote.maxLines = Int.MAX_VALUE
+        binding.welcomeSetupTitle.textSize = 14f
+        binding.welcomeIntro.visibility = View.VISIBLE
     }
 
     private fun welcomeCompleted(): Boolean =

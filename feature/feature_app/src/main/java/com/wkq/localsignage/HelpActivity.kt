@@ -5,6 +5,7 @@ import com.wkq.localsignage.feature.app.databinding.ActivityHelpBinding
 
 class HelpActivity : SignageActivity<ActivityHelpBinding>() {
     override fun initView() {
+        binding.helpGroups.adaptTwoColumns()
         binding.toolbar.wrapTitle()
         enableEdgeToEdgeSystemBars()
         binding.toolbarContainer.applySystemBarPadding(top = true, horizontal = true)

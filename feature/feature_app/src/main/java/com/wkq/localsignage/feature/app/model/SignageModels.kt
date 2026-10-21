@@ -130,7 +130,7 @@ data class SignageSettings(
     val keepScreenAwake: Boolean = true,
     val autoResume: Boolean = true,
     val fullscreen: Boolean = true,
-    val orientation: String = "AUTO"
+    val orientation: String = "LANDSCAPE"
 )
 
 data class PlaybackErrorRecord(

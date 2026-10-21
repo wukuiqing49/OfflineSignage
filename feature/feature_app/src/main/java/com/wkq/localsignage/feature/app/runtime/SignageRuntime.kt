@@ -24,6 +24,7 @@ import com.wkq.localsignage.feature.app.storage.SignageStore
 import com.wkq.localsignage.feature.app.storage.StoredCommandResult
 import com.wkq.localsignage.feature.app.storage.TemporaryPairingToken
 import com.wkq.localsignage.feature.app.storage.ResourceStorageSummary
+import com.wkq.localsignage.feature.app.storage.storageAttempt
 import java.io.InputStream
 import java.util.concurrent.CopyOnWriteArraySet
 
@@ -44,7 +45,7 @@ object SignageRuntime {
     }
 
     fun tryInitialize(context: Context): Boolean =
-        com.wkq.localsignage.feature.app.storage.storageAttempt(
+        storageAttempt(
             onFailure = { android.util.Log.e("SignageRuntime", "STORAGE_INITIALIZATION_FAILED", it) }
         ) { initialize(context) }
 
@@ -125,6 +126,8 @@ object SignageRuntime {
     fun canAcceptCommandRevision(revision: Long?): Boolean = requireStore().canAcceptCommandRevision(revision)
     fun commitCommandRevision(revision: Long?): Boolean = requireStore().commitCommandRevision(revision)
     fun settings(): SignageSettings = requireStore().settings()
+    // 启动页存储尚未就绪时也能应用默认展示方向，存储错误仍由启动页处理。
+    fun orientationPreference(): String = store?.settings()?.orientation ?: "LANDSCAPE"
     fun setSettings(value: SignageSettings) = requireStore().setSettings(value).also { notifyContentChanged() }
     fun playbackErrors(limit: Int = 100): List<PlaybackErrorRecord> = requireStore().playbackErrors(limit)
     fun clearPlaybackErrors() = requireStore().clearPlaybackErrors()

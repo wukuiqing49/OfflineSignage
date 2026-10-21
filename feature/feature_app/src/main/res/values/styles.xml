@@ -13,4 +13,25 @@
         <item name="android:textColor">@color/welcome_text_primary</item>
         <item name="android:textSize">15sp</item>
     </style>
+    <style name="Widget.LocalSignage.Button" parent="Widget.Material3.Button">
+        <item name="cornerRadius">@dimen/ui_corner_radius</item>
+        <item name="android:minHeight">48dp</item>
+        <item name="android:textAllCaps">false</item>
+    </style>
+    <style name="Widget.LocalSignage.TopicButton" parent="Widget.Material3.Button.OutlinedButton">
+        <item name="cornerRadius">@dimen/ui_corner_radius</item>
+        <item name="strokeColor">@color/billing_stroke</item>
+        <item name="android:textColor">@color/billing_text_primary</item>
+        <item name="iconTint">@color/billing_accent</item>
+        <item name="android:minHeight">64dp</item>
+        <item name="android:textSize">14sp</item>
+        <item name="android:paddingTop">12dp</item>
+        <item name="android:paddingBottom">12dp</item>
+        <item name="android:textAllCaps">false</item>
+    </style>
+    <style name="TextAppearance.LocalSignage.Section" parent="TextAppearance.Material3.TitleMedium">
+        <item name="android:textColor">@color/billing_text_primary</item>
+        <item name="android:textSize">18sp</item>
+        <item name="android:textStyle">bold</item>
+    </style>
 </resources>

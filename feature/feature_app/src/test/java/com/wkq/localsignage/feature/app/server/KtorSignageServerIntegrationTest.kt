@@ -69,6 +69,14 @@ class KtorSignageServerIntegrationTest {
             val takeover = request("/api/control/session/acquire", "POST", "{\"takeover\":true}", token)
             assertEquals(201, takeover.first)
             val session = JSONObject(takeover.second).getString("sessionId")
+            assertEquals(200, request("/api/settings", "POST", "{\"orientation\":\"PORTRAIT\",\"autoResume\":false}", token, session).first)
+            val partialSettings = request("/api/settings", "POST", "{\"fullscreen\":false}", token, session)
+            assertEquals(200, partialSettings.first)
+            assertEquals("PORTRAIT", JSONObject(partialSettings.second).getString("orientation"))
+            assertFalse(JSONObject(partialSettings.second).getBoolean("autoResume"))
+            assertEquals(400, request("/api/settings", "POST", "{\"orientation\":\"INVALID\"}", token, session).first)
+            assertEquals("PORTRAIT", SignageRuntime.settings().orientation)
+
             assertEquals(409, request("/api/control/session/heartbeat", "POST", "{}", token, firstSession).first)
 
             val boundary = "test-signage-boundary"

@@ -1,11 +1,11 @@
 <?xml version="1.0" encoding="utf-8"?>
-<FrameLayout xmlns:android="http://schemas.android.com/apk/res/android"
+<FrameLayout
+    xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:app="http://schemas.android.com/apk/res-auto"
     android:id="@+id/playback_root"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
     android:background="#000000">
-
     <ImageView
         android:id="@+id/blur_background_view"
         android:layout_width="match_parent"
@@ -13,28 +13,25 @@
         android:contentDescription="@null"
         android:scaleType="centerCrop"
         android:visibility="gone" />
-
     <androidx.viewpager2.widget.ViewPager2
         android:id="@+id/image_slideshow"
         android:layout_width="match_parent"
         android:layout_height="match_parent"
         android:overScrollMode="never"
-        android:visibility="gone" />
-
+        android:visibility="gone"
+        android:scrollbars="none" />
     <androidx.media3.ui.PlayerView
         android:id="@+id/player_view"
         android:layout_width="match_parent"
         android:layout_height="match_parent"
         android:background="#000000"
         app:controller_layout_id="@layout/empty_media_controller" />
-
     <WebView
         android:id="@+id/web_view"
         android:layout_width="match_parent"
         android:layout_height="match_parent"
         android:background="#000000"
         android:visibility="gone" />
-
     <TextView
         android:id="@+id/text_content_view"
         android:layout_width="wrap_content"
@@ -45,21 +42,18 @@
         android:textColor="#FFFFFF"
         android:textSize="36sp"
         android:visibility="gone" />
-
     <FrameLayout
         android:id="@+id/sidebar_container"
         android:layout_width="match_parent"
         android:layout_height="match_parent"
         android:background="#111111"
         android:visibility="gone" />
-
     <FrameLayout
         android:id="@+id/overlay_container"
         android:layout_width="match_parent"
         android:layout_height="match_parent"
         android:clipChildren="true"
         android:clipToPadding="true" />
-
     <com.google.android.material.button.MaterialButton
         android:id="@+id/trial_expired_badge"
         style="@style/Widget.Material3.Button.TextButton"
@@ -78,26 +72,24 @@
         android:textStyle="bold"
         android:visibility="gone"
         app:cornerRadius="6dp" />
-
     <ScrollView
         android:id="@+id/pairing_panel"
         android:layout_width="match_parent"
         android:layout_height="match_parent"
         android:background="@color/pairing_background"
         android:fillViewport="true"
-        android:scrollbars="none">
-
+        android:scrollbars="none"
+        android:clipToPadding="false">
         <LinearLayout
             android:id="@+id/pairing_content_card"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:layout_gravity="start"
+            android:layout_gravity="center_horizontal"
             android:layout_marginStart="@dimen/pairing_screen_padding"
             android:layout_marginTop="@dimen/pairing_screen_padding"
             android:layout_marginEnd="@dimen/pairing_screen_padding"
             android:layout_marginBottom="@dimen/pairing_screen_padding"
             android:orientation="vertical">
-
             <LinearLayout
                 android:id="@+id/pairing_header"
                 android:layout_width="match_parent"
@@ -107,19 +99,16 @@
                 android:orientation="horizontal"
                 android:paddingStart="@dimen/app_spacing_medium"
                 android:paddingEnd="@dimen/app_spacing_small">
-
                 <LinearLayout
                     android:layout_width="0dp"
                     android:layout_height="wrap_content"
                     android:layout_weight="1"
                     android:gravity="center_vertical"
                     android:orientation="horizontal">
-
                     <View
                         android:layout_width="8dp"
                         android:layout_height="8dp"
                         android:background="@drawable/bg_pairing_status_dot" />
-
                     <TextView
                         android:id="@+id/pairing_device_name"
                         android:layout_width="0dp"
@@ -132,7 +121,6 @@
                         android:textSize="17sp"
                         android:textStyle="bold" />
                 </LinearLayout>
-
                 <com.google.android.material.button.MaterialButton
                     android:id="@+id/open_help_button"
                     style="@style/Widget.Material3.Button.IconButton"
@@ -143,7 +131,6 @@
                     android:text=""
                     app:icon="@drawable/ic_help_24"
                     app:iconTint="@color/pairing_text_secondary" />
-
                 <com.google.android.material.button.MaterialButton
                     android:id="@+id/close_pairing_button"
                     style="@style/Widget.Material3.Button.TextButton"
@@ -158,12 +145,10 @@
                     app:icon="@drawable/ic_close_24"
                     app:iconTint="@color/pairing_text_primary" />
             </LinearLayout>
-
             <View
                 android:layout_width="match_parent"
                 android:layout_height="1dp"
                 android:background="@color/pairing_divider" />
-
             <LinearLayout
                 android:id="@+id/pairing_content"
                 android:layout_width="match_parent"
@@ -172,79 +157,17 @@
                 android:gravity="center_vertical"
                 android:orientation="horizontal"
                 android:padding="@dimen/pairing_screen_padding">
-
                 <LinearLayout
                     android:id="@+id/pairing_qr_section"
                     android:layout_width="@dimen/pairing_qr_size"
                     android:layout_height="wrap_content"
                     android:gravity="center_horizontal"
                     android:orientation="vertical">
-
-                    <LinearLayout
-                        android:id="@+id/open_billing_row"
-                        android:layout_width="match_parent"
-                        android:layout_height="wrap_content"
-                        android:minHeight="56dp"
-                        android:clickable="true"
-                        android:focusable="true"
-                        android:foreground="?attr/selectableItemBackground"
-                        android:gravity="center_vertical"
-                        android:orientation="horizontal"
-                        android:paddingHorizontal="10dp"
-                        android:paddingVertical="7dp">
-
-                        <ImageView
-                            android:id="@+id/entitlement_icon"
-                            android:layout_width="18dp"
-                            android:layout_height="18dp"
-                            android:contentDescription="@null"
-                            android:src="@drawable/ic_license_24"
-                            app:tint="@color/pairing_accent" />
-
-                        <LinearLayout
-                            android:layout_width="0dp"
-                            android:layout_height="wrap_content"
-                            android:layout_marginStart="8dp"
-                            android:layout_weight="1"
-                            android:orientation="vertical">
-
-                            <TextView
-                                android:id="@+id/entitlement_status"
-                                android:layout_width="match_parent"
-                                android:layout_height="wrap_content"
-                                android:importantForAccessibility="no"
-                                android:maxLines="2"
-                                android:textColor="@color/pairing_text_primary"
-                                android:textSize="13sp"
-                                android:textStyle="bold" />
-
-                            <TextView
-                                android:id="@+id/entitlement_upgrade_hint"
-                                android:layout_width="match_parent"
-                                android:layout_height="wrap_content"
-                                android:layout_marginTop="2dp"
-                                android:maxLines="2"
-                                android:text="@string/trial_expired_badge"
-                                android:textColor="@color/entitlement_expired"
-                                android:textSize="11sp"
-                                android:textStyle="bold"
-                                android:visibility="gone" />
-                        </LinearLayout>
-
-                        <ImageView
-                            android:layout_width="18dp"
-                            android:layout_height="18dp"
-                            android:contentDescription="@null"
-                            android:src="@drawable/ic_chevron_right_24"
-                            app:tint="@color/pairing_text_secondary" />
-                    </LinearLayout>
-
                     <FrameLayout
                         android:id="@+id/pairing_qr_frame"
                         android:layout_width="match_parent"
                         android:layout_height="@dimen/pairing_qr_size"
                         android:layout_marginTop="4dp">
-
                         <ImageView
                             android:id="@+id/pairing_qr_code"
                             android:layout_width="match_parent"
@@ -253,7 +176,6 @@
                             android:contentDescription="@string/pairing_qr_content_description"
                             android:padding="@dimen/app_spacing_small"
                             android:scaleType="fitCenter" />
-
                         <TextView
                             android:id="@+id/pairing_qr_unavailable"
                             android:layout_width="match_parent"
@@ -268,7 +190,6 @@
                             android:textSize="14sp"
                             android:visibility="gone" />
                     </FrameLayout>
-
                     <TextView
                         android:id="@+id/pairing_qr_caption"
                         android:layout_width="match_parent"
@@ -278,9 +199,7 @@
                         android:text="@string/pairing_scan_phone"
                         android:textColor="@color/pairing_text_secondary"
                         android:textSize="13sp" />
-
                 </LinearLayout>
-
                 <LinearLayout
                     android:id="@+id/pairing_details"
                     android:layout_width="0dp"
@@ -289,7 +208,6 @@
                     android:layout_weight="1"
                     android:gravity="start"
                     android:orientation="vertical">
-
                     <TextView
                         android:layout_width="match_parent"
                         android:layout_height="wrap_content"
@@ -297,7 +215,6 @@
                         android:textColor="@color/pairing_text_primary"
                         android:textSize="24sp"
                         android:textStyle="bold" />
-
                     <TextView
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
@@ -305,7 +222,6 @@
                         android:text="@string/control_address"
                         android:textColor="@color/pairing_text_muted"
                         android:textSize="12sp" />
-
                     <TextView
                         android:id="@+id/pairing_address"
                         android:layout_width="match_parent"
@@ -315,7 +231,6 @@
                         android:textColor="@color/pairing_text_primary"
                         android:textIsSelectable="true"
                         android:textSize="17sp" />
-
                     <TextView
                         android:id="@+id/pairing_access_code_label"
                         android:layout_width="wrap_content"
@@ -324,7 +239,6 @@
                         android:text="@string/pairing_computer_code"
                         android:textColor="@color/pairing_text_muted"
                         android:textSize="12sp" />
-
                     <TextView
                         android:id="@+id/pairing_access_code"
                         android:layout_width="match_parent"
@@ -337,7 +251,6 @@
                         android:textIsSelectable="true"
                         android:textSize="30sp"
                         android:textStyle="bold" />
-
                     <TextView
                         android:id="@+id/pairing_hint"
                         android:layout_width="match_parent"
@@ -346,13 +259,11 @@
                         android:text="@string/pairing_scan_hint"
                         android:textColor="@color/pairing_text_secondary"
                         android:textSize="13sp" />
-
                     <View
                         android:layout_width="match_parent"
                         android:layout_height="1dp"
                         android:layout_marginTop="@dimen/app_spacing_medium"
                         android:background="@color/pairing_divider" />
-
                     <TextView
                         android:id="@+id/pairing_network_status"
                         android:layout_width="match_parent"
@@ -362,7 +273,6 @@
                         android:textColor="@color/pairing_accent"
                         android:textSize="14sp"
                         android:textStyle="bold" />
-
                     <TextView
                         android:id="@+id/pairing_hotspot_info"
                         android:layout_width="match_parent"
@@ -372,10 +282,9 @@
                         android:textIsSelectable="true"
                         android:textSize="13sp"
                         android:visibility="gone" />
-
                     <com.google.android.material.button.MaterialButton
                         android:id="@+id/open_hotspot_settings_button"
-                        style="@style/Widget.Material3.Button.OutlinedButton"
+                        style="@style/Widget.Material3.Button.TextButton"
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
                         android:minHeight="48dp"
@@ -384,29 +293,91 @@
                         android:text="@string/open_hotspot_settings"
                         android:textColor="@color/pairing_text_primary"
                         app:strokeColor="@color/pairing_surface_stroke" />
-
-                    <com.google.android.material.button.MaterialButton
-                        android:id="@+id/enterprise_contact_button"
-                        style="@style/Widget.Material3.Button.OutlinedButton"
-                        android:layout_width="match_parent"
-                        android:layout_height="wrap_content"
-                        android:layout_marginTop="@dimen/app_spacing_small"
-                        android:gravity="center_vertical|start"
-                        android:minHeight="48dp"
-                        android:minWidth="0dp"
-                        android:text="@string/enterprise_contact_title"
-                        android:textColor="@color/pairing_text_primary"
-                        android:textSize="13sp"
-                        app:icon="@drawable/ic_help_24"
-                        app:iconGravity="textStart"
-                        app:iconTint="@color/pairing_text_secondary"
-                        app:strokeColor="@color/pairing_surface_stroke" />
                 </LinearLayout>
             </LinearLayout>
-
+            <LinearLayout
+                android:id="@+id/pairing_secondary_actions"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="horizontal"
+                android:paddingHorizontal="@dimen/pairing_screen_padding"
+                android:paddingBottom="@dimen/app_spacing_small"
+                android:gravity="center_vertical">
+                <LinearLayout
+                    android:id="@+id/open_billing_row"
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:minHeight="56dp"
+                    android:clickable="true"
+                    android:focusable="true"
+                    android:foreground="?attr/selectableItemBackground"
+                    android:gravity="center_vertical"
+                    android:orientation="horizontal"
+                    android:paddingHorizontal="10dp"
+                    android:paddingVertical="7dp"
+                    android:layout_weight="1"
+                    android:layout_marginTop="0dp">
+                    <ImageView
+                        android:id="@+id/entitlement_icon"
+                        android:layout_width="18dp"
+                        android:layout_height="18dp"
+                        android:contentDescription="@null"
+                        android:src="@drawable/ic_license_24"
+                        app:tint="@color/pairing_accent" />
+                    <LinearLayout
+                        android:layout_width="0dp"
+                        android:layout_height="wrap_content"
+                        android:layout_marginStart="8dp"
+                        android:layout_weight="1"
+                        android:orientation="vertical">
+                        <TextView
+                            android:id="@+id/entitlement_status"
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:importantForAccessibility="no"
+                            android:maxLines="2"
+                            android:textColor="@color/pairing_text_primary"
+                            android:textSize="13sp"
+                            android:textStyle="bold" />
+                        <TextView
+                            android:id="@+id/entitlement_upgrade_hint"
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:layout_marginTop="2dp"
+                            android:maxLines="2"
+                            android:text="@string/trial_expired_badge"
+                            android:textColor="@color/entitlement_expired"
+                            android:textSize="11sp"
+                            android:textStyle="bold"
+                            android:visibility="gone" />
+                    </LinearLayout>
+                    <ImageView
+                        android:layout_width="18dp"
+                        android:layout_height="18dp"
+                        android:contentDescription="@null"
+                        android:src="@drawable/ic_chevron_right_24"
+                        app:tint="@color/pairing_text_secondary" />
+                </LinearLayout>
+                <com.google.android.material.button.MaterialButton
+                    android:id="@+id/enterprise_contact_button"
+                    style="@style/Widget.Material3.Button.TextButton"
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="0dp"
+                    android:gravity="center_vertical|start"
+                    android:minHeight="48dp"
+                    android:minWidth="0dp"
+                    android:text="@string/enterprise_contact_title"
+                    android:textColor="@color/pairing_text_primary"
+                    android:textSize="13sp"
+                    app:icon="@drawable/ic_help_24"
+                    app:iconGravity="textStart"
+                    app:iconTint="@color/pairing_text_secondary"
+                    android:layout_weight="1"
+                    android:layout_marginStart="@dimen/app_spacing_medium" />
+            </LinearLayout>
         </LinearLayout>
     </ScrollView>
-
     <LinearLayout
         android:id="@+id/playback_status_bar"
         android:layout_width="wrap_content"
@@ -421,7 +392,6 @@
         android:paddingEnd="4dp"
         android:paddingBottom="4dp"
         android:visibility="gone">
-
         <com.google.android.material.button.MaterialButton
             android:id="@+id/show_pairing_button"
             style="@style/Widget.Material3.Button.TextButton"
@@ -430,7 +400,6 @@
             android:minWidth="0dp"
             android:text="@string/show_pairing"
             android:textColor="@android:color/white" />
-
         <com.google.android.material.button.MaterialButton
             android:id="@+id/pause_resume_button"
             style="@style/Widget.Material3.Button.IconButton"

@@ -1,0 +1,34 @@
+[
+  {
+    "case": "create-video-image-html",
+    "status": "PASS"
+  },
+  {
+    "case": "video-decoded-moving-frames",
+    "status": "PASS"
+  },
+  {
+    "case": "html-rendered-javascript-running",
+    "status": "PASS"
+  },
+  {
+    "case": "offline-three-media-cycle",
+    "status": "PASS"
+  },
+  {
+    "case": "system-reboot-defers-playback-until-launch",
+    "status": "PASS"
+  },
+  {
+    "case": "post-reboot-launch-restores-playlist",
+    "status": "PASS"
+  },
+  {
+    "case": "bounded-mixed-media-soak",
+    "status": "PASS"
+  },
+  {
+    "case": "test-data-cleanup",
+    "status": "PASS"
+  }
+]

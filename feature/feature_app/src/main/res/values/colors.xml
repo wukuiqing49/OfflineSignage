@@ -1,5 +1,5 @@
 <resources>
-    <color name="primary">#1B5E20</color>
+    <color name="primary">@color/welcome_accent</color>
     <color name="on_primary">#FFFFFF</color>
     <color name="pairing_background">#111411</color>
     <color name="pairing_surface">#1A1E1B</color>
@@ -21,13 +21,13 @@
     <color name="welcome_accent_surface">#E2F0E7</color>
     <color name="welcome_surface">#FFFFFF</color>
     <color name="welcome_surface_stroke">#D8E0DA</color>
-    <color name="billing_background">#F5F6F7</color>
-    <color name="billing_surface">#FFFFFF</color>
-    <color name="billing_status_surface">#E8F2EB</color>
-    <color name="billing_stroke">#D7DCE0</color>
-    <color name="billing_text_primary">#18201B</color>
-    <color name="billing_text_secondary">#59635D</color>
-    <color name="billing_accent">#176B3A</color>
+    <color name="billing_background">@color/welcome_background</color>
+    <color name="billing_surface">@color/welcome_surface</color>
+    <color name="billing_status_surface">@color/welcome_accent_surface</color>
+    <color name="billing_stroke">@color/welcome_surface_stroke</color>
+    <color name="billing_text_primary">@color/welcome_text_primary</color>
+    <color name="billing_text_secondary">@color/welcome_text_secondary</color>
+    <color name="billing_accent">@color/welcome_accent</color>
     <color name="billing_warning">#8A5A00</color>
     <color name="billing_error">#A22B2B</color>
 </resources>

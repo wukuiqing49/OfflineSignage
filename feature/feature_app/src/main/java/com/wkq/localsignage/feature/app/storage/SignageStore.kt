@@ -1077,11 +1077,13 @@ class SignageStore(context: Context) : java.io.Closeable {
             keepScreenAwake = getMeta(database.readableDatabase, KEY_KEEP_SCREEN_AWAKE)?.toBoolean() ?: true,
             autoResume = getMeta(database.readableDatabase, KEY_AUTO_RESUME)?.toBoolean() ?: true,
             fullscreen = getMeta(database.readableDatabase, KEY_FULLSCREEN)?.toBoolean() ?: true,
-            orientation = getMeta(database.readableDatabase, KEY_ORIENTATION)?.takeIf { it in SUPPORTED_ORIENTATIONS } ?: "AUTO"
+            orientation = getMeta(database.readableDatabase, KEY_ORIENTATION)?.takeIf { it in SUPPORTED_ORIENTATIONS } ?: "LANDSCAPE"
         )
     }
 
     fun setSettings(value: SignageSettings) = synchronized(lock) {
+        val orientation = value.orientation.uppercase(java.util.Locale.ROOT)
+        require(orientation in SUPPORTED_ORIENTATIONS) { "INVALID_ORIENTATION" }
         database.writableDatabase.inTransaction {
             if (value.fallbackSceneId == null || sceneExists(this, value.fallbackSceneId)) {
                 setMeta(this, KEY_FALLBACK_SCENE, value.fallbackSceneId)
@@ -1091,7 +1093,7 @@ class SignageStore(context: Context) : java.io.Closeable {
             setMeta(this, KEY_KEEP_SCREEN_AWAKE, value.keepScreenAwake.toString())
             setMeta(this, KEY_AUTO_RESUME, value.autoResume.toString())
             setMeta(this, KEY_FULLSCREEN, value.fullscreen.toString())
-            setMeta(this, KEY_ORIENTATION, value.orientation.uppercase().takeIf { it in SUPPORTED_ORIENTATIONS } ?: "AUTO")
+            setMeta(this, KEY_ORIENTATION, orientation)
         }
     }
 

@@ -21,6 +21,7 @@ import com.wkq.localsignage.monetization.EntitlementType
 import com.wkq.localsignage.monetization.MonetizationRepository
 import com.wkq.localsignage.monetization.MonetizationUiState
 import com.wkq.localsignage.monetization.playDisplayPrice
+import com.wkq.localsignage.monetization.availablePlans
 import kotlinx.coroutines.launch
 import java.util.concurrent.TimeUnit
 import kotlin.math.max
@@ -28,10 +29,13 @@ import kotlin.math.max
 class BillingActivity : SignageActivity<ActivityBillingBinding>() {
     private val viewModel by viewModels<BillingViewModel>()
     private var subscriptionProduct: GoogleProduct? = null
+    private var monthlyProduct: GoogleProduct? = null
+    private var lifetimeProduct: GoogleProduct? = null
     private var hasPositionedContent = false
     private var purchaseInFlight = false
 
     override fun initView() {
+        // 三档套餐共用完整内容宽度；宽屏并排，窄屏逐项堆叠。
         binding.toolbar.wrapTitle()
         enableEdgeToEdgeSystemBars()
         binding.toolbarContainer.applySystemBarPadding(top = true, horizontal = true)
@@ -48,10 +52,10 @@ class BillingActivity : SignageActivity<ActivityBillingBinding>() {
             if (right - left != oldRight - oldLeft) configurePlanLayout(right - left)
         }
         binding.subscriptionButton.setOnClickListener { subscriptionProduct?.let(::launchPurchase) }
-        // Launch offer: annual only. Legacy monthly and lifetime purchases are still restored by the repository.
-        binding.monthlyPanel.visibility = View.GONE
-        binding.lifetimePanel.visibility = View.GONE
+        binding.monthlyButton.setOnClickListener { monthlyProduct?.let(::launchPurchase) }
+        binding.lifetimeButton.setOnClickListener { lifetimeProduct?.let(::launchPurchase) }
         binding.restoreButton.setOnClickListener { viewModel.refresh() }
+        binding.retryCatalogButton.setOnClickListener { viewModel.refresh() }
         binding.manageSubscriptionButton.setOnClickListener { openSubscriptionManagement() }
         binding.legalCenterButton.setOnClickListener {
             startActivity(Intent(this, LegalCenterActivity::class.java))
@@ -74,7 +78,9 @@ class BillingActivity : SignageActivity<ActivityBillingBinding>() {
         val compact = availableWidth / resources.configuration.fontScale.coerceAtLeast(1f) <
             resources.getDimensionPixelSize(R.dimen.billing_compact_breakpoint)
         binding.planContainer.orientation = if (compact) LinearLayout.VERTICAL else LinearLayout.HORIZONTAL
-        configurePlanPanel(binding.subscriptionPanel, compact, first = true)
+        configurePlanPanel(binding.monthlyPanel, compact, first = true)
+        configurePlanPanel(binding.subscriptionPanel, compact, first = false)
+        configurePlanPanel(binding.lifetimePanel, compact, first = false)
     }
 
     private fun configurePlanPanel(view: View, compact: Boolean, first: Boolean) {
@@ -87,24 +93,28 @@ class BillingActivity : SignageActivity<ActivityBillingBinding>() {
     }
 
     private fun render(state: MonetizationUiState) {
-        subscriptionProduct = state.catalog.subscriptions.firstOrNull {
-            it.baseProductId == MonetizationRepository.PRO_SUBSCRIPTION_ID &&
-                it.basePlanId == MonetizationRepository.YEARLY_BASE_PLAN_ID &&
-                it.formattedPrice.isNotBlank()
-        }
-        val catalogReady = subscriptionProduct != null && state.errorMessage.isBlank()
+        val plans = state.catalog.availablePlans()
+        monthlyProduct = plans.monthly
+        subscriptionProduct = plans.yearly
+        lifetimeProduct = plans.lifetime
         val showLoading = state.isCatalogPending
 
         binding.entitlementStatus.text = entitlementText(state.entitlement)
-        binding.subscriptionPrice.text = subscriptionProduct?.displayPrice().orEmpty()
-        binding.subscriptionButton.isEnabled = subscriptionProduct != null && !state.loading && !purchaseInFlight
+        val unavailable = getString(R.string.billing_price_unavailable)
+        binding.monthlyPrice.text = monthlyProduct?.displayPrice() ?: unavailable
+        binding.subscriptionPrice.text = subscriptionProduct?.displayPrice() ?: unavailable
+        binding.lifetimePrice.text = lifetimeProduct?.displayPrice() ?: unavailable
+        updatePurchaseButtons(state)
         binding.restoreButton.isEnabled = !state.loading
-        binding.contentScroll.visibility = if (showLoading) View.INVISIBLE else View.VISIBLE
+        // 刷新商品时保留授权状态与说明，避免整页闪空。
+        binding.contentScroll.visibility = View.VISIBLE
         binding.progressIndicator.visibility = if (showLoading) View.VISIBLE else View.GONE
-        binding.planSectionTitle.visibility = if (catalogReady) View.VISIBLE else View.GONE
-        binding.planContainer.visibility = if (catalogReady) View.VISIBLE else View.GONE
-        binding.billingError.visibility = if (state.errorMessage.isBlank()) View.GONE else View.VISIBLE
+        binding.planSectionTitle.visibility = View.VISIBLE
+        binding.planContainer.visibility = View.VISIBLE
+        binding.billingError.visibility = if (!plans.hasAny && state.errorMessage.isNotBlank()) View.VISIBLE else View.GONE
         binding.billingError.setText(R.string.billing_unavailable)
+        binding.retryCatalogButton.visibility = if (!plans.hasAll || state.errorMessage.isNotBlank()) View.VISIBLE else View.GONE
+        binding.retryCatalogButton.isEnabled = !showLoading && !purchaseInFlight
         binding.pendingNotice.visibility = if (state.entitlement.pendingProductIds.isEmpty()) View.GONE else View.VISIBLE
         binding.manageSubscriptionButton.visibility = when (state.entitlement.type) {
             EntitlementType.SUBSCRIPTION, EntitlementType.SUBSCRIPTION_GRACE -> View.VISIBLE
@@ -135,11 +145,14 @@ class BillingActivity : SignageActivity<ActivityBillingBinding>() {
     private fun launchPurchase(product: GoogleProduct) {
         if (purchaseInFlight) return
         purchaseInFlight = true
-        binding.subscriptionButton.isEnabled = false
+        updatePurchaseButtons(viewModel.uiState.value)
         lifecycleScope.launch {
-            val response = MonetizationRepository.launchPurchase(this@BillingActivity, product)
-            purchaseInFlight = false
-            binding.subscriptionButton.isEnabled = subscriptionProduct != null && !viewModel.uiState.value.loading
+            val response = try {
+                MonetizationRepository.launchPurchase(this@BillingActivity, product)
+            } finally {
+                purchaseInFlight = false
+                updatePurchaseButtons(viewModel.uiState.value)
+            }
             if (!response.isSuccess) {
                 Toast.makeText(
                     this@BillingActivity,
@@ -148,6 +161,13 @@ class BillingActivity : SignageActivity<ActivityBillingBinding>() {
                 ).show()
             }
         }
+    }
+
+    private fun updatePurchaseButtons(state: MonetizationUiState) {
+        val enabled = !state.loading && !purchaseInFlight
+        binding.monthlyButton.isEnabled = enabled && monthlyProduct != null
+        binding.subscriptionButton.isEnabled = enabled && subscriptionProduct != null
+        binding.lifetimeButton.isEnabled = enabled && lifetimeProduct != null
     }
 
     private fun GoogleProduct.displayPrice(): String = playDisplayPrice(this) { price, period ->

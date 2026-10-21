@@ -93,3 +93,44 @@
 - 控制台已在桌面 Chrome 完成自动交互；Android WebView 的字体、滚动与窗口行为仍未验证。
 - 项目备份的双区导入/导出往返未纳入本轮自动测试。
 - `PurchaseVerifier.kt` 的 API 23/Base64 lint 错误已修复；2026-09-24 的 `:feature:feature_app:lintDebug` 通过，未建立 lint baseline。
+
+## 2026-10-21 横屏与页面适配增量
+
+- ORIENT-UNIT：共享 SignageOrientationPolicyTest；验证新设备默认横屏、显式竖屏、跟随设备、大屏和多窗口行为。方向策略迁移到 feature_app，启动、欢迎、播放、帮助、授权和法律页面共用。
+- ORIENT-BUILD：app assembleDebug / assembleDebugAndroidTest 与 app、feature_app testDebugUnitTest；配合 UI、架构、i18n、构建静态门禁。
+- ORIENT-UI：复用 DeviceUiAudit compact，在专用模拟器验证横屏手机和窄窗口大字体的连接、帮助、文章、授权、法律页面共 14 个状态；检查截图、实际方向、ellipsis/verticalOverflow。保留素材和购买状态，恢复临时窗口与字体设置。
+- ORIENT-REMAINING：真实购买商品、实体电视遥控、旋转后播放连续性、分屏拖动和欢迎页首次安装为单独设备验收，不以构建或规则单测替代。
+
+
+## 2026-10-21 UI 样式与虚拟机优化增量
+
+- UI-UNIT/BUILD/GATES：共享方向包含 Android16 大屏和旧版平板差异；设置 PATCH 保留未提交字段和拒绝非法方向；执行两个模块单测、Debug/测试 APK 构建及四类门禁。
+- UI-DEVICE：仅独立 AVD；横屏英文浅色1.0、竖屏中文深色1.3、平板横屏中文深色1.3，每组16状态；首次欢迎、连接、帮助、文章、授权错误/重试、法律正文均检查实际方向、语言、溢出及截图。
+- UI-PLAYBACK：真实 HTTP 配对/局部设置/图片上传/暂停/恢复/轮播/断网/进程重启恢复，最后清理测试数据。只在新建虚拟机执行，不访问物理设备。
+- 保留缺口：视频硬解、实际分屏、系统重启、24小时运行、真实购买及 Release 发布另行验收。结果见 TEST_REPORT 最新节。
+
+
+## 2026-10-21 混播与系统重启增量
+
+选中原因：上一轮只验证 PNG 与进程重启，未覆盖 Media3/WebView 的真实画面以及系统重启后的平台策略。继续使用独立 Android36 AVD，不触碰物理设备。
+
+| 用例 | 关联实现 | 预期 |
+| --- | --- | --- |
+| MIXED-VIDEO | SignagePlaybackController / Media3 | 本地 H.264 位置与实际视频帧均推进 |
+| MIXED-HTML | SignagePlaybackController / WebView | 正文可见，JS计数器推进 |
+| MIXED-OFFLINE | Playlist 调度 / SignageService | 断网后视频、PNG、HTML三类继续循环，无错误状态 |
+| MIXED-BOOT | SignageBootReceiver / BootRestorePolicy / Runtime | Android36开机延迟恢复；人工打开后原列表恢复 |
+| MIXED-SOAK | Player / Runtime / Store | 300秒持续混播，三素材循环，进程不重启；记录前后内存，不据此声称无泄漏 |
+| MIXED-CLEANUP | API场景/资源/列表 | 只删除本轮内容，恢复原设置；清理失败不计通过 |
+
+可复跑入口：[scripts/run_virtual_mixed_media.py](scripts/run_virtual_mixed_media.py)，环境与操作说明：[scripts/README.md](scripts/README.md)。本轮未改生产 Kotlin/XML，不重复上一轮已通过的完整页面矩阵和122项单测。24小时、物理硬解、流媒体和旧版本设备保持未执行。
+
+- MIXED-ROTATE：在上述混播期间临时关闭自动旋转、锁定user-rotation 1，确认1200×1920竖屏截图后恢复原user-rotation/accelerometer设置；确认1920×1200横屏截图及连续混播状态。此项为本轮设备命令验收，未集成到脚本。
+
+
+## 2026-10-21 开放月度、年度与永久套餐
+
+- BILLING-PLANS-UNIT：BillingPlansTest 覆盖三档精确商品/offer、历史pro-mouth、仅永久可用、价格或offer缺失、SUBS/INAPP单侧失败、双侧失败。全量feature_app单测检查共享计费权益消费者。
+- BILLING-PLANS-UI：DeviceUiAudit的mode=billing仅在测试APK通过页面状态夹具验证全部可用、仅永久可用、全部不可用；三档面板始终显示，按钮只按可购性启用。每种状态包含顶部和滚动底部；英文宽屏1.0、中文竖屏1.3各6个状态，检查截图和文字溢出。
+- 测试价格与offer为夹具，不能冒充Play实际商品；不点击真实购买、不发起扣款。恢复购买和真实交易需要Play测试账号另行验收。
+- 生产行为：保留Google Play动态价格与新鲜offer校验；没有返回有效价格/offer的套餐显示价格不可用并禁用按钮。帮助文案9个资源目录与中英购买说明同步。

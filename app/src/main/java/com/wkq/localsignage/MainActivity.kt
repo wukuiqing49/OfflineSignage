@@ -4,6 +4,7 @@ import android.content.Intent
 import android.content.res.ColorStateList
 import android.content.pm.PackageManager
 import android.content.res.Configuration
+import android.os.Bundle
 import android.os.Build
 import android.provider.Settings
 import android.os.Handler
@@ -82,6 +83,16 @@ class MainActivity : SignageActivity<ActivityMainBinding>(), PlaybackListener {
     }
     private val trialExpiryRefresh = Runnable {
         MonetizationRepository.refresh(loadCatalog = false)
+    }
+
+    override fun onCreate(savedInstanceState: Bundle?) {
+        pairingManuallyOpened = savedInstanceState?.getBoolean("pairing_open") ?: false
+        super.onCreate(savedInstanceState)
+    }
+
+    override fun onSaveInstanceState(outState: Bundle) {
+        outState.putBoolean("pairing_open", pairingManuallyOpened)
+        super.onSaveInstanceState(outState)
     }
 
     override fun initView() {
@@ -173,6 +184,8 @@ class MainActivity : SignageActivity<ActivityMainBinding>(), PlaybackListener {
     override fun initData() = Unit
 
     private fun configurePairingLayout(availableWidth: Int, availableHeight: Int) {
+        val stacked = availableWidth / resources.configuration.fontScale.coerceAtLeast(1f) <
+            resources.getDimensionPixelSize(FeatureAppR.dimen.pairing_stack_breakpoint)
         val compact = availableWidth < resources.getDimensionPixelSize(FeatureAppR.dimen.pairing_compact_breakpoint) ||
             availableHeight < resources.getDimensionPixelSize(FeatureAppR.dimen.pairing_compact_height_breakpoint)
         val padding = resources.getDimensionPixelSize(
@@ -196,10 +209,20 @@ class MainActivity : SignageActivity<ActivityMainBinding>(), PlaybackListener {
             }
         binding.pairingContentCard.minimumHeight = contentHeight
         binding.pairingContent.setPadding(padding, padding, padding, padding)
-        binding.pairingPanel.scrollTo(0, 0)
+        binding.pairingContent.orientation = if (stacked) LinearLayout.VERTICAL else LinearLayout.HORIZONTAL
+        binding.pairingSecondaryActions.orientation = if (stacked) LinearLayout.VERTICAL else LinearLayout.HORIZONTAL
+        for (index in 0 until binding.pairingSecondaryActions.childCount) {
+            val action = binding.pairingSecondaryActions.getChildAt(index)
+            action.layoutParams = (action.layoutParams as LinearLayout.LayoutParams).apply {
+                width = if (stacked) ViewGroup.LayoutParams.MATCH_PARENT else 0
+                weight = if (stacked) 0f else 1f
+                marginStart = if (!stacked && index > 0) gap else 0
+                topMargin = if (stacked && index > 0) padding else 0
+            }
+        }
         binding.pairingQrSection.layoutParams =
             (binding.pairingQrSection.layoutParams as LinearLayout.LayoutParams).apply {
-                width = qrSize
+                width = if (stacked) ViewGroup.LayoutParams.MATCH_PARENT else qrSize
                 height = ViewGroup.LayoutParams.WRAP_CONTENT
                 marginEnd = 0
             }
@@ -210,11 +233,11 @@ class MainActivity : SignageActivity<ActivityMainBinding>(), PlaybackListener {
             }
         binding.pairingDetails.layoutParams =
             (binding.pairingDetails.layoutParams as LinearLayout.LayoutParams).apply {
-                width = 0
+                width = if (stacked) ViewGroup.LayoutParams.MATCH_PARENT else 0
                 height = ViewGroup.LayoutParams.WRAP_CONTENT
-                weight = 1f
-                marginStart = gap
-                topMargin = 0
+                weight = if (stacked) 0f else 1f
+                marginStart = if (stacked) 0 else gap
+                topMargin = if (stacked) gap else 0
             }
     }
 
@@ -427,12 +450,7 @@ class MainActivity : SignageActivity<ActivityMainBinding>(), PlaybackListener {
 
     private fun applyDisplaySettings() {
         val settings = SignageRuntime.settings()
-        val targetOrientation = PlaybackOrientationPolicy.resolve(
-            settings.orientation,
-            resources.configuration.smallestScreenWidthDp,
-            Build.VERSION.SDK_INT >= Build.VERSION_CODES.N && isInMultiWindowMode
-        )
-        if (requestedOrientation != targetOrientation) requestedOrientation = targetOrientation
+        applySignageOrientation()
         if (appliedKeepScreenAwake != settings.keepScreenAwake) {
             if (settings.keepScreenAwake) {
                 window.addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)

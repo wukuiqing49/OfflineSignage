@@ -1,18 +1,17 @@
 <?xml version="1.0" encoding="utf-8"?>
-<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+<LinearLayout
+    xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:app="http://schemas.android.com/apk/res-auto"
     android:id="@+id/legal_root"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
     android:background="@color/billing_background"
     android:orientation="vertical">
-
     <FrameLayout
         android:id="@+id/toolbar_container"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:background="@color/billing_surface">
-
         <com.google.android.material.appbar.MaterialToolbar
             android:id="@+id/toolbar"
             android:layout_width="match_parent"
@@ -21,7 +20,6 @@
             app:navigationIcon="@drawable/ic_arrow_back_24"
             app:titleTextColor="@color/billing_text_primary" />
     </FrameLayout>
-
     <ScrollView
         android:id="@+id/document_scroll"
         android:layout_width="match_parent"
@@ -30,11 +28,9 @@
         android:clipToPadding="false"
         android:fillViewport="true"
         android:scrollbars="none">
-
         <androidx.constraintlayout.widget.ConstraintLayout
             android:layout_width="match_parent"
             android:layout_height="wrap_content">
-
             <LinearLayout
                 android:layout_width="0dp"
                 android:layout_height="wrap_content"
@@ -46,21 +42,18 @@
                 app:layout_constraintStart_toStartOf="parent"
                 app:layout_constraintTop_toTopOf="parent"
                 app:layout_constraintWidth_max="@dimen/document_content_max_width">
-
                 <LinearLayout
                     android:id="@+id/document_visual_card"
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
                     android:orientation="vertical"
                     android:visibility="gone">
-
                     <ImageView
                         android:id="@+id/document_visual"
                         android:layout_width="match_parent"
                         android:layout_height="88dp"
                         android:contentDescription="@null"
                         android:scaleType="fitCenter" />
-
                     <TextView
                         android:id="@+id/document_visual_caption"
                         android:layout_width="match_parent"
@@ -69,7 +62,6 @@
                         android:textColor="@color/billing_text_secondary"
                         android:textSize="13sp" />
                 </LinearLayout>
-
                 <TextView
                     android:id="@+id/document_body"
                     android:layout_width="match_parent"
@@ -79,7 +71,6 @@
                     android:textColor="@color/billing_text_primary"
                     android:textIsSelectable="true"
                     android:textSize="15sp" />
-
                 <com.google.android.material.button.MaterialButton
                     android:id="@+id/document_action_button"
                     style="@style/Widget.Material3.Button"
@@ -88,7 +79,7 @@
                     android:layout_marginTop="20dp"
                     android:minHeight="48dp"
                     android:visibility="gone"
-                    app:cornerRadius="6dp" />
+                    app:cornerRadius="@dimen/ui_corner_radius" />
             </LinearLayout>
         </androidx.constraintlayout.widget.ConstraintLayout>
     </ScrollView>

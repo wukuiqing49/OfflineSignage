@@ -1,5 +1,5 @@
-Effective date: August 18, 2026
-Document version: 1.1
+Effective date: October 21, 2026
+Document version: 1.2
 
 1. Service scope
 
@@ -11,7 +11,7 @@ You must have the right to use all text, images, videos, live streams, web pages
 
 3. Trial and licensing
 
-The app provides a seven-day full local trial after its first successful launch. It does not automatically become a paid subscription. After the trial, existing content may keep playing in free mode. Free mode supports up to 10 image or video resources and one basic image/video carousel. Pro access is required for unlimited content, text, live streams, web or HTML content, advanced playback options, and multiple-screen management. The launch purchase offer is an annual Pro subscription through Google Play.
+The app provides a seven-day full local trial after its first successful launch. It does not automatically become a paid subscription. After the trial, existing content may keep playing in free mode. Free mode supports up to 10 image or video resources and one basic image/video carousel. Pro access is required for unlimited content, text, live streams, web or HTML content, advanced playback options, and multiple-screen management. Google Play offers available monthly or annual Pro subscriptions and a one-time lifetime purchase.
 
 4. Purchases
 

@@ -56,12 +56,14 @@ class DevHubConsentTest {
     private fun updateConsent(enabled: Boolean): Boolean {
         val result = AtomicReference<Boolean>()
         GoogleCommercialManager.setCollectionEnabled(enabled) { result.set(it) }
-        val deadline = System.nanoTime() + 5_000_000_000L
+        // 这里验证异步授权结果与清队列，不是 SDK 的 5 秒性能 SLA。
+        // 冷启动或并行构建负载下给后台线程足够调度时间，仍保留有界等待和全部状态断言。
+        val deadline = System.nanoTime() + 30_000_000_000L
         while (result.get() == null && System.nanoTime() < deadline) {
             shadowOf(Looper.getMainLooper()).idle()
             Thread.sleep(10)
         }
-        assertNotNull("SDK consent callback did not complete", result.get())
+        assertNotNull("SDK consent callback did not complete within 30 seconds (enabled=$enabled)", result.get())
         return result.get()
     }
 }

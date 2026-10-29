@@ -1,0 +1,64 @@
+TAP version 13
+# Subtest: group targets exclude gateway; empty group never falls back to all
+ok 1 - group targets exclude gateway; empty group never falls back to all
+  ---
+  duration_ms: 4.0112
+  type: 'test'
+  ...
+# Subtest: sync failures never receive play; retry reuses content and skips successes
+ok 2 - sync failures never receive play; retry reuses content and skips successes
+  ---
+  duration_ms: 2.0771
+  type: 'test'
+  ...
+# Subtest: missing or malformed result is failure, never silent success
+ok 3 - missing or malformed result is failure, never silent success
+  ---
+  duration_ms: 3.6134
+  type: 'test'
+  ...
+# Subtest: network failure retains pending devices for retry
+ok 4 - network failure retains pending devices for retry
+  ---
+  duration_ms: 0.9512
+  type: 'test'
+  ...
+# Subtest: play failure retries play only, without resync or reupload
+ok 5 - play failure retries play only, without resync or reupload
+  ---
+  duration_ms: 0.5755
+  type: 'test'
+  ...
+# Subtest: local publication uses explicit playlist command and propagates rejection
+ok 6 - local publication uses explicit playlist command and propagates rejection
+  ---
+  duration_ms: 0.4788
+  type: 'test'
+  ...
+# Subtest: invalid content or empty target rejected before any commands
+ok 7 - invalid content or empty target rejected before any commands
+  ---
+  duration_ms: 0.6827
+  type: 'test'
+  ...
+# Subtest: targets are snapshotted and duplicate devices execute once
+ok 8 - targets are snapshotted and duplicate devices execute once
+  ---
+  duration_ms: 0.5139
+  type: 'test'
+  ...
+# Subtest: fleet control reports partial HTTP 200 failures and missing device results
+ok 9 - fleet control reports partial HTTP 200 failures and missing device results
+  ---
+  duration_ms: 4.928
+  type: 'test'
+  ...
+1..9
+# tests 9
+# suites 0
+# pass 9
+# fail 0
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 162.2258

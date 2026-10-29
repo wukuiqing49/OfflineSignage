@@ -1,7 +1,23 @@
 # 功能回归测试报告（最新一轮）
 
-最新结果见下方“开放三档购买套餐（2026-10-21）”；其余区块保留各自测试时的历史状态。
+最新结果见下方“发布确定性与职责拆分（2026-10-29）”；其余区块保留各自测试时的历史状态。
 
+
+
+
+## 发布确定性与职责拆分（2026-10-29）
+
+- 范围：分组发布不包含网关、同步后再播放、逐设备结果、失败设备独立重试、目标消失不回落本机、批量控制结果检查、移动端发布方式折叠、预览/恢复/授权说明、Web 离线源码拆分、数据库 schema/JSON/Web 内容访问职责分离。
+- 功能事实：数据库版本保持 15，不更改 SQL、协议字段、权限或 SDK。自动恢复帮助统一到已有各语言部署边界文案；购买说明修正为月度、年度、永久。控制台新文案中英文，其他语言按已有策略 fallback 英文。
+- OPT-PUBLISH：**本次通过**。`node --test tools/test_publish_workflow.cjs`，9 tests，0 failures。覆盖分组、空组、缺失结果、网络错误、同步失败不播放、只重试失败目标、播放失败不重复同步、本地播放拒绝与批量控制 HTTP 200 部分失败。日志 `build/optimization-20261029-web-tests.log`。
+- OPT-CONSOLE：**本次通过**。Playwright 执行 `tools/console_ui_smoke.js`，使用本机静态页与虚拟 API；第一次 1/2 成功，重试后 2/2；仅创建资源一次、组内不发送本机命令、播放目标依次为 a 和 b。1440/390/320px 无横向溢出、中英文结果切换、失效目标保留均通过；另实测手机选内容后折叠及重新展开。无 pageerror。截图与摘要见 [浏览器证据](evidence/optimization-20261029/browser-results.json)。fixture 结果不代表真机播放。
+- OPT-CONSOLE-PACK：**本次通过**。Python `--check`、全部源 JS 的 `node --check` 与 Gradle `verifyOfflineConsole` 通过。商业门禁加入源码一致性及发布流程回归。
+- OPT-GATES：**本次通过**。架构、UI、i18n、构建扫描及 `git diff --check` 通过；Python 门禁自身回归 12 项通过。原有警告包括内部 Uri.fromFile、多 Insets owner 启发式提示、非 Tab ViewPager2、app 无本地 strings、局域网 HTTP/未声明 networkSecurityConfig、系统栏 theme 项。静态通过不表示这些风险已真机验收。
+- OPT-CORE：**本次通过（首轮）**。`:feature:feature_app:testDebugUnitTest :app:testDebugUnitTest :core:core_google:testDebugUnitTest :app:assembleDebug --console=plain --max-workers=1 --no-parallel`，8m11s，exit 0。feature_app 126 + app 3 tests 无失败；core_google 5 项为 UP-TO-DATE，标记历史通过未复测。初次编译发现抽取 Web 内容策略时遗漏仍被 Overlay 路径使用的 WebSettings import，补回后通过。日志 `build/optimization-20261029-gradle.log`。
+- OPT-FINAL：**本次通过**。最终 app/feature_app Lint 均 0 errors，分别 40/41 warnings；Debug/Release 构建成功，Release 含 R8/资源压缩（19m48s，`build/optimization-20261029-final.log`）。发现 Debug 中间包早于最后文案修正后重新打包；两个最终 APK 的控制台均与当前源码逐字节一致，签名和 16KB ZIP 对齐检查通过。APK 路径与 SHA-256 见 [产物清单](evidence/optimization-20261029/artifacts.json)。未进行 native ELF 单独审核或 16KB 真机执行。
+- 时序问题与最终复测：最后刷新 Debug 时，已有 DevHubConsentTest 一次超过原 5 秒回调等待，失败点是回调未完成（授权撤回步骤），不是隐私状态断言；独立复测通过。将此异步集成测试的等待上限改为 30 秒并保留全部状态断言/有界失败，随后完整 feature_app **126 项再次通过**，0 failures/errors/skipped，1m25s。日志 `build/optimization-20261029-artifact-refresh.log`（失败）、`build/optimization-20261029-consent-recheck.log`（独立复测及最终 Debug）、`build/optimization-20261029-final-unit.log`（最终全量）。不以延长测试等待承诺 SDK 的实时性能。
+- 汇总：6 组验证最终通过，最终未解决失败 0；保留上述一次测试时序失败记录。实际执行 Android 单测 126+3，JS 9，Python 工具 12；core_google 5 项历史通过未复测。两份 APK 均已生成但未安装到物理设备。源码指纹与测试摘要见 [源码清单](evidence/optimization-20261029/source-manifest.json)及[验证摘要](evidence/optimization-20261029/verification-summary.json)。
+- 现场范围：**未执行**。检测到两台物理设备，未选择、安装、清数据或改变播放。Android 日夜/大字体/遥控器、双真机、磁盘满、24 小时混播、断电恢复、Release 安装升级与真实 Play 购买均未执行；详见 [现场矩阵](../../docs/LOCAL_SIGNAGE_DEVICE_ACCEPTANCE_MATRIX_CN.md)。本轮没有真实扣款或生产统计上报。
 
 
 ## 开放三档购买套餐（2026-10-21）

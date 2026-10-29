@@ -1,0 +1,32 @@
+{
+  "feature/feature_app": {
+    "tests": 126,
+    "failures": 0,
+    "errors": 0,
+    "skipped": 0,
+    "execution": "final full suite executed after bounded SDK callback wait adjustment"
+  },
+  "app": {
+    "tests": 3,
+    "failures": 0,
+    "errors": 0,
+    "skipped": 0,
+    "execution": "executed this run"
+  },
+  "core/core_google": {
+    "tests": 5,
+    "failures": 0,
+    "errors": 0,
+    "skipped": 0,
+    "execution": "historical up-to-date, not rerun"
+  },
+  "lint": {
+    "app": {
+      "Warning": 40
+    },
+    "feature/feature_app": {
+      "Warning": 41
+    }
+  },
+  "transientFailure": "One prior DevHub consent test exceeded its 5-second callback wait. Isolated rerun passed. Test wait changed to 30 seconds without removing state assertions; final full suite passed."
+}

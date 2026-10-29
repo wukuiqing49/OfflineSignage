@@ -119,6 +119,51 @@
       "commandOrSteps": "DeviceUiAudit mode=billing; en-US/1.0/landscape + zh-CN/1.3/portrait",
       "evidence": "12 fixture states; all, partial, unavailable; no overflow; doc/testing/evidence/billing-plans-20261021",
       "apkSha256": "8299f99a590f5e64f6bc15e7d0bbcce188917d0a62d9eca22ffadae4e195714b"
+    },
+    "OPT-PUBLISH": {
+      "commit": "7a387170ff218b30660f87b516e46fd20619c31b",
+      "sourceFingerprint": "0d654f0775f46d141bc7538def9e5440013d4464fdfb250cb846d8fc8f3fb609",
+      "testedAt": "2026-10-29T11:52:03.383053+08:00",
+      "variant": "debug",
+      "environment": "Windows; JDK 17.0.12; Gradle 8.13; AGP 8.13.2; Kotlin plugin 2.3.0; browser APIs are fixtures",
+      "commandOrSteps": "node --test tools/test_publish_workflow.cjs",
+      "evidence": "doc/testing/evidence/optimization-20261029/9 tests, 0 failures; web-tests.log"
+    },
+    "OPT-CONSOLE": {
+      "commit": "7a387170ff218b30660f87b516e46fd20619c31b",
+      "sourceFingerprint": "0d654f0775f46d141bc7538def9e5440013d4464fdfb250cb846d8fc8f3fb609",
+      "testedAt": "2026-10-29T11:52:03.383053+08:00",
+      "variant": "debug",
+      "environment": "Windows; JDK 17.0.12; Gradle 8.13; AGP 8.13.2; Kotlin plugin 2.3.0; browser APIs are fixtures",
+      "commandOrSteps": "Playwright tools/console_ui_smoke.js; mobile chooser assertions",
+      "evidence": "doc/testing/evidence/optimization-20261029/browser-results.json; screenshots"
+    },
+    "OPT-CONSOLE-PACK": {
+      "commit": "7a387170ff218b30660f87b516e46fd20619c31b",
+      "sourceFingerprint": "0d654f0775f46d141bc7538def9e5440013d4464fdfb250cb846d8fc8f3fb609",
+      "testedAt": "2026-10-29T11:52:03.383053+08:00",
+      "variant": "debug",
+      "environment": "Windows; JDK 17.0.12; Gradle 8.13; AGP 8.13.2; Kotlin plugin 2.3.0; browser APIs are fixtures",
+      "commandOrSteps": "python tools/build_web_console.py --check; Gradle verifyOfflineConsole; APK ZIP content comparison",
+      "evidence": "doc/testing/evidence/optimization-20261029/artifacts.json"
+    },
+    "OPT-CORE": {
+      "commit": "7a387170ff218b30660f87b516e46fd20619c31b",
+      "sourceFingerprint": "0d654f0775f46d141bc7538def9e5440013d4464fdfb250cb846d8fc8f3fb609",
+      "testedAt": "2026-10-29T11:52:03.383053+08:00",
+      "variant": "debug",
+      "environment": "Windows; JDK 17.0.12; Gradle 8.13; AGP 8.13.2; Kotlin plugin 2.3.0; browser APIs are fixtures",
+      "commandOrSteps": "gradlew.bat :feature:feature_app:testDebugUnitTest; app:testDebugUnitTest earlier in this run",
+      "evidence": "doc/testing/evidence/optimization-20261029/verification-summary.json; final full feature suite 126 tests; app 3 tests"
+    },
+    "OPT-FINAL": {
+      "commit": "7a387170ff218b30660f87b516e46fd20619c31b",
+      "sourceFingerprint": "0d654f0775f46d141bc7538def9e5440013d4464fdfb250cb846d8fc8f3fb609",
+      "testedAt": "2026-10-29T11:52:03.383053+08:00",
+      "variant": "debug/release",
+      "environment": "Windows; JDK 17.0.12; Gradle 8.13; AGP 8.13.2; Kotlin plugin 2.3.0; browser APIs are fixtures",
+      "commandOrSteps": "app:lintDebug feature:feature_app:lintDebug app:assembleDebug app:assembleRelease; verify_apk.ps1",
+      "evidence": "doc/testing/evidence/optimization-20261029/verification-summary.json; artifacts.json"
     }
   }
 }

@@ -4,6 +4,10 @@ $ErrorActionPreference = 'Stop'
 $projectRoot = (Resolve-Path (Join-Path $PSScriptRoot '../..')).Path
 Push-Location $projectRoot
 try {
+    python -X utf8 tools/build_web_console.py --check
+    if ($LASTEXITCODE -ne 0) { throw 'Offline console source/resource mismatch' }
+    node --test tools/test_publish_workflow.cjs
+    if ($LASTEXITCODE -ne 0) { throw 'Publication workflow tests failed' }
     python -X utf8 -m unittest discover -s .agents/scripts/tests
     if ($LASTEXITCODE -ne 0) { throw 'Python regression tests failed' }
     python -X utf8 .agents/scripts/validate_android_workflows.py --project-root . --skip-figma

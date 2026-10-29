@@ -89,7 +89,7 @@
   <string name="help_open_autostart_settings">自動起動の設定画面を開く</string>
   <string name="help_troubleshooting_title">トラブルシューティング</string>
   <string name="help_visual_autostart_caption">商業用サイネージディスプレイおよび主要メーカーのスマホにおける自動起動設定ガイド。</string>
-  <string name="help_autostart_body">商業用サイネージディスプレイおよびAndroid TVボックス：\nLocal SignageはBOOT_COMPLETEDおよびQuickBootブロードキャストを自動受信します。専用の商業用ハードウェアでは、電源投入時に手動操作なしでアプリが自動起動し、フルスクリーン4K再生が自動再開されます。\n\nスマートフォン向け設定ガイド（メーカー別）：\n省電力機能による強制終了を防ぐため、端末の設定で以下の権限を許可してください：\n\n1. Xiaomi / Redmi (HyperOS / MIUI)：\nアプリ情報 > 「自動起動」を有効化 > バッテリーセーバー > 「制限なし」を選択 > その他の権限 > 「バックグラウンド実行中にポップアップウィンドウを表示」を許可。\n\n2. Huawei / Honor (HarmonyOS / MagicOS)：\n設定 > アプリ > アプリの起動 > Local Signage > 「手動で管理」に変更 > 「自動起動」「他のアプリによる起動」「バックグラウンドでのアクティビティ」をすべて有効化。\n\n3. OPPO / OnePlus / Realme (ColorOS)：\nアプリ情報 > バッテリー使用量 > 「バックグラウンドアクティビティを許可」「自動起動を許可」を有効化 > アプリの権限 > 「フローティングウィンドウ / ポップアップウィンドウ」を許可。\n\n4. vivo / iQOO (OriginOS)：\n設定 > アプリと権限 > 権限管理 > 「自動起動」で本アプリを有効化 > バッテリー > バックグラウンド高消費電力 > 許可。\n\n5. Samsung (One UI)：\n設定 > アプリ > Local Signage > バッテリー > 「制限なし」を選択 > 設定 > バッテリーとデバイスケア > バッテリー > バックグラウンド使用制限 > 「スリープ状態にしないアプリ」に追加。</string>
+  <string name="help_autostart_body">Local Signage はアプリ起動後に前回の再生状態を復元します。Android 15 以降では、通常のアプリが BOOT_COMPLETED からメディア再生フォアグラウンドサービスを直接開始することはできません。専用サイネージ端末では、メーカーの自動起動、Kiosk/Launcher、または Device Owner モードを設定してください。通常のスマートフォンやタブレットでは、端末の再起動後に Local Signage を一度開いてください。\n\n下のボタンから利用可能なアプリ設定または自動起動設定を開き、対応端末ではバッテリー使用を「制限なし」に設定してください。</string>
   <string name="device_license_status_action">ライセンス状態: %1$s。プランとライセンスを開く。</string>
   <string name="billing_status_trial">7日間の全機能体験 · 残り約%1$d日</string>
   <string name="billing_monthly_title">月額サブスクリプション</string>

@@ -3,6 +3,25 @@ plugins {
     alias(libs.plugins.kotlin.android)
 }
 
+// 离线 Web 源码与打包资源必须一致；校验不依赖本机 Python/Node 安装。
+tasks.register('verifyOfflineConsole') {
+    inputs.dir('src/main/web')
+    inputs.file('src/main/res/raw/web_console.html')
+    doLast {
+        def sourceDir = file('src/main/web')
+        def normalize = { String text -> text.replace('\r\n', '\n') }
+        def expected = normalize(new File(sourceDir, 'index.html').getText('UTF-8')).replaceAll(/\{\{([a-z-]+\.(?:js|css))\}\}/) { match, name ->
+            def source = normalize(new File(sourceDir, name).getText('UTF-8')).stripTrailing() + '\n'
+            def tag = name.endsWith('.css') ? 'style' : 'script'
+            "<${tag}>\n${source}</${tag}>"
+        }
+        if (normalize(file('src/main/res/raw/web_console.html').getText('UTF-8')) != expected) {
+            throw new GradleException('Offline console is stale. Run python tools/build_web_console.py')
+        }
+    }
+}
+tasks.named('preBuild').configure { dependsOn('verifyOfflineConsole') }
+
 android {
     namespace = 'com.wkq.localsignage.feature.app'
     compileSdk = libs.versions.compileSdk.get().toInteger()

@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
   <meta name="color-scheme" content="light">
   <title>Local Signage</title>
-  <style>
+<style>
     :root{--bg:#f4f6f5;--surface:#fff;--line:#d9dfdc;--line-strong:#bcc6c1;--text:#17201c;--muted:#66716c;--brand:#117a58;--brand-dark:#075a40;--brand-soft:#e5f4ed;--danger:#b42318;--danger-soft:#fdefec;--warning:#a15c00;--warning-soft:#fff5df;--sidebar:#202824;--sidebar-muted:#aeb9b4;--shadow:0 8px 24px rgba(18,34,27,.08);--radius:6px}
     *{box-sizing:border-box;letter-spacing:0}
     html,body{margin:0;min-height:100%;background:var(--bg);color:var(--text);font-family:Inter,"Segoe UI","Microsoft YaHei",system-ui,sans-serif}
@@ -36,7 +36,17 @@
     @media(max-width:560px){.send-submit{position:sticky;bottom:calc(66px + env(safe-area-inset-bottom));z-index:8;flex-wrap:wrap;margin:12px -16px 0;padding:10px 16px calc(10px + env(safe-area-inset-bottom));background:rgba(255,255,255,.98);border-top:1px solid var(--line);box-shadow:0 -7px 16px rgba(18,34,27,.06)}.send-status{flex-basis:100%}.send-submit>button{flex:1;min-width:0}.control-note{display:block}}
     @media(max-width:560px){.view:not(#contentView) .page-actions{display:flex}.view:not(#contentView) .page-actions button{width:auto;min-width:0;min-height:40px;white-space:nowrap;line-height:normal;overflow-wrap:normal}#contentView .page-actions{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));align-items:stretch}#contentView .page-actions button{width:100%;min-width:0;min-height:44px;white-space:normal;line-height:1.25;overflow-wrap:anywhere}}
     .stream-poster{width:100%;height:100%;max-width:none;align-content:center;padding:18% 24px 28%;background:#15201a;color:#c0cbc6}.stream-poster .stream-live-badge{display:inline-flex;align-items:center;min-height:26px;padding:4px 9px;border-radius:4px;background:#b92d27;color:#fff;font-size:11px;font-weight:800}.stream-poster.paused .stream-live-badge{background:#68746e}.stream-poster strong{font-size:24px;letter-spacing:0;color:#fff}.stream-poster span:last-child{max-width:100%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
-  </style>
+
+.publication-results{margin-top:20px;padding:20px;overflow-wrap:anywhere}
+.publication-results h2{font-size:18px;margin-top:0}
+.publication-result{display:grid;grid-template-columns:minmax(100px,1fr) minmax(0,2fr);gap:12px;padding:12px 0;border-bottom:1px solid var(--line)}
+.preview-disclaimer{font-size:13px;line-height:1.5;overflow-wrap:anywhere}
+.play-preview-column{min-width:0}
+.publish-method-toggle{display:none}
+@media(max-width:560px){.publish-method-toggle{display:block}.publish-chooser.compact-choice .publish-methods{display:none}}
+@media(pointer:coarse){button,button.icon,input,select{min-height:48px}button.icon{min-width:48px}}
+@media(prefers-reduced-motion:reduce){*,*::before,*::after{scroll-behavior:auto!important;animation:none!important;transition:none!important}}
+</style>
 </head>
 <body>
 <div class="app">
@@ -65,6 +75,77 @@
 <dialog id="playlistDialog"><div class="dialog-head"><h2 id="playlistDialogTitle" data-i18n="addPlaylist">新建播放列表</h2><button class="icon ghost" data-close="playlistDialog" aria-label="Close">×</button></div><div class="dialog-body"><div id="playlistDialogError" class="dialog-error hidden"></div><label><span data-i18n="playlistName">播放列表名称</span><input id="playlistName" maxlength="120" autocomplete="off"></label><label class="check"><input id="playlistLoop" type="checkbox" checked><span data-i18n="loopPlayback">循环播放</span></label><div class="dialog-section"><div class="surface-head" style="padding:0 0 10px"><h3 data-i18n="playlistItems">播放项目</h3><button id="addPlaylistItem" data-i18n="addItem">添加项目</button></div><div id="playlistEditorItems" class="playlist-editor-items"></div></div></div><div class="dialog-actions"><button data-close="playlistDialog" data-i18n="cancel">取消</button><button id="savePlaylist" class="primary" data-write data-i18n="save">保存</button></div></dialog>
 <div id="toast" class="toast" role="status"></div>
 <script>
+// 发布任务保留已创建内容及每台设备的阶段，重试不重新上传或打扰成功设备。
+const PublishWorkflow = (() => {
+  function targets(selection, local, paired) {
+    if (selection === 'LOCAL') return [{ ...local, local: true }];
+    if (selection === 'ALL') return [{ ...local, local: true }, ...paired];
+    if (selection.startsWith('DEVICE_')) return paired.filter(d => d.deviceId === selection.slice(7));
+    if (selection.startsWith('GROUP_')) {
+      const group = decodeURIComponent(selection.slice(6));
+      return paired.filter(d => d.groupName === group);
+    }
+    return [];
+  }
+
+  function create(content, devices) {
+    if (!content.resourceId && !content.playlistId) throw new Error('PUBLISH_CONTENT_MISSING');
+    if (!devices.length) throw new Error('PUBLISH_TARGET_MISSING');
+    return {
+      content: { ...content },
+      rows: [...new Map(devices.map(device => [device.deviceId, device])).values()]
+        .map(device => ({ ...device, stage: device.local ? 'SYNCED' : 'PENDING', error: '' }))
+    };
+  }
+
+  async function run(job, transport, changed = () => {}) {
+    const content = job.content;
+    const body = content.playlistId ? { playlistId: content.playlistId } : { resourceId: content.resourceId };
+    const syncPath = content.playlistId ? '/api/devices/sync-playlist' : '/api/devices/sync';
+    const playPath = content.playlistId ? '/api/devices/play-playlist' : '/api/devices/play';
+
+    async function phase(rows, path, successStage) {
+      if (!rows.length) return;
+      rows.forEach(row => { row.error = ''; row.stage = successStage === 'SYNCED' ? 'SYNCING' : 'STARTING'; });
+      changed(job);
+      try {
+        const results = await transport(path, { ...body, deviceIds: rows.map(row => row.deviceId) });
+        rows.forEach(row => {
+          const result = Array.isArray(results) && results.find(item => item.deviceId === row.deviceId);
+          row.stage = result?.success === true ? successStage : successStage === 'SYNCED' ? 'SYNC_FAILED' : 'PLAY_FAILED';
+          row.error = result?.success === true ? '' : (result?.reason || result?.code || 'PUBLISH_RESULT_MISSING');
+        });
+      } catch (error) {
+        rows.forEach(row => {
+          row.stage = successStage === 'SYNCED' ? 'SYNC_FAILED' : 'PLAY_FAILED';
+          row.error = error.code || error.message || 'PUBLISH_REQUEST_FAILED';
+        });
+      }
+      changed(job);
+    }
+
+    await phase(job.rows.filter(row => !row.local && ['PENDING', 'SYNC_FAILED'].includes(row.stage)), syncPath, 'SYNCED');
+    // 同步失败不会进入播放；已接受的设备不再收到新命令。
+    await phase(job.rows.filter(row => !row.local && ['SYNCED', 'PLAY_FAILED'].includes(row.stage)), playPath, 'ACCEPTED');
+    for (const row of job.rows.filter(row => row.local && row.stage !== 'ACCEPTED')) {
+      row.stage = 'STARTING';
+      row.error = '';
+      changed(job);
+      try {
+        await transport('/api/control', { action: content.playlistId ? 'PLAY_PLAYLIST' : 'PLAY', ...body });
+        row.stage = 'ACCEPTED';
+      } catch (error) {
+        row.stage = 'PLAY_FAILED';
+        row.error = error.code || error.message || 'PUBLISH_REQUEST_FAILED';
+      }
+      changed(job);
+    }
+    return job.rows.every(row => row.stage === 'ACCEPTED');
+  }
+  return { targets, create, run };
+})();
+</script>
+<script>
 'use strict';
 const issuedToken=__CONTROL_TOKEN__,issuedPairingToken=__PAIRING_TOKEN__,$=id=>document.getElementById(id);
 const messages={localConsole:['局域网控制台','Local network console'],playback:['播放','Playback'],send:['发送','Send'],devices:['设备','Devices'],records:['记录','Records'],connecting:['正在连接','Connecting'],checkingControl:['正在确认控制权','Checking control'],takeControl:['接管控制','Take control'],playbackIntro:['查看当前画面并控制播放状态。','View the current screen and control playback.'],refresh:['刷新','Refresh'],paused:['已暂停','Paused'],playing:['播放中','Playing'],currentContent:['当前内容','Current content'],noContent:['暂无内容','No content'],standalonePlayback:['独立播放','Standalone playback'],playlistPosition:['播放列表 {current} / {total}','Playlist {current} / {total}'],previewLoading:['正在加载当前画面','Loading current screen'],previewUnavailable:['此内容正在设备上播放，控制台仅展示运行状态。','This content is playing on the device. The console shows its status only.'],previewTooLarge:['视频文件较大，控制台不加载预览。','This video is too large to preview in the console.'],previewFailed:['当前画面预览加载失败','Unable to load the current screen preview'],currentPreview:['当前画面预览','Current screen preview'],playControl:['播放控制','Playback controls'],previous:['上一个','Previous'],play:['播放','Play'],pause:['暂停','Pause'],next:['下一个','Next'],stop:['停止','Stop'],mute:['静音','Mute'],unmute:['取消静音','Unmute'],sendNew:['发送新内容','Send new'],volume:['音量','Volume'],deviceName:['设备名称','Device name'],networkAddress:['局域网地址','Local address'],lastError:['最近异常','Latest error'],changeScreen:['更换屏幕内容','Change screen content'],changeScreenHint:['文字、图片、视频、直播、网页和 HTML 都从发送页进入。','Send text, images, video, live streams, web pages, or HTML from one place.'],openSend:['打开发送页','Open Send'],sendIntro:['选择一种内容，设置完成后直接在当前设备播放。','Choose one content type and play it directly on the current device.'],currentTarget:['当前发送目标','Current target'],text:['文字','Text'],image:['图片','Image'],video:['视频','Video'],live:['直播','Live'],web:['网页','Web'],sendText:['发送文字','Send text'],contentName:['内容名称（选填）','Content name (optional)'],namePlaceholder:['例如：大厅欢迎页','Example: Lobby welcome'],textContent:['文字内容','Text content'],textPlaceholder:['输入要展示的文字','Enter text to display'],font:['字体','Font'],fontSize:['字号','Text size'],systemSans:['系统黑体','System sans'],systemSerif:['系统宋体','System serif'],monospace:['等宽字体','Monospace'],textColor:['文字颜色','Text color'],backgroundColor:['背景颜色','Background color'],scrollSpeed:['滚动速度','Scroll speed'],slow:['慢','Slow'],normal:['标准','Normal'],fast:['快','Fast'],localFile:['本地文件','Local file'],networkUrl:['网络地址','Network URL'],chooseImage:['选择图片','Choose images'],chooseVideo:['选择视频','Choose videos'],chooseFileHint:['点击选择文件，电脑端也可以拖入这里','Tap to choose files, or drop them here on a computer'],imageUrls:['图片地址，每行一个','Image URLs, one per line'],videoUrls:['视频地址，每行一个','Video URLs, one per line'],imageFormats:['支持 JPG/JPEG、PNG、WebP、GIF、BMP、AVIF。','Supports JPG/JPEG, PNG, WebP, GIF, BMP, and AVIF.'],videoFormats:['支持 MP4/M4V、WebM、MKV、MOV、3GP；实际编解码能力取决于设备。','Supports MP4/M4V, WebM, MKV, MOV, and 3GP; codec availability depends on the device.'],fitMode:['画面适配','Display fit'],fitInside:['完整显示','Fit inside'],fillFrame:['铺满画面','Fill frame'],cropFill:['裁切铺满','Crop to fill'],stretch:['拉伸','Stretch'],original:['原始大小','Original size'],imageDuration:['每张图片秒数','Seconds per image'],imageTransition:['图片切换效果','Image transition'],transitionNone:['无效果','None'],transitionFade:['淡入','Fade'],transitionSlide:['滑入','Slide'],transitionZoom:['缩放','Zoom'],playbackSpeed:['播放速度','Playback speed'],streamUrl:['直播地址','Stream URL'],liveFormats:['支持 HLS (.m3u8)、MPEG-DASH (.mpd) 和 RTSP。','Supports HLS (.m3u8), MPEG-DASH (.mpd), and RTSP.'],streamHint:['设备将直接连接直播源。','The device connects directly to the stream.'],webUrl:['网页地址','Web URL'],refreshSeconds:['刷新间隔（秒，选填）','Refresh interval in seconds (optional)'],templates:['快速模板','Quick templates'],notice:['通知','Notice'],promotion:['促销','Promotion'],statusBoard:['状态看板','Status board'],htmlCode:['HTML / CSS 代码','HTML / CSS code'],htmlHint:['HTML 将作为完整主画面播放，不会叠加在图片或视频上。脚本、外链和嵌入页面会被拦截。','HTML plays as the full primary screen. It does not overlay images or video. Scripts, external assets, and embedded pages are blocked.'],sendAndPlay:['发送并播放','Send and play'],preview:['画面预览','Screen preview'],previewOnly:['效果参考','Preview only'],previewEmpty:['输入或选择内容后，这里显示预览','Enter or choose content to see a preview'],devicesIntro:['查看多台屏幕的状态，并分别控制每台设备。','Monitor multiple screens and control each one independently.'],addDevice:['添加设备','Add device'],allDevices:['设备总数','Total devices'],online:['在线','Online'],attention:['需关注','Needs attention'],deviceList:['设备列表','Device list'],loading:['正在加载','Loading'],recordsIntro:['查看发送、播放控制、设备操作和设置变更。','Review sends, playback controls, device operations, and settings changes.'],allRecords:['全部记录','All records'],success:['成功','Success'],failed:['失败','Failed'],clear:['清空','Clear'],time:['时间','Time'],operation:['操作','Operation'],operator:['操作端','Operator'],result:['结果','Result'],diagnostics:['设备诊断','Device diagnostics'],runtimeInfo:['运行信息','Runtime information'],export:['导出','Export'],playbackErrors:['播放异常','Playback errors'],connectConsole:['连接控制台','Connect console'],accessIntro:['输入广告机屏幕上显示的 6 位电脑配对码。','Enter the 6-digit computer pairing code shown on the signage screen.'],pairingCode:['电脑配对码','Computer pairing code'],checkingDevice:['正在检查设备服务','Checking device service'],retry:['重新检查','Retry'],connect:['连接','Connect'],pairHint:['选择同一局域网内发现的设备，并输入那台设备的配对 Token。','Choose a device discovered on this network and enter its pairing token.'],discoveredDevice:['发现的设备','Discovered device'],deviceToken:['设备配对 Token','Device pairing token'],cancel:['取消','Cancel'],pair:['配对','Pair'],deviceControl:['设备控制','Device control'],status:['状态','Status'],differentContent:['单独展示内容','Display different content'],savedContent:['选择已发送内容','Choose previously sent content'],syncAndPlay:['同步并播放到这台设备','Sync and play on this device'],removeDevice:['移除设备','Remove device'],done:['完成','Done'],deviceSettings:['设备设置','Device settings'],displaySettings:['显示设置','Display settings'],keepAwake:['保持屏幕常亮','Keep screen awake'],autoResume:['启动后自动恢复播放','Resume playback after startup'],fullscreen:['全屏播放','Fullscreen playback'],saveSettings:['保存设置','Save settings'],connectionSecurity:['连接与安全','Connection and security'],computerPairingCode:['电脑配对码','Computer pairing code'],refreshCode:['更新配对码','Refresh code'],revokeBrowser:['撤销当前浏览器访问','Revoke this browser'],sendImage:['发送图片','Send images'],sendVideo:['发送视频','Send video'],sendLive:['发送直播','Send live stream'],sendWeb:['发送网页','Send web page'],sendHtml:['发送 HTML 画面','Send HTML screen'],connected:['已连接','Connected'],readOnly:['只读','Read only'],controlReady:['可控制','Control ready'],deviceOffline:['设备离线','Device offline'],none:['无','None'],thisDevice:['当前设备','Current device'],manage:['管理','Manage'],updated:['更新于 {time}','Updated {time}'],noDiscovered:['未发现其他设备','No other devices discovered'],noRecords:['暂无操作记录','No operation records'],noErrors:['暂无播放异常','No playback errors'],contentSent:['内容已发送并开始播放','Content sent and playing'],devicePaired:['设备已配对','Device paired'],settingsSaved:['设置已保存','Settings saved'],operationCleared:['记录已清空','Records cleared'],selectContent:['请选择内容','Choose content'],selectDevice:['请选择设备','Choose a device'],enterToken:['请输入设备 Token','Enter the device token'],enterText:['请输入文字内容','Enter text content'],enterUrl:['请输入有效地址','Enter a valid URL'],chooseFiles:['请选择有效文件','Choose valid files'],enterHtml:['请输入 HTML 内容','Enter HTML content'],unsupportedHtml:['HTML 包含不支持的脚本或外部内容','HTML contains unsupported scripts or external content'],requestFailed:['请求失败','Request failed'],networkFailed:['无法连接设备','Unable to reach device'],confirmClear:['确定清空全部操作记录？','Clear all operation records?'],confirmRemove:['确定移除这台设备？','Remove this device?'],confirmErrors:['确定清空播放异常？','Clear playback errors?'],deviceReachable:['设备服务可访问','Device service is reachable'],deviceUnreachable:['设备服务不可访问，请确认处于同一局域网','Device service is unreachable. Check the local network.'],pairingInvalid:['配对码无效或已过期','The pairing code is invalid or expired'],validUntil:['有效至 {time}','Valid until {time}'],sendContent:['发送内容','Send content'],playbackControl:['播放控制','Playback control'],manageDevices:['设备管理','Device management'],updateSettings:['设备设置变更','Device settings updated'],sendMedia:['发送图片或视频','Send image or video'],sendRemoteMedia:['发送网络媒体','Send remote media'],sendTextSequence:['发送文字序列','Send text sequence'],deleteContent:['删除内容','Delete content'],managePlaylist:['播放方案变更','Playback plan changed'],manageDisplay:['画面配置变更','Display configuration changed'],clearPlaybackErrors:['清空播放异常','Clear playback errors'],unknownOperation:['其他操作','Other operation'],android:['Android 版本','Android'],hardware:['硬件','Hardware'],storage:['存储占用','Storage used'],errors:['异常数','Errors']};
@@ -79,13 +160,13 @@ function describeError(error){const key={FREE_RESOURCE_LIMIT:'freeResourceLimit'
 Object.assign(messages,{helpCenter:['帮助','Help'],screenOrientation:['屏幕方向','Screen orientation'],orientationSystemHint:['Android 16+ 大屏及多窗口的实际方向由系统管理。','On Android 16+ large screens and in multi-window mode, the system controls orientation.'],orientationAuto:['跟随设备','Follow device'],orientationLandscape:['强制横屏','Landscape'],orientationPortrait:['强制竖屏','Portrait'],backgroundMode:['背景模式','Background mode'],backgroundBlack:['纯色背景','Solid background'],backgroundBlur:['高斯模糊（Android 12+ 本地图片）','Blur (Android 12+ local images)'],tickerOverlay:['跑马灯字幕','Ticker overlay'],enableTicker:['启用跑马灯','Enable ticker'],tickerText:['字幕内容','Ticker text'],verticalPosition:['垂直位置','Vertical position'],menuBoard:['电子餐牌','Menu board'],welcomeBoard:['迎宾屏','Welcome board'],saleBoard:['倒计时大促','Sale countdown'],scheduleBoard:['会议排期','Meeting schedule'],webPackage:['本地 H5 项目包（可选）','Local H5 package (optional)'],webPackageHint:['ZIP 根目录必须包含 index.html，最多 256 个文件、50 MB。','ZIP root must contain index.html; maximum 256 files and 50 MB.'],proLicense:['Pro 专业版','Pro'],trialLicense:['试用版','Trial'],freeLicense:['免费版 · 高级功能需 Pro','Free · Pro required for advanced features'],dragToReorder:['拖动排序','Drag to reorder']});
 Object.assign(messages,{advancedDesign:['高级设计','Advanced design'],offlineDesigner:['离线模板设计','Offline template design'],offlineDesignerHint:['不使用云端、外链、CDN 或脚本。填写内容后由设备本地生成可播放的 HTML。','No cloud, external links, CDN, or scripts. The device generates playable local HTML from these fields.'],designType:['设计类型','Design type'],designTitle:['主标题','Main title'],designSubtitle:['副标题','Subtitle'],themeColor:['主题色','Theme color'],designItems:['内容列表','Content list'],designItemsHint:['每行一项；用 | 分隔标题和说明、价格或地点。','One item per line; use | to separate title from detail, price, or location.'],sendDesign:['发送设计画面','Send designed screen']});
 Object.assign(messages,{publish:['发布','Publish'],publishIntro:['从模板或素材创建画面，确认预览后发布到当前设备。','Create a screen from a template or media, then preview and publish it.'],templateDesign:['模板设计','Template design'],h5Project:['H5 项目','H5 project'],h5PackageMode:['本地 H5 项目包','Local H5 project package'],h5CodeMode:['单页 HTML 代码','Single-page HTML code'],chooseH5Package:['选择 H5 项目 ZIP','Choose H5 project ZIP'],chooseH5PackageHint:['选择包含 index.html、CSS、JS 和图片的 ZIP 项目包。全部资源将在设备本地离线播放。','Choose a ZIP containing index.html, CSS, JS, and images. All assets play offline on the device.'],h5PackageReady:['H5 项目包已就绪','H5 project package ready'],h5PackagePreview:['项目包将在发布后由设备离线加载。','The package will load offline on the device after publishing.'],h5CodeHint:['适合单个静态 HTML 画面。复杂项目请使用本地 H5 项目包。','For a single static HTML screen. Use a local H5 project package for larger projects.'],takeControlAndPublish:['接管控制并发布','Take control and publish'],takeControlToPublishHint:['当前浏览器为只读状态。点击发布会先接管控制权，已填写内容不会丢失。','This browser is read-only. Publishing will first take control; your entered content is kept.'],acquiringControl:['正在接管控制权...','Taking control...']});
-Object.assign(messages,{choosePublishMethod:['选择发布方式','Choose a publishing method'],offlineTemplate:['离线模板','Offline template'],offlinePackage:['离线项目包','Offline package'],proFeature:['Pro 专属','Pro'],proRequiredTitle:['此功能需要 Pro','This feature requires Pro'],proRequiredBody:['免费版可保留并播放现有内容，支持最多 10 个图片或视频资源与 1 个基础图片/视频轮播。文字、网页、直播、H5、模板设计和多屏管理需要 Pro。','Free mode keeps existing playback and supports up to 10 image/video resources and 1 basic image/video carousel. Text, web, live, H5, template design, and multi-screen management require Pro.'],proUpgradeDevice:['请在广告机 App 中打开“版本与授权”，开通年度 Pro 订阅；价格以 Google Play 当地货币实时显示。','On the signage device, open Plans & licenses to start an annual Pro subscription. Google Play shows local pricing.'],proClose:['知道了','Got it'],freeUsage:['免费版：资源 {resources}/10 · 基础轮播 {playlists}/1','Free: resources {resources}/10 · basic carousel {playlists}/1'],trialUsage:['完整试用中：所有 Pro 功能已解锁','Full trial: all Pro features unlocked'],proUsage:['Pro 已解锁：不限资源、播放列表和多屏管理','Pro unlocked: unlimited content, playlists, and multi-screen management'],freeBannerTitle:['当前为免费版，已有画面会继续播放','Free mode is active. Existing playback continues.'],freeBannerBody:['可使用 10 个图片/视频资源和 1 个基础轮播；高级内容与多屏管理需要 Pro。','Use up to 10 image/video resources and 1 basic carousel. Advanced content and multi-screen management require Pro.'],viewUpgrade:['查看升级方式','View upgrade options'],publishImageHint:['上传一张或多张图片，可设置轮播与切换效果。','Upload one or more images and configure a slideshow.'],publishVideoHint:['上传本地视频并直接发布播放。','Upload a local video and publish it directly.'],publishDesignHint:['用离线模板快速制作餐牌、欢迎屏、促销或会议日程。','Create menus, welcome screens, promotions, or schedules with offline templates.'],publishWebHint:['播放一个局域网或受支持的网址。','Play a local-network or supported web address.'],publishTextHint:['发布公告、通知或滚动字幕画面。','Publish an announcement, notice, or scrolling text screen.'],publishLiveHint:['接入 HLS、DASH 或 RTSP 直播源。','Connect an HLS, DASH, or RTSP stream.']});
+Object.assign(messages,{choosePublishMethod:['选择发布方式','Choose a publishing method'],offlineTemplate:['离线模板','Offline template'],offlinePackage:['离线项目包','Offline package'],proFeature:['Pro 专属','Pro'],proRequiredTitle:['此功能需要 Pro','This feature requires Pro'],proRequiredBody:['免费版可保留并播放现有内容，支持最多 10 个图片或视频资源与 1 个基础图片/视频轮播。文字、网页、直播、H5、模板设计和多屏管理需要 Pro。','Free mode keeps existing playback and supports up to 10 image/video resources and 1 basic image/video carousel. Text, web, live, H5, template design, and multi-screen management require Pro.'],proUpgradeDevice:['请在广告机 App 中打开“版本与授权”，选择月度、年度或永久 Pro；可用套餐与当地价格以 Google Play 实时显示为准。','On the signage device, open Plans & licenses to choose monthly, annual, or lifetime Pro. Available plans and local prices are provided by Google Play.'],proClose:['知道了','Got it'],freeUsage:['免费版：资源 {resources}/10 · 基础轮播 {playlists}/1','Free: resources {resources}/10 · basic carousel {playlists}/1'],trialUsage:['完整试用中：所有 Pro 功能已解锁','Full trial: all Pro features unlocked'],proUsage:['Pro 已解锁：不限资源、播放列表和多屏管理','Pro unlocked: unlimited content, playlists, and multi-screen management'],freeBannerTitle:['当前为免费版，已有画面会继续播放','Free mode is active. Existing playback continues.'],freeBannerBody:['可使用 10 个图片/视频资源和 1 个基础轮播；高级内容与多屏管理需要 Pro。','Use up to 10 image/video resources and 1 basic carousel. Advanced content and multi-screen management require Pro.'],viewUpgrade:['查看升级方式','View upgrade options'],publishImageHint:['上传一张或多张图片，可设置轮播与切换效果。','Upload one or more images and configure a slideshow.'],publishVideoHint:['上传本地视频并直接发布播放。','Upload a local video and publish it directly.'],publishDesignHint:['用离线模板快速制作餐牌、欢迎屏、促销或会议日程。','Create menus, welcome screens, promotions, or schedules with offline templates.'],publishWebHint:['播放一个局域网或受支持的网址。','Play a local-network or supported web address.'],publishTextHint:['发布公告、通知或滚动字幕画面。','Publish an announcement, notice, or scrolling text screen.'],publishLiveHint:['接入 HLS、DASH 或 RTSP 直播源。','Connect an HLS, DASH, or RTSP stream.']});
 const localeConfig={en:{messageIndex:1,dir:'ltr',translated:true},'zh-CN':{messageIndex:0,dir:'ltr',translated:true},'ja-JP':{messageIndex:1,dir:'ltr',translated:false},'ko-KR':{messageIndex:1,dir:'ltr',translated:false},es:{messageIndex:1,dir:'ltr',translated:false},de:{messageIndex:1,dir:'ltr',translated:false},fr:{messageIndex:1,dir:'ltr',translated:false},'pt-BR':{messageIndex:1,dir:'ltr',translated:false},ru:{messageIndex:1,dir:'ltr',translated:false}};
 function resolveLocale(value){const normalized=String(value||'').toLowerCase();if(normalized==='zh'||normalized.startsWith('zh-'))return 'zh-CN';if(normalized.startsWith('ja'))return 'ja-JP';if(normalized.startsWith('ko'))return 'ko-KR';if(normalized.startsWith('es'))return 'es';if(normalized.startsWith('de'))return 'de';if(normalized.startsWith('fr'))return 'fr';if(normalized.startsWith('pt'))return 'pt-BR';if(normalized.startsWith('ru'))return 'ru';return 'en'}
 const state={language:resolveLocale(localStorage.getItem('localSignageLanguage')||navigator.language),token:localStorage.getItem('localSignageAccessToken')||issuedToken||'',session:'',owner:false,current:null,resources:[],scenes:[],playlists:[],paired:[],discovered:[],fleet:[],assignments:[],records:[],selectedType:'TEXT',mediaSource:'LOCAL',selectedFiles:[],previewUrls:[],currentPreviewUrl:'',currentPreviewKey:'',currentPreviewRequest:0,selectedDeviceId:'',settings:null,revision:0,ws:null,toastTimer:null,contentTab:'resources',resourceFilterUnscheduled:false,editingSceneId:'',editingPlaylistId:'',playlistDraft:[],sendInProgress:false,sendFailed:false,uploadRequest:null,uploadCanCancel:false};
 function tr(key,vars={}){const pair=messages[key],locale=localeConfig[state.language]||localeConfig.en;let value=pair?(pair[locale.messageIndex]||pair[localeConfig.en.messageIndex]):key;Object.entries(vars).forEach(([name,item])=>value=value.replace('{'+name+'}',item));return value}
 function formatDateTime(value,options){return new Date(value).toLocaleString(state.language,options)}
-function localize(){const locale=localeConfig[state.language]||localeConfig.en;document.documentElement.lang=state.language;document.documentElement.dir=locale.dir;document.querySelectorAll('[data-i18n]').forEach(node=>node.textContent=tr(node.dataset.i18n));document.querySelectorAll('[data-i18n-placeholder]').forEach(node=>node.placeholder=tr(node.dataset.i18nPlaceholder));$('language').value=state.language;if(state.selectedType==='IMAGE'||state.selectedType==='VIDEO')$('mediaFormatHint').textContent=tr(state.selectedType==='VIDEO'?'videoFormats':'imageFormats');renderDynamic();renderSendActions();syncConsoleSemantics()}
+function localize(){const locale=localeConfig[state.language]||localeConfig.en;document.documentElement.lang=state.language;document.documentElement.dir=locale.dir;document.querySelectorAll('[data-i18n]').forEach(node=>node.textContent=tr(node.dataset.i18n));document.querySelectorAll('[data-i18n-placeholder]').forEach(node=>node.placeholder=tr(node.dataset.i18nPlaceholder));$('language').value=state.language;if(state.selectedType==='IMAGE'||state.selectedType==='VIDEO')$('mediaFormatHint').textContent=tr(state.selectedType==='VIDEO'?'videoFormats':'imageFormats');if(state.current)renderStatus(state.current);renderDynamic();renderSendActions();syncConsoleSemantics()}
 function notify(message,error=false){const node=$('toast');node.textContent=message;node.className='toast show'+(error?' error':'');clearTimeout(state.toastTimer);state.toastTimer=setTimeout(()=>node.className='toast',3200)}
 function showDialog(id){const dialog=$(id);if(!dialog.open)dialog.showModal()}function closeDialog(id){const dialog=$(id);if(dialog.open)dialog.close()}
 function apiHeaders(session=true){const headers={'Accept':'application/json'};if(state.token)headers['X-Local-Signage-Token']=state.token;if(session&&state.session)headers['X-Local-Signage-Session']=state.session;return headers}
@@ -102,7 +183,7 @@ function resourceDuration(item){return Number(item.durationMs)>0?formatDuration(
 function resourceReferences(resourceId){const scenes=state.scenes.filter(scene=>scene.resourceId===resourceId),playlists=state.playlists.filter(list=>list.items.some(item=>scenes.some(scene=>scene.id===item.sceneId)));return [...scenes.map(scene=>tr('scene')+': '+scene.name),...playlists.map(list=>tr('playlists')+': '+list.name)]}
 function setSendStatus(message='',progress=null,error=false){const note=$('sendProgress'),bar=$('uploadProgress');if(state.owner&&message===tr('takeControlToPublishHint'))message='';note.textContent=message;note.classList.toggle('error',error);bar.classList.toggle('hidden',progress===null);if(progress!==null)bar.value=Math.max(0,Math.min(100,Number(progress)||0))}
 function renderSendActions(){const busy=state.sendInProgress,sendButton=$('sendContent'),labelKey=busy||state.owner?(state.sendFailed?'retrySend':'sendAndPlay'):'takeControlAndPublish',showControlHint=!busy&&!state.owner&&!state.sendFailed,progress=$('sendProgress');sendButton.disabled=busy;sendButton.dataset.i18n=labelKey;sendButton.textContent=tr(labelKey);progress.classList.toggle('control-note',showControlHint);if(showControlHint){progress.dataset.controlHint='true';setSendStatus(tr('takeControlToPublishHint'))}else if(!busy&&state.owner&&progress.dataset.controlHint==='true'){delete progress.dataset.controlHint;setSendStatus('')}$('cancelUpload').classList.toggle('hidden',!(busy&&state.uploadRequest&&state.uploadCanCancel));document.querySelectorAll('#sendView [data-send-type],#sendView [data-source],#sendView [data-h5-source],#sendView input,#sendView select,#sendView textarea,#sendView button:not(#sendContent):not(#cancelUpload)').forEach(node=>node.disabled=busy)}
-function setSendBusy(value){state.sendInProgress=value;renderSendActions()}
+function setSendBusy(value){state.sendInProgress=value;renderSendActions();document.querySelectorAll('.topbar select').forEach(node=>node.disabled=value);if(typeof renderPublicationResults==='function')renderPublicationResults()}
 function xhrResponse(xhr){let data=null;try{data=xhr.responseText?JSON.parse(xhr.responseText):null}catch(_){data=xhr.responseText}if(xhr.status>=200&&xhr.status<300)return data;if(xhr.status===401){state.token='';localStorage.removeItem('localSignageAccessToken');showDialog('accessDialog')}const error=new Error(data?.error?.message||tr('requestFailed'));error.code=data?.error?.code;error.status=xhr.status;throw error}
 function cancelUpload(){if(state.uploadRequest&&state.uploadCanCancel)state.uploadRequest.abort()}
 function contentEmpty(target,key,error=false){const node=$(target);node.innerHTML='';const empty=document.createElement('div');empty.className=error?'dialog-error':'empty';empty.textContent=tr(key);node.appendChild(empty)}
@@ -140,7 +221,11 @@ function currentPreviewFont(resource){return{SYSTEM_SERIF:'serif',MONOSPACE:'mon
 function currentMediaPreview(tag,source,fit){const node=document.createElement(tag);node.src=source;node.style.objectFit=fit;node.setAttribute('aria-label',tr('currentPreview'));if(tag==='video'){node.muted=true;node.loop=true;node.playsInline=true;node.preload='metadata'}return node}
 function syncCurrentPreviewPlayback(playing){const video=$('currentPreview').querySelector('video');if(!video)return;if(playing)video.play().catch(()=>{});else video.pause()}
 async function renderCurrentPreview(resourceId,force=false){const resource=state.resources.find(item=>item.id===resourceId),scene=state.scenes.find(item=>item.id===state.current?.currentSceneId),key=(resource?[resource.id,resource.hash,scene?.fitMode||'',state.language].join('|'):'empty|'+state.language);if(!force&&state.currentPreviewKey===key){syncCurrentPreviewPlayback(!!state.current?.playing);return}clearCurrentPreview();state.currentPreviewKey=key;const requestId=state.currentPreviewRequest;if(!resource){currentPreviewPlaceholder('□',tr('noContent'));return}const preview=$('currentPreview'),fit=currentPreviewFit(scene);preview.innerHTML='';if(resource.kind==='TEXT'){const node=document.createElement('div');node.className='current-text-preview';node.textContent=resource.content||'';node.style.color=resource.textColor||'#fff';node.style.background=resource.textBackgroundColor||'#000';node.style.fontFamily=currentPreviewFont(resource);node.style.fontSize=Math.min(64,Math.max(16,(Number(resource.textSizeSp)||48)*.72))+'px';preview.appendChild(node);return}if(resource.kind==='WEB'&&resource.content){const frame=document.createElement('iframe');frame.className='html-frame';frame.setAttribute('sandbox','');frame.title=tr('currentPreview');frame.srcdoc=resource.content;preview.appendChild(frame);return}const isVideo=resource.mimeType?.startsWith('video/');if(resource.kind==='LOCAL_FILE'){if(isVideo&&Number(resource.sizeBytes)>25*1024*1024){currentPreviewPlaceholder('▶',resource.name,tr('previewTooLarge'));return}currentPreviewPlaceholder(isVideo?'▶':'▧',tr('previewLoading'),resource.name);try{const response=await fetch(resource.url,{headers:apiHeaders(false),cache:'no-store'});if(!response.ok)throw new Error();const blob=await response.blob();if(requestId!==state.currentPreviewRequest)return;const url=URL.createObjectURL(blob);state.currentPreviewUrl=url;preview.innerHTML='';const node=currentMediaPreview(isVideo?'video':'img',url,fit);node.addEventListener('error',()=>{if(state.currentPreviewKey===key)currentPreviewPlaceholder('!',tr('previewFailed'),resource.name)},{once:true});preview.appendChild(node);syncCurrentPreviewPlayback(!!state.current?.playing)}catch(_){if(requestId===state.currentPreviewRequest)currentPreviewPlaceholder('!',tr('previewFailed'),resource.name)}return}if(resource.kind==='REMOTE_FILE'&&resource.sourceUri){const node=currentMediaPreview(isVideo?'video':'img',resource.sourceUri,fit);node.addEventListener('error',()=>{if(state.currentPreviewKey===key)currentPreviewPlaceholder('!',tr('previewFailed'),resource.name)},{once:true});preview.appendChild(node);syncCurrentPreviewPlayback(!!state.current?.playing);return}if(resource.kind==='STREAM'){currentPreviewPlaceholder('●',resource.name,tr('previewUnavailable'));return}if(resource.kind==='WEB'){currentPreviewPlaceholder('↗',resource.name,tr('previewUnavailable'));return}currentPreviewPlaceholder('□',resource.name,tr('previewUnavailable'))}
-function updateGlobalTargetOptions(){const gSelect=$('globalTargetSelect'),sSelect=$('sendTargetSelect');if(!gSelect)return;const currentVal=state.activeTarget||'LOCAL';const populate=sel=>{if(!sel)return;sel.innerHTML='';const optLocal=document.createElement('option');optLocal.value='LOCAL';optLocal.textContent='📱 '+tr('thisDeviceOption')+' · '+(state.current?.deviceName||'Local');sel.appendChild(optLocal);if(state.paired.length){const optAll=document.createElement('option');optAll.value='ALL';optAll.textContent='🏪 '+tr('broadcastAllScreens')+' ('+(state.paired.length+1)+')';sel.appendChild(optAll);state.paired.forEach(item=>{const opt=document.createElement('option');opt.value='DEVICE_'+item.deviceId;opt.textContent='📺 '+item.deviceName+' ('+(item.host||'')+')';sel.appendChild(opt)})}};populate(gSelect);populate(sSelect);if([...gSelect.options].some(o=>o.value===currentVal)){gSelect.value=currentVal;if(sSelect)sSelect.value=currentVal;state.activeTarget=currentVal}else{gSelect.value='LOCAL';if(sSelect)sSelect.value='LOCAL';state.activeTarget='LOCAL'}updateActiveTargetUI()}
+function updateGlobalTargetOptions(){const gSelect=$('globalTargetSelect'),sSelect=$('sendTargetSelect');if(!gSelect)return;const currentVal=state.activeTarget||'LOCAL';const populate=sel=>{if(!sel)return;sel.innerHTML='';const optLocal=document.createElement('option');optLocal.value='LOCAL';optLocal.textContent='📱 '+tr('thisDeviceOption')+' · '+(state.current?.deviceName||'Local');sel.appendChild(optLocal);if(state.paired.length){const optAll=document.createElement('option');optAll.value='ALL';optAll.textContent='🏪 '+tr('broadcastAllScreens')+' ('+(state.paired.length+1)+')';sel.appendChild(optAll);state.paired.forEach(item=>{const opt=document.createElement('option');opt.value='DEVICE_'+item.deviceId;opt.textContent='📺 '+item.deviceName+' ('+(item.host||'')+')';sel.appendChild(opt)})}};populate(gSelect);populate(sSelect);if([...gSelect.options].some(o=>o.value===currentVal)){gSelect.value=currentVal;if(sSelect)sSelect.value=currentVal;state.activeTarget=currentVal}else if(currentVal!=='LOCAL'){
+  const knownGroup=currentVal.startsWith('GROUP_')&&state.paired.some(device=>device.groupName===decodeURIComponent(currentVal.slice(6)));
+  if(!knownGroup)[gSelect,sSelect].filter(Boolean).forEach(select=>{const option=document.createElement('option');option.value=currentVal;option.textContent=tr('publishTargetMissing');option.disabled=true;select.appendChild(option);select.value=currentVal});
+  state.activeTarget=currentVal;
+}else{gSelect.value='LOCAL';if(sSelect)sSelect.value='LOCAL';state.activeTarget='LOCAL'}updateActiveTargetUI()}
 function updateActiveTargetUI(){const target=state.activeTarget||'LOCAL';if(target==='LOCAL'){renderPlaybackForLocal()}else if(target==='ALL'){renderPlaybackForBroadcast()}else{renderPlaybackForRemote(target.slice(7))}}
 function renderPlaybackForLocal(){const value=state.current;if(!value)return;const playing=!!value.playing,volume=Math.max(0,Math.min(100,Number(value.volume)||0));$('playDeviceName').textContent=value.deviceName;$('playAddress').textContent=location.host;$('playState').textContent=tr(playing?'playing':'paused');$('playDot').className='dot '+(playing?'online':'warning');$('currentName').textContent=resourceName(value.currentResourceId);$('currentKind').textContent=resourceKind(value.currentResourceId);$('currentDetail').textContent=value.currentPlaylistId&&value.playlistItemCount?tr('playlistPosition',{current:(Number(value.playlistIndex)||0)+1,total:value.playlistItemCount}):tr('standalonePlayback');$('lastError').textContent=value.error||tr('none');$('togglePlayback').dataset.command=playing?'PAUSE':'PLAY';$('togglePlayback').textContent=tr(playing?'pause':'play');$('muteButton').dataset.command=value.muted?'UNMUTE':'MUTE';$('muteButton').textContent=tr(value.muted?'unmute':'mute');$('volume').value=volume;$('volumeValue').textContent=volume;renderCurrentPreview(value.currentResourceId).catch(()=>currentPreviewPlaceholder('!',tr('previewFailed')))}
 function renderRemotePreview(status){if(!status||status.state!=='ONLINE'||!status.currentResourceId){currentPreviewPlaceholder('□',tr('noContent'));return}const preview=$('currentPreview');preview.innerHTML='';if(status.currentResourceKind==='TEXT'||(!status.currentResourceKind&&status.currentResourceContent)){const node=document.createElement('div');node.className='current-text-preview';node.textContent=status.currentResourceContent||'';node.style.color=status.currentResourceTextColor||'#fff';node.style.background=status.currentResourceTextBackgroundColor||'#000';node.style.fontFamily=currentPreviewFont({fontFamily:status.currentResourceFontFamily});node.style.fontSize=Math.min(64,Math.max(16,(Number(status.currentResourceTextSizeSp)||48)*.72))+'px';preview.appendChild(node);return}if(status.currentResourceKind==='WEB'&&status.currentResourceContent){const frame=document.createElement('iframe');frame.className='html-frame';frame.setAttribute('sandbox','');frame.title=tr('currentPreview');frame.srcdoc=status.currentResourceContent;preview.appendChild(frame);return}const isVideo=status.currentResourceMimeType?.startsWith('video/');const mediaUrl=status.currentResourceSourceUri||(status.currentResourceUrl?('http://'+status.host+':'+status.port+status.currentResourceUrl):null);if(mediaUrl){const node=currentMediaPreview(isVideo?'video':'img',mediaUrl,'contain');preview.appendChild(node);return}currentPreviewPlaceholder('📺',status.currentResourceName||tr('remoteScreen'),status.host+':'+status.port)}
@@ -150,8 +235,15 @@ function renderStatus(value,forcePreview=false){if(!value)return;state.current=v
 async function refreshBase(){const [status,resources,scenes,playlists,paired,fleet,assignments]=await Promise.all([request('/api/status'),request('/api/resources'),request('/api/scenes'),request('/api/playlists'),request('/api/devices/paired').catch(()=>[]),request('/api/devices/status').catch(()=>[]),request('/api/device-assignments').catch(()=>[])]);state.resources=resources||[];state.scenes=scenes||[];state.playlists=playlists||[];state.paired=paired||[];state.fleet=fleet||[];state.assignments=assignments||[];renderStatus(status,true);renderDynamic()}
 async function refreshLiveStatus(){const [status,fleet]=await Promise.all([state.ws?Promise.resolve(null):request('/api/status'),request('/api/devices/status').catch(()=>state.fleet)]);state.fleet=fleet||[];if(status)renderStatus(status);renderDynamic()}
 async function acquire(takeover=false){try{const session=await request('/api/control/session/acquire',{method:'POST',session:false,body:{clientName:/Mobi/i.test(navigator.userAgent)?'Mobile browser':'Web console',takeover}});state.session=session.sessionId;setOwner(true)}catch(error){setOwner(false,error.code==='CONTROL_SESSION_BUSY'?tr('readOnly'):error.message)}}
-async function command(action,value=null,extra={}){if(!state.owner)return notify(tr('takeControl'),true);try{const revision=state.revision+1;state.revision=revision;renderStatus(await request('/api/control',{method:'POST',body:{action,value,revision,commandId:newId(),...extra}}))}catch(error){notify(error.message,true);await refreshBase().catch(()=>{})}}
-async function executeActiveCommand(action,value=null){if(!state.owner)return notify(tr('takeControl'),true);const target=state.activeTarget||'LOCAL';try{if(target==='LOCAL'){await command(action,value)}else if(target==='ALL'){const devIds=state.paired.map(d=>d.deviceId);const reqs=[command(action,value)];if(devIds.length)reqs.push(request('/api/devices/'+action.toLowerCase(),{method:'POST',body:{deviceIds:devIds,value}}));await Promise.all(reqs);notify(tr('playbackControl'));await loadDevices()}else{const devId=target.slice(7);await request('/api/devices/'+action.toLowerCase(),{method:'POST',body:{deviceIds:[devId],value}});notify(tr('playbackControl'));await loadDevices()}updateActiveTargetUI()}catch(error){notify(error.message,true)}}
+async function command(action,value=null,extra={}){if(!state.owner)return notify(tr('takeControl'),true);try{const revision=state.revision+1;state.revision=revision;renderStatus(await request('/api/control',{method:'POST',body:{action,value,revision,commandId:newId(),...extra}}));return true}catch(error){notify(error.message,true);await refreshBase().catch(()=>{});return false}}
+
+async function fleetAction(action,deviceIds,value=null){
+  const results=await request('/api/devices/'+action.toLowerCase(),{method:'POST',body:{deviceIds,value}});
+  const failures=deviceIds.map(id=>({id,result:Array.isArray(results)?results.find(item=>item.deviceId===id):null})).filter(item=>item.result?.success!==true);
+  if(failures.length)throw new Error(failures.map(item=>(state.paired.find(device=>device.deviceId===item.id)?.deviceName||item.id)+': '+(item.result?.reason||item.result?.code||tr('publishResultMissing'))).join('; '));
+  return results;
+}
+async function executeActiveCommand(action,value=null){if(!state.owner)return notify(tr('takeControl'),true);const target=state.activeTarget||'LOCAL';try{if(target==='LOCAL'){await command(action,value)}else if(target==='ALL'){const devIds=state.paired.map(d=>d.deviceId);const reqs=[command(action,value)];if(devIds.length)reqs.push(fleetAction(action,devIds,value));const results=await Promise.all(reqs);if(results[0]===false)return;notify(tr('playbackControl'));await loadDevices()}else{const devId=target.slice(7);await fleetAction(action,[devId],value);notify(tr('playbackControl'));await loadDevices()}updateActiveTargetUI()}catch(error){notify(error.message,true)}}
 function showView(name){document.querySelectorAll('.view').forEach(node=>node.classList.toggle('active',node.id===name+'View'));document.querySelectorAll('[data-view]').forEach(node=>node.classList.toggle('active',node.dataset.view===name));history.replaceState(null,'','#'+name);window.scrollTo({top:0,behavior:'smooth'});if(name==='content')loadContent();if(name==='devices')loadDevices();if(name==='records')loadRecords()}function renderDynamic(){updateGlobalTargetOptions();if(typeof state.connectionOnline==='boolean')setConnection(state.connectionOnline);if($('contentView')?.classList.contains('active'))renderContent();if(state.current||state.paired.length||state.discovered.length)renderDevices();if(state.records.length)renderRecords();updatePreview();renderSendActions()}
 function updateCropField(){$('cropField').classList.toggle('hidden',state.selectedType!=='IMAGE'||$('fitMode').value!=='CROP')}
 function selectSendType(type){state.selectedType=type;state.sendFailed=false;setSendStatus();document.querySelectorAll('[data-send-type]').forEach(node=>node.classList.toggle('active',node.dataset.sendType===type));document.querySelectorAll('.editor-panel').forEach(node=>node.classList.remove('active'));$({TEXT:'textEditor',IMAGE:'mediaEditor',VIDEO:'mediaEditor',STREAM:'streamEditor',WEB:'webEditor',DESIGN:'designEditor',HTML:'htmlEditor'}[type]).classList.add('active');$('editorTitle').textContent=tr({TEXT:'sendText',IMAGE:'sendImage',VIDEO:'sendVideo',STREAM:'sendLive',WEB:'sendWeb',DESIGN:'advancedDesign',HTML:'sendHtml'}[type]);$('editorTypeBadge').textContent=type;$('durationField').classList.toggle('hidden',type!=='IMAGE');$('transitionField').classList.toggle('hidden',type!=='IMAGE');$('speedField').classList.toggle('hidden',type!=='VIDEO');$('mediaFile').accept=type==='VIDEO'?'video/*':'image/*';$('mediaFile').multiple=type==='IMAGE';$('fileTitle').textContent=tr(type==='VIDEO'?'chooseVideo':'chooseImage');$('mediaUrlLabel').textContent=tr(type==='VIDEO'?'videoUrls':'imageUrls');$('mediaFormatHint').textContent=tr(type==='VIDEO'?'videoFormats':'imageFormats');updateCropField();clearFiles();updatePreview();renderSendActions();syncConsoleSemantics()}
@@ -210,16 +302,17 @@ function uploadMedia(shouldPlay=true){
   });
 }
 async function sendContent(){
-  if(!state.owner){
-    setSendStatus(tr('acquiringControl'));
-    await acquire(true);
-    if(!state.owner)return notify(tr('takeControl'),true);
-  }
   if(state.sendInProgress)return;
   const target=state.activeTarget||$('sendTargetSelect')?.value||'LOCAL';
-  const isLocal=target==='LOCAL',groupName=target.startsWith('GROUP_')?decodeURIComponent(target.slice(6)):null,groupDeviceIds=groupName?state.paired.filter(device=>device.groupName===groupName).map(device=>device.deviceId):[],isGroup=groupDeviceIds.length>0,isAll=target==='ALL'||isGroup;
-  const targetDeviceId=target.startsWith('DEVICE_')?target.slice(7):null;
-  const shouldPlayLocal=isLocal||isAll;
+  const targetDevices=PublishWorkflow.targets(target,{deviceId:state.current?.deviceId,deviceName:state.current?.deviceName||tr('thisDevice')},state.paired);
+  if(!targetDevices.length)return notify(tr('publishTargetMissing'),true);
+  setSendBusy(true);
+  try {
+    if(!state.owner)await acquire(true);
+    if(!state.owner){setSendBusy(false);return notify(tr('takeControl'),true)}
+  }catch(error){setSendBusy(false);return notify(describeError(error),true)}
+  // 先保存内容，再按固定目标发布，分组永远不隐式包含网关本机。
+  const shouldPlayLocal=false;
   const type=state.selectedType,name=$('contentName').value.trim()||undefined;
   state.sendFailed=false;
   setSendStatus(tr('preparingContent'));
@@ -252,55 +345,16 @@ async function sendContent(){
     }else{
       if(state.h5Source==='PACKAGE'){
         if(!$('webPackage').files.length)throw new Error(tr('chooseH5Package'));
-        response=await uploadWebPackage();if(shouldPlayLocal&&response?.id)await command('PLAY',null,{resourceId:response.id});
+        response=await uploadWebPackage();
       }
       else{const content=$('htmlContent').value.trim();if(!content)throw new Error(tr('enterHtml'));if(htmlBlocked(content))throw new Error(tr('unsupportedHtml'));response=await request('/api/resources/virtual',{method:'POST',body:{name:name||'HTML',kind:'WEB',content,play:shouldPlayLocal}});}
     }
 
     const createdResourceId=response?.id||(Array.isArray(response?.ids)?response.ids[0]:null);
     const createdPlaylistId=response?.playlistId;
-    if(isAll&&state.paired.length){
-      const targetIds=isGroup?groupDeviceIds:state.paired.map(device=>device.deviceId);
-      setSendStatus(tr('syncingToDevice',{name:isGroup?groupName:tr('allDevices')}));
-      const syncResults=createdPlaylistId
-        ?await request('/api/devices/sync-playlist',{method:'POST',body:{deviceIds:targetIds,playlistId:createdPlaylistId}})
-        :createdResourceId
-          ?await request('/api/devices/sync',{method:'POST',body:{deviceIds:targetIds,resourceId:createdResourceId}})
-          :[];
-      setSendStatus(tr('startingPlayback'));
-      const playResults=createdPlaylistId
-        ?await request('/api/devices/play-playlist',{method:'POST',body:{deviceIds:targetIds,playlistId:createdPlaylistId}})
-        :createdResourceId
-          ?await request('/api/devices/play',{method:'POST',body:{deviceIds:targetIds,resourceId:createdResourceId}})
-          :[];
-      const failed=[...(Array.isArray(syncResults)?syncResults:[]),...(Array.isArray(playResults)?playResults:[])].filter(result=>!result.success);
-      if(failed.length)throw new Error(failed.map(item=>item.deviceName+': '+(item.reason||item.code||'FAIL')).join('; '));
-      notify(isGroup?tr('sentToDevice',{name:groupName}):tr('sentToAllDevices'));
-    }else if(targetDeviceId){
-      const targetDevice=state.paired.find(device=>device.deviceId===targetDeviceId);
-      const deviceName=targetDevice?.deviceName||targetDeviceId;
-      setSendStatus(tr('syncingToDevice',{name:deviceName}));
-      const syncResults=createdPlaylistId
-        ?await request('/api/devices/sync-playlist',{method:'POST',body:{deviceIds:[targetDeviceId],playlistId:createdPlaylistId}})
-        :createdResourceId
-          ?await request('/api/devices/sync',{method:'POST',body:{deviceIds:[targetDeviceId],resourceId:createdResourceId}})
-          :[];
-      setSendStatus(tr('startingPlayback'));
-      const playResults=createdPlaylistId
-        ?await request('/api/devices/play-playlist',{method:'POST',body:{deviceIds:[targetDeviceId],playlistId:createdPlaylistId}})
-        :createdResourceId
-          ?await request('/api/devices/play',{method:'POST',body:{deviceIds:[targetDeviceId],resourceId:createdResourceId}})
-          :[];
-      const failed=[...(Array.isArray(syncResults)?syncResults:[]),...(Array.isArray(playResults)?playResults:[])].filter(result=>!result.success);
-      if(failed.length)throw new Error(failed.map(item=>item.deviceName+': '+(item.reason||item.code||'FAIL')).join('; '));
-      notify(tr('sentToDevice',{name:deviceName}));
-    }else{
-      notify(tr('contentSent'));
-    }
-    state.sendFailed=false;
-    setSendStatus(tr('sendComplete'));
-    await refreshBase();
-    showView('playback');
+    publicationJob=PublishWorkflow.create({resourceId:createdResourceId,playlistId:createdPlaylistId},targetDevices);
+    renderPublicationResults();
+    await runPublication();
   }catch(error){
     state.sendFailed=!error.cancelled;
     const keepsFiles=(type==='IMAGE'||type==='VIDEO')&&state.mediaSource==='LOCAL'&&state.selectedFiles.length>0;
@@ -310,12 +364,24 @@ async function sendContent(){
     if(!error.cancelled)notify(reason,true);
   }finally{
     setSendBusy(false);
+    renderPublicationResults();
   }
 }
 async function loadDevices(){try{const [discovered,paired,fleet,assignments]=await Promise.all([request('/api/devices'),request('/api/devices/paired'),request('/api/devices/status'),request('/api/device-assignments')]);state.discovered=discovered||[];state.paired=paired||[];state.fleet=fleet||[];state.assignments=assignments||[];renderDevices();updateGlobalTargetOptions()}catch(error){notify(describeError(error),true)}}
 function assignmentFor(deviceId){return state.assignments.find(item=>item.deviceId===deviceId)}function assignmentStatus(assignment){if(!assignment)return {key:'noAssignment',className:'offline'};if(assignment.state==='SYNCED')return {key:'assignmentSynced',className:'online'};if(assignment.state==='FAILED')return {key:'assignmentFailed',className:'failed'};return {key:'assignmentPending',className:'pending'}}function renderDevices(){const list=$('deviceList');list.innerHTML='';const local={deviceId:state.current?.deviceId,deviceName:state.current?.deviceName||'Local Signage',host:location.hostname,port:location.port,status:'ONLINE',playing:!!state.current?.playing,currentResourceId:state.current?.currentResourceId,currentResourceName:state.current?.currentResourceName,local:true};const devices=[local,...state.paired.map(item=>({...item,...(state.fleet.find(value=>value.deviceId===item.deviceId)||{}),status:state.fleet.find(value=>value.deviceId===item.deviceId)?.state||'OFFLINE'}))];$('deviceTotal').textContent=devices.length;$('deviceOnline').textContent=devices.filter(item=>item.local||item.status==='ONLINE').length;$('devicePlaying').textContent=devices.filter(item=>item.playing).length;$('deviceIssues').textContent=devices.filter(item=>!item.local&&(item.status!=='ONLINE'||assignmentFor(item.deviceId)?.state==='FAILED')).length;$('deviceUpdated').textContent=tr('updated',{time:formatDateTime(Date.now(),{timeStyle:'short'})});devices.forEach(item=>{const assignment=assignmentFor(item.deviceId),assignmentView=assignmentStatus(assignment);const row=document.createElement('div');row.className='device-row';const main=document.createElement('div'),title=document.createElement('div');title.className='device-title';const strong=document.createElement('strong');strong.textContent=item.deviceName;const chip=document.createElement('span');chip.className='status-chip '+((item.local||item.status==='ONLINE')?'online':'offline');chip.textContent=item.local?tr('thisDevice'):tr(item.status==='ONLINE'?'online':'deviceOffline');title.append(strong,chip);if(!item.local&&assignment){const assignmentChip=document.createElement('span');assignmentChip.className='status-chip '+assignmentView.className;assignmentChip.textContent=tr(assignmentView.key);title.appendChild(assignmentChip)}const meta=document.createElement('div');meta.className='device-meta';const address=document.createElement('span');address.textContent=(item.host||location.hostname)+':'+(item.port||location.port);const content=document.createElement('span');content.textContent=tr('currentContent')+': '+(item.currentResourceName||resourceName(item.currentResourceId));meta.append(address,content);if(!item.local&&item.groupName){const group=document.createElement('span');group.textContent=tr('deviceGroup')+': '+item.groupName;meta.appendChild(group)}if(!item.local&&assignment?.lastSyncAt){const synced=document.createElement('span');synced.textContent=tr('lastSynced',{time:formatDateTime(assignment.lastSyncAt)});meta.appendChild(synced)}main.append(title,meta);const btns=document.createElement('div');btns.style.display='flex';btns.style.gap='8px';const switchBtn=document.createElement('button');switchBtn.className='primary';switchBtn.textContent=tr('switchToControl');switchBtn.addEventListener('click',()=>{state.activeTarget=item.local?'LOCAL':('DEVICE_'+item.deviceId);updateGlobalTargetOptions();showView('playback')});const manage=document.createElement('button');manage.textContent=tr('manage');manage.addEventListener('click',()=>item.local?openLocalSettings():openRemoteDevice(item.deviceId));btns.append(switchBtn,manage);row.append(main,btns);list.appendChild(row)});setOwner(state.owner)}
 function openRemoteDevice(deviceId){state.selectedDeviceId=deviceId;const device=state.paired.find(item=>item.deviceId===deviceId),status=state.fleet.find(item=>item.deviceId===deviceId),assignment=assignmentFor(deviceId),assignmentView=assignmentStatus(assignment);if(!device)return;$('remoteDeviceTitle').textContent=device.deviceName;$('remoteStatus').textContent=tr(status?.state==='ONLINE'?'online':'deviceOffline');$('remoteAddress').textContent=device.host+':'+device.port;$('remoteContent').textContent=status?.currentResourceName||resourceName(status?.currentResourceId);$('remoteAssignmentStatus').textContent=tr(assignmentView.key);$('remoteAssignmentHint').textContent=assignment?.lastError||((assignment?.lastSyncAt)?tr('lastSynced',{time:formatDateTime(assignment.lastSyncAt)}):'');$('remoteVolume').value=status?.volume??80;$('remoteVolumeValue').textContent=$('remoteVolume').value;$('remoteResource').innerHTML='';state.resources.forEach(item=>{const option=document.createElement('option');option.value=item.id;option.textContent=item.name+' ('+resourceKind(item.id)+')';$('remoteResource').appendChild(option)});$('remotePlaylist').innerHTML='';state.playlists.forEach(item=>{const option=document.createElement('option');option.value=item.id;option.textContent=item.name;$('remotePlaylist').appendChild(option)});if(assignment?.playlistId)$('remotePlaylist').value=assignment.playlistId;$('assignRemotePlaylist').textContent=tr(assignment?.state==='FAILED'?'retryAssignment':'assignPlaylist');showDialog('remoteDeviceDialog')}
-async function remoteAction(action,value){if(!state.selectedDeviceId)return;try{await request('/api/devices/'+action.toLowerCase(),{method:'POST',body:{deviceIds:[state.selectedDeviceId],value}});notify(tr('playbackControl'));await loadDevices()}catch(error){notify(describeError(error),true)}}async function syncRemote(){const resourceId=$('remoteResource').value;if(!resourceId)return notify(tr('selectContent'),true);try{await request('/api/devices/sync',{method:'POST',body:{deviceIds:[state.selectedDeviceId],resourceId}});await request('/api/devices/play',{method:'POST',body:{deviceIds:[state.selectedDeviceId],resourceId}});notify(tr('contentSent'));closeDialog('remoteDeviceDialog');await loadDevices()}catch(error){notify(describeError(error),true)}}async function assignRemotePlaylist(){if(isFreeLimited()){showProDialog();return}const playlistId=$('remotePlaylist').value;if(!playlistId)return notify(tr('selectContent'),true);try{await request('/api/devices/'+encodeURIComponent(state.selectedDeviceId)+'/assignment',{method:'PUT',body:{playlistId,play:true}});await loadDevices();openRemoteDevice(state.selectedDeviceId);notify(tr('assignmentSaved'))}catch(error){notify(describeError(error),true)}}async function clearRemoteAssignment(){if(!state.selectedDeviceId)return;try{await request('/api/devices/'+encodeURIComponent(state.selectedDeviceId)+'/assignment',{method:'DELETE'});await loadDevices();openRemoteDevice(state.selectedDeviceId);notify(tr('assignmentCleared'))}catch(error){notify(describeError(error),true)}}async function removeRemote(){const deviceId=state.selectedDeviceId;if(!deviceId)return notify(tr('selectDevice'),true);if(!confirm(tr('confirmRemove')))return;try{const result=await request('/api/devices/paired/'+encodeURIComponent(deviceId),{method:'DELETE'});if(result?.deleted!==true)throw new Error(tr('deviceRemovalNotConfirmed'));state.paired=state.paired.filter(item=>item.deviceId!==deviceId);state.fleet=state.fleet.filter(item=>item.deviceId!==deviceId);state.assignments=state.assignments.filter(item=>item.deviceId!==deviceId);if(state.activeTarget==='DEVICE_'+deviceId)state.activeTarget='LOCAL';state.selectedDeviceId='';closeDialog('remoteDeviceDialog');renderDevices();updateGlobalTargetOptions();notify(tr('deviceRemoved'));await loadDevices()}catch(error){notify(describeError(error),true)}}
+async function remoteAction(action,value){if(!state.selectedDeviceId)return;try{await fleetAction(action,[state.selectedDeviceId],value);notify(tr('playbackControl'));await loadDevices()}catch(error){notify(describeError(error),true)}}async function syncRemote(){
+  if(state.sendInProgress)return;
+  const resourceId=$('remoteResource').value;
+  if(!resourceId)return notify(tr('selectContent'),true);
+  const device=state.paired.find(item=>item.deviceId===state.selectedDeviceId);
+  if(!device)return notify(tr('publishTargetMissing'),true);
+  publicationJob=PublishWorkflow.create({resourceId},[device]);
+  closeDialog('remoteDeviceDialog');
+  showView('send');
+  await retryPublication();
+}
+async function assignRemotePlaylist(){if(isFreeLimited()){showProDialog();return}const playlistId=$('remotePlaylist').value;if(!playlistId)return notify(tr('selectContent'),true);try{await request('/api/devices/'+encodeURIComponent(state.selectedDeviceId)+'/assignment',{method:'PUT',body:{playlistId,play:true}});await loadDevices();openRemoteDevice(state.selectedDeviceId);notify(tr('assignmentSaved'))}catch(error){notify(describeError(error),true)}}async function clearRemoteAssignment(){if(!state.selectedDeviceId)return;try{await request('/api/devices/'+encodeURIComponent(state.selectedDeviceId)+'/assignment',{method:'DELETE'});await loadDevices();openRemoteDevice(state.selectedDeviceId);notify(tr('assignmentCleared'))}catch(error){notify(describeError(error),true)}}async function removeRemote(){const deviceId=state.selectedDeviceId;if(!deviceId)return notify(tr('selectDevice'),true);if(!confirm(tr('confirmRemove')))return;try{const result=await request('/api/devices/paired/'+encodeURIComponent(deviceId),{method:'DELETE'});if(result?.deleted!==true)throw new Error(tr('deviceRemovalNotConfirmed'));state.paired=state.paired.filter(item=>item.deviceId!==deviceId);state.fleet=state.fleet.filter(item=>item.deviceId!==deviceId);state.assignments=state.assignments.filter(item=>item.deviceId!==deviceId);if(state.activeTarget==='DEVICE_'+deviceId)state.activeTarget='LOCAL';state.selectedDeviceId='';closeDialog('remoteDeviceDialog');renderDevices();updateGlobalTargetOptions();notify(tr('deviceRemoved'));await loadDevices()}catch(error){notify(describeError(error),true)}}
 function openPairDialog(){$('pairDevice').innerHTML='';const available=state.discovered.filter(item=>!state.paired.some(device=>device.deviceId===item.deviceId));if(!available.length){const option=document.createElement('option');option.value='';option.textContent=tr('noDiscovered');$('pairDevice').appendChild(option)}else available.forEach(item=>{const option=document.createElement('option');option.value=item.deviceId;option.textContent=item.deviceName+' · '+item.host;$('pairDevice').appendChild(option)});showDialog('pairDialog')}async function pairDevice(){const device=state.discovered.find(item=>item.deviceId===$('pairDevice').value),token=$('pairToken').value.trim();if(!device)return notify(tr('selectDevice'),true);if(!token)return notify(tr('enterToken'),true);try{await request('/api/devices/pair',{method:'POST',body:{deviceId:device.deviceId,deviceName:device.deviceName,host:device.host,port:device.port,token}});$('pairToken').value='';closeDialog('pairDialog');notify(tr('devicePaired'));await loadDevices()}catch(error){notify(error.message,true)}}
 async function openLocalSettings(){if(!state.owner)return notify(tr('takeControl'),true);try{const [settings,pairing]=await Promise.all([request('/api/settings'),request('/api/pairing')]);state.settings=settings;$('keepAwake').checked=settings.keepScreenAwake;$('autoResume').checked=settings.autoResume;$('fullscreen').checked=settings.fullscreen;$('orientation').value=settings.orientation||'AUTO';renderPairing(pairing);showDialog('localSettingsDialog')}catch(error){notify(error.message,true)}}function renderPairing(data){$('pairingQr').src=data.qrDataUrl;$('pairingCodeValue').textContent=data.accessCode||'-';$('pairingExpiry').textContent=tr('validUntil',{time:formatDateTime(data.expiresAt,{timeStyle:'short'})})}async function saveSettings(){try{state.settings=await request('/api/settings',{method:'POST',body:{fallbackSceneId:state.settings?.fallbackSceneId||null,keepScreenAwake:$('keepAwake').checked,autoResume:$('autoResume').checked,fullscreen:$('fullscreen').checked,orientation:$('orientation').value}});notify(tr('settingsSaved'))}catch(error){notify(error.message,true)}}
 const actionLabels={PLAYBACK_CONTROL:'playbackControl',SEND_MEDIA:'sendMedia',SEND_REMOTE_MEDIA:'sendRemoteMedia',SEND_CONTENT:'sendContent',SEND_TEXT_SEQUENCE:'sendTextSequence',UPDATE_DEVICE_SETTINGS:'updateSettings',MANAGE_DEVICES:'manageDevices',DELETE_CONTENT:'deleteContent',MANAGE_PLAYLIST:'managePlaylist',MANAGE_DISPLAY:'manageDisplay',CLEAR_PLAYBACK_ERRORS:'clearPlaybackErrors'};
@@ -436,7 +502,7 @@ async function init(){bind();bindContentControls();bindCropControls();bindEnhanc
   commercialNote.className = 'commercial-note';
   chooser.before(commercialNote);
   const proDialog = document.createElement('dialog');
-  proDialog.innerHTML = '<div class="dialog-body pro-dialog"><h2 data-i18n="proRequiredTitle">此功能需要 Pro</h2><p data-i18n="proRequiredBody">免费版可保留并播放现有内容，支持最多 10 个图片或视频资源与 1 个基础图片/视频轮播。文字、网页、直播、H5、模板设计和多屏管理需要 Pro。</p><p data-i18n="proUpgradeDevice">请在广告机 App 中打开“版本与授权”，开通年度 Pro 订阅；价格以 Google Play 当地货币实时显示。</p><div class="dialog-actions"><button type="button" class="primary" data-close-pro data-i18n="proClose">知道了</button></div></div>';
+  proDialog.innerHTML = '<div class="dialog-body pro-dialog"><h2 data-i18n="proRequiredTitle">此功能需要 Pro</h2><p data-i18n="proRequiredBody">免费版可保留并播放现有内容，支持最多 10 个图片或视频资源与 1 个基础图片/视频轮播。文字、网页、直播、H5、模板设计和多屏管理需要 Pro。</p><p data-i18n="proUpgradeDevice">请在广告机 App 中打开“版本与授权”，选择月度、年度或永久 Pro；可用套餐与当地价格以 Google Play 实时显示为准。</p><div class="dialog-actions"><button type="button" class="primary" data-close-pro data-i18n="proClose">知道了</button></div></div>';
   document.body.appendChild(proDialog);
   proDialog.querySelector('[data-close-pro]').addEventListener('click', () => proDialog.close());
   const globalCommercialBanner = document.createElement('section');
@@ -645,7 +711,7 @@ async function init(){bind();bindContentControls();bindCropControls();bindEnhanc
     const deviceIds = state.paired.filter(device => device.groupName === groupName).map(device => device.deviceId);
     if (!deviceIds.length) return notify(tr('selectDevice'), true);
     try {
-      await request('/api/devices/' + action.toLowerCase(), { method: 'POST', body: { deviceIds, value } });
+      await fleetAction(action, deviceIds, value);
       notify(tr('groupControl'));
       await loadDevices();
       updateActiveTargetUI();
@@ -1151,6 +1217,177 @@ async function init(){bind();bindContentControls();bindCropControls();bindEnhanc
   });
   localize();
 })();
+</script>
+<script>
+Object.assign(messages, {
+  publishResults: ['本次发布结果', 'Publication results'],
+  publishSummary: ['{accepted}/{total} 台已接受播放命令', '{accepted}/{total} displays accepted playback commands'],
+  publishPending: ['等待同步', 'Waiting to sync'],
+  publishSyncing: ['正在同步', 'Syncing'],
+  publishSynced: ['内容已同步', 'Content synced'],
+  publishStarting: ['正在发送播放命令', 'Sending playback command'],
+  publishAccepted: ['播放命令已接受', 'Playback command accepted'],
+  publishSyncFailed: ['同步失败', 'Sync failed'],
+  publishPlayFailed: ['播放命令未确认', 'Playback command unconfirmed'],
+  retryFailedDevices: ['仅重试未成功设备', 'Retry unsuccessful displays'],
+  previewDisclaimer: ['效果预览，非屏幕实况。请结合设备状态或现场画面确认播放。', 'Content preview, not a live screen capture. Check device status or the display to confirm playback.'],
+  publishTargetMissing: ['目标已不可用或分组为空，请重新选择屏幕。', 'The target is unavailable or the group is empty. Select displays again.'],
+  publishResultMissing: ['未收到该设备的完整结果，可重试。', 'No complete result received for this display. Retry to check.'],
+  publishRefreshFailed: ['发布结果已保留，状态刷新失败；可稍后刷新。', 'Publication results are saved here. Status refresh failed; refresh again later.'],
+  changePublishMethod: ['更换发布方式', 'Change content type'],
+  recoveryBoundary: ['启动后恢复不等于开机自启。Android 15 及以上普通设备重启后需手动打开应用；专用设备须完成自启动配置及断电验收。其他系统也受厂商策略影响。', 'Resume after launch is not guaranteed boot auto-start. On ordinary Android 15+ devices, open the app after restarting. Dedicated devices require auto-start configuration and power-loss acceptance testing. Manufacturer policies also affect other versions.'],
+  entitlementBoundary: ['本地内容播放无需互联网。购买和恢复购买需要连接 Google Play；到期后已有内容继续播放，新建或修改高级内容受当前权益限制。', 'Local content playback works offline. Purchases and restoring purchases require Google Play connectivity. Existing content keeps playing after expiry; creating or changing advanced content depends on current access.']
+});
+
+let publicationJob = null;
+let publishDraftDirty = false;
+
+function renderPublicationResults() {
+  let panel = $('publicationResults');
+  if (!panel) {
+    panel = document.createElement('section');
+    panel.id = 'publicationResults';
+    panel.className = 'surface publication-results';
+    panel.setAttribute('aria-live', 'polite');
+    $('sendView').appendChild(panel);
+  }
+  panel.replaceChildren();
+  panel.hidden = !publicationJob;
+  if (!publicationJob) return;
+  const title = document.createElement('h2');
+  title.textContent = tr('publishResults');
+  const summary = document.createElement('p');
+  const accepted = publicationJob.rows.filter(row => row.stage === 'ACCEPTED').length;
+  summary.textContent = tr('publishSummary', { accepted, total: publicationJob.rows.length });
+  panel.append(title, summary);
+  const stages = { PENDING: 'publishPending', SYNCING: 'publishSyncing', SYNCED: 'publishSynced', STARTING: 'publishStarting', ACCEPTED: 'publishAccepted', SYNC_FAILED: 'publishSyncFailed', PLAY_FAILED: 'publishPlayFailed' };
+  publicationJob.rows.forEach(row => {
+    const line = document.createElement('div');
+    line.className = 'publication-result';
+    const name = document.createElement('strong');
+    name.textContent = row.deviceName;
+    const result = document.createElement('span');
+    result.textContent = tr(stages[row.stage]) + (row.error ? ' · ' + (row.error === 'PUBLISH_RESULT_MISSING' ? tr('publishResultMissing') : row.error) : '');
+    line.append(name, result);
+    panel.appendChild(line);
+  });
+  const note = document.createElement('p');
+  note.className = 'help';
+  note.textContent = tr('previewDisclaimer');
+  const retry = document.createElement('button');
+  retry.id = 'retryPublication';
+  retry.textContent = tr('retryFailedDevices');
+  retry.disabled = state.sendInProgress || accepted === publicationJob.rows.length;
+  retry.hidden = accepted === publicationJob.rows.length;
+  retry.addEventListener('click', retryPublication);
+  panel.append(note, retry);
+}
+
+async function runPublication() {
+  const complete = await PublishWorkflow.run(publicationJob, async (path, body) => {
+    if (path === '/api/control') {
+      body.revision = ++state.revision;
+      body.commandId = newId();
+    }
+    return request(path, { method: 'POST', body });
+  }, renderPublicationResults);
+  state.sendFailed = false;
+  setSendStatus(tr('publishSummary', {
+    accepted: publicationJob.rows.filter(row => row.stage === 'ACCEPTED').length,
+    total: publicationJob.rows.length
+  }), null, !complete);
+  if (complete) publishDraftDirty = false;
+  try { await refreshBase(); } catch (_) { notify(tr('publishRefreshFailed'), true); }
+  return complete;
+}
+
+async function retryPublication() {
+  if (!publicationJob || state.sendInProgress) return;
+  setSendBusy(true);
+  try {
+    if (!state.owner) await acquire(true);
+    if (!state.owner) return notify(tr('takeControl'), true);
+    await runPublication();
+  } catch (error) { notify(describeError(error), true); }
+  finally { setSendBusy(false); renderPublicationResults(); }
+}
+
+document.addEventListener('input', event => {
+  if (event.target.closest('#sendView')) publishDraftDirty = true;
+});
+document.addEventListener('change', event => {
+  if (event.target.closest('#sendView')) publishDraftDirty = true;
+  if (event.target.id === 'language') renderPublicationResults();
+});
+window.addEventListener('beforeunload', event => {
+  if (publishDraftDirty || state.sendInProgress) { event.preventDefault(); event.returnValue = ''; }
+});
+
+// 各入口共用明确的预览和部署说明；使用 textContent 避免内容插入成为 HTML。
+function installPublicationGuidance() {
+  for (const id of ['currentPreview', 'contentPreview', 'scenePreviewStage']) {
+    const preview = $(id);
+    if (!preview || $(id + 'Disclaimer')) continue;
+    const note = document.createElement('p');
+    note.id = id + 'Disclaimer';
+    note.dataset.i18n = 'previewDisclaimer';
+    note.className = 'help preview-disclaimer';
+    note.textContent = tr('previewDisclaimer');
+    if (id === 'currentPreview') {
+      const stage = preview.closest('.now-playing');
+      const column = document.createElement('div');
+      column.className = 'play-preview-column';
+      stage.before(column);
+      column.append(stage, note);
+    } else preview.after(note);
+  }
+  const settings = $('autoResume')?.closest('label');
+  if (settings && !$('recoveryBoundary')) {
+    const note = document.createElement('p');
+    note.id = 'recoveryBoundary';
+    note.dataset.i18n = 'recoveryBoundary';
+    note.className = 'help';
+    note.textContent = tr('recoveryBoundary');
+    settings.after(note);
+  }
+  const pro = document.querySelector('.pro-dialog');
+  if (pro && !$('entitlementBoundary')) {
+    const note = document.createElement('p');
+    note.id = 'entitlementBoundary';
+    note.dataset.i18n = 'entitlementBoundary';
+    note.textContent = tr('entitlementBoundary');
+    pro.querySelector('.dialog-actions').before(note);
+  }
+  $('sendProgress').setAttribute('role', 'status');
+  renderPublicationResults();
+}
+installPublicationGuidance();
+
+// 手机上选好内容类型后收起七张说明卡，把空间留给编辑与发布结果。
+const publishChooser = document.querySelector('.publish-chooser');
+if (publishChooser) {
+  const toggle = document.createElement('button');
+  toggle.type = 'button';
+  toggle.className = 'publish-method-toggle';
+  toggle.dataset.i18n = 'changePublishMethod';
+  toggle.textContent = tr('changePublishMethod');
+  toggle.setAttribute('aria-expanded', 'true');
+  const methods = publishChooser.querySelector('.publish-methods');
+  methods.id = 'publishMethods';
+  toggle.setAttribute('aria-controls', methods.id);
+  publishChooser.querySelector('h2').after(toggle);
+  toggle.addEventListener('click', () => {
+    const collapsed = publishChooser.classList.toggle('compact-choice');
+    toggle.setAttribute('aria-expanded', String(!collapsed));
+  });
+  methods.addEventListener('click', event => {
+    const choice = event.target.closest('[data-publish-type]');
+    if (!choice || state.selectedType !== choice.dataset.publishType || !matchMedia('(max-width:560px)').matches) return;
+    publishChooser.classList.add('compact-choice');
+    toggle.setAttribute('aria-expanded', 'false');
+    toggle.focus();
+  });
+}
 </script>
 </body>
 </html>

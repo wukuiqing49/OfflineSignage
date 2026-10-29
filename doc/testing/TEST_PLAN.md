@@ -1,5 +1,17 @@
 # 功能回归测试计划
 
+## 2026-10-29 发布确定性与职责拆分增量
+
+| ID | 关联源码与影响 | 方法及通过条件 |
+|---|---|---|
+| OPT-PUBLISH | `src/main/web/publish-workflow.js`、`console.js`、`device-groups.js` | `node --test tools/test_publish_workflow.cjs`；分组无本机副作用、同步失败不播放、缺失结果不算成功、重试复用内容且跳过成功设备、HTTP 200 部分失败可见 |
+| OPT-CONSOLE | `src/main/web/*`、打包 HTML | `tools/console_ui_smoke.js` 经 Playwright 执行；虚拟双设备一成功一失败后仅重试失败设备；1440/390/320px 无横向溢出、中英文结果切换、目标消失不转为本机 |
+| OPT-CONSOLE-PACK | `tools/build_web_console.py`、feature_app Gradle | `python tools/build_web_console.py --check`、`verifyOfflineConsole`；源码和离线打包资源完全一致 |
+| OPT-CORE | `SignageDatabase`、`SignageJson`、`SignageWebContent` 及调用方 | feature_app/app 既有单测、Debug 构建；覆盖 SQLite 迁移、HTTP 契约、播放命令与启动策略，保持公开行为 |
+| OPT-GATES | 构建、UI、多语言、架构规则 | 各专项静态门禁与 `git diff --check`；区分警告与失败 |
+
+本轮不将源码职责拆分扩大为数据库版本变更或新的平台权限。浏览器使用虚拟 API，不连接真实设备；两台在线物理设备的内容保持不动。现场验收另见 `docs/LOCAL_SIGNAGE_DEVICE_ACCEPTANCE_MATRIX_CN.md`，未执行不推进通过基线。
+
 ## 全面屏与大屏适配增量回归（2026-10-20）
 
 共享 Activity、主题、Manifest 和 Insets 变更影响全部原生页面，选中下列测试；播放/服务/存储保留现有单测回归。真实交易、生产统计、多设备同步与长期播放未在本轮设备验收。

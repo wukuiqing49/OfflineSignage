@@ -1,0 +1,22 @@
+{
+  "date": "2026-10-29",
+  "environment": "Playwright browser with loopback static server and intercepted fixture APIs; not physical displays",
+  "pageErrors": [],
+  "firstPublication": {"accepted": 1, "total": 2, "failedDevice": "b", "failure": "DISK_FULL"},
+  "afterRetry": {"accepted": 2, "total": 2},
+  "resourceCreateRequests": 1,
+  "resourceCreatePlay": false,
+  "syncTargets": [["a", "b"], ["b"]],
+  "playTargets": [["a"], ["b"]],
+  "gatewayPlaybackCommands": 0,
+  "layouts": [
+    {"viewportWidth": 1440, "scrollWidth": 1425},
+    {"viewportWidth": 390, "scrollWidth": 375},
+    {"viewportWidth": 320, "scrollWidth": 320}
+  ],
+  "resultLanguageSwitch": "zh-CN -> en passed",
+  "missingTarget": {"requested": "DEVICE_missing", "retained": "DEVICE_missing"},
+  "mobileChooser": {"collapseAfterSelection": true, "expandOnChange": true},
+  "script": "tools/console_ui_smoke.js",
+  "note": "Summarized from executed browser assertions; fixture acknowledgements do not prove hardware playback."
+}

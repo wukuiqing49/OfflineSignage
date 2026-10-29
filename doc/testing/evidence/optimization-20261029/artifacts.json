@@ -1,0 +1,16 @@
+[
+  {
+    "variant": "debug",
+    "path": "app/build/outputs/apk/debug/app-debug.apk",
+    "sha256": "ccf76535440bd678f196cfdfcadc7bbefc08c16d4166521b2d0560f1d1046c1d",
+    "consoleMatchesFinalSource": true,
+    "signatureAndZipAlignmentVerified": true
+  },
+  {
+    "variant": "release",
+    "path": "app/build/outputs/apk/release/app-release.apk",
+    "sha256": "50c75e83e8d2de38da2d10b559b0e4c6718a8c79820ef80c0b1fd60fa71b8ec5",
+    "consoleMatchesFinalSource": true,
+    "signatureAndZipAlignmentVerified": true
+  }
+]

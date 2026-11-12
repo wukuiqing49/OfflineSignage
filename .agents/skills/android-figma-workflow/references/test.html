@@ -1,0 +1,826 @@
+```html
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>七一班早读打卡</title>
+
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            font-family: "Microsoft YaHei", "PingFang SC", Arial, sans-serif;
+        }
+
+        body {
+            background: #f2f7fc;
+            min-height: 100vh;
+            padding: 20px;
+            color: #263238;
+        }
+
+        /* =========================
+           顶部标题
+        ========================= */
+
+        .header {
+            max-width: 1400px;
+            margin: 0 auto 20px;
+        }
+
+        h1 {
+            text-align: center;
+            color: #263b50;
+            font-size: 32px;
+            margin-bottom: 18px;
+        }
+
+        /* =========================
+           统计区域
+        ========================= */
+
+        .summary {
+            background: white;
+            border-radius: 16px;
+            padding: 18px 22px;
+            box-shadow: 0 4px 14px rgba(0, 0, 0, 0.08);
+            margin-bottom: 18px;
+        }
+
+        .summary-top {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            gap: 20px;
+            margin-bottom: 12px;
+        }
+
+        .summary-text {
+            font-size: 18px;
+            font-weight: bold;
+        }
+
+        #progressText {
+            color: #20a66a;
+            font-size: 20px;
+        }
+
+        .progress-bg {
+            width: 100%;
+            height: 14px;
+            background: #e9eef3;
+            border-radius: 20px;
+            overflow: hidden;
+        }
+
+        .progress-bar {
+            width: 0%;
+            height: 100%;
+            background: linear-gradient(90deg, #36c980, #27ae60);
+            border-radius: 20px;
+            transition: width 0.35s ease;
+        }
+
+        /* =========================
+           按钮
+        ========================= */
+
+        .toolbar {
+            display: flex;
+            justify-content: center;
+            margin-bottom: 20px;
+        }
+
+        #resetBtn {
+            padding: 11px 24px;
+            background: #ff6666;
+            color: white;
+            border: none;
+            border-radius: 10px;
+            font-size: 16px;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        #resetBtn:hover {
+            background: #ee5252;
+            transform: translateY(-1px);
+        }
+
+        /* =========================
+           左右两栏
+        ========================= */
+
+        .wrap {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 24px;
+            max-width: 1400px;
+            margin: 0 auto;
+        }
+
+        .column {
+            background: white;
+            border-radius: 18px;
+            padding: 20px;
+            box-shadow: 0 4px 14px rgba(0, 0, 0, 0.08);
+            min-height: 500px;
+        }
+
+        .col-left {
+            border-top: 6px solid #ff7d7d;
+        }
+
+        .col-right {
+            border-top: 6px solid #48d18c;
+        }
+
+        .title {
+            font-size: 21px;
+            font-weight: bold;
+            margin-bottom: 18px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .col-left .title {
+            color: #d84c4c;
+        }
+
+        .col-right .title {
+            color: #219b61;
+        }
+
+        /* =========================
+           学生卡片
+        ========================= */
+
+        .card-container {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(100px, 1fr));
+            gap: 12px;
+        }
+
+        .student-card {
+            position: relative;
+            padding: 13px 8px 11px;
+            border-radius: 14px;
+            text-align: center;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            border: 1px solid rgba(0, 0, 0, 0.04);
+            user-select: none;
+        }
+
+        .student-card:hover {
+            transform: translateY(-3px);
+            box-shadow: 0 5px 12px rgba(0, 0, 0, 0.12);
+        }
+
+        .student-card:active {
+            transform: scale(0.96);
+        }
+
+        /* 男生 */
+
+        .boy {
+            background: #e8f3ff;
+        }
+
+        .boy .avatar {
+            background: linear-gradient(135deg, #5aaeff, #378be5);
+        }
+
+        /* 女生 */
+
+        .girl {
+            background: #fff0f6;
+        }
+
+        .girl .avatar {
+            background: linear-gradient(135deg, #ff8fba, #ef6ba0);
+        }
+
+        /* 姓名首字头像 */
+
+        .avatar {
+            width: 54px;
+            height: 54px;
+            border-radius: 50%;
+            margin: 0 auto 8px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+
+            color: white;
+            font-size: 23px;
+            font-weight: bold;
+
+            box-shadow: 0 3px 8px rgba(0, 0, 0, 0.12);
+        }
+
+        .name {
+            font-size: 15px;
+            font-weight: 500;
+            white-space: nowrap;
+        }
+
+        /* 已完成标记 */
+
+        .completed-card::after {
+            content: "✓";
+            position: absolute;
+            right: 7px;
+            top: 6px;
+
+            width: 22px;
+            height: 22px;
+            line-height: 22px;
+
+            background: #2ecc71;
+            color: white;
+            border-radius: 50%;
+            font-size: 14px;
+            font-weight: bold;
+        }
+
+        /* =========================
+           空状态
+        ========================= */
+
+        .empty {
+            grid-column: 1 / -1;
+            text-align: center;
+            padding: 50px 10px;
+            color: #9aa5ad;
+            font-size: 17px;
+        }
+
+        .all-done {
+            color: #27ae60;
+            font-weight: bold;
+            font-size: 20px;
+        }
+
+        /* =========================
+           底部说明
+        ========================= */
+
+        .footer {
+            text-align: center;
+            color: #8b98a3;
+            font-size: 13px;
+            margin: 22px auto 5px;
+        }
+
+        /* =========================
+           小屏幕适配
+        ========================= */
+
+        @media (max-width: 800px) {
+
+            body {
+                padding: 10px;
+            }
+
+            h1 {
+                font-size: 25px;
+            }
+
+            .wrap {
+                grid-template-columns: 1fr;
+            }
+
+            .column {
+                min-height: auto;
+            }
+
+            .card-container {
+                grid-template-columns: repeat(auto-fill, minmax(85px, 1fr));
+            }
+
+            .summary-top {
+                font-size: 14px;
+            }
+        }
+
+    </style>
+</head>
+
+<body>
+
+<div class="header">
+
+    <h1>📖 七一班 · 早读打卡</h1>
+
+    <div class="summary">
+
+        <div class="summary-top">
+
+            <div class="summary-text">
+                全班：
+                <span id="totalCount">0</span>
+                人
+            </div>
+
+            <div id="progressText">
+                已完成 0 / 0（0%）
+            </div>
+
+        </div>
+
+        <div class="progress-bg">
+            <div
+                id="progressBar"
+                class="progress-bar">
+            </div>
+        </div>
+
+    </div>
+
+    <div class="toolbar">
+        <button id="resetBtn">
+            🔄 开始新一天 / 全部重置
+        </button>
+    </div>
+
+</div>
+
+
+<div class="wrap">
+
+    <!-- =========================
+         左侧：未完成
+    ========================== -->
+
+    <div class="column col-left">
+
+        <div class="title">
+
+            <span>
+                ⏳ 未完成早读
+            </span>
+
+            <span id="left-count">
+                0人
+            </span>
+
+        </div>
+
+        <div
+            class="card-container"
+            id="left-box">
+        </div>
+
+    </div>
+
+
+    <!-- =========================
+         右侧：已完成
+    ========================== -->
+
+    <div class="column col-right">
+
+        <div class="title">
+
+            <span>
+                ✅ 已完成早读
+            </span>
+
+            <span id="right-count">
+                0人
+            </span>
+
+        </div>
+
+        <div
+            class="card-container"
+            id="right-box">
+        </div>
+
+    </div>
+
+</div>
+
+
+<div class="footer">
+    点击学生姓名即可完成打卡，再次点击可撤销 · 数据保存在本机浏览器
+</div>
+
+
+<script>
+
+/* ==========================================================
+   学生名单
+
+   gender:
+   boy  = 男生
+   girl = 女生
+========================================================== */
+
+const studentList = [
+
+    {name:"李梦瑶", gender:"girl"},
+    {name:"刘妍", gender:"girl"},
+    {name:"杨宗霖", gender:"boy"},
+    {name:"许浩洋", gender:"boy"},
+    {name:"牛雨泽", gender:"boy"},
+    {name:"贺舒雨", gender:"boy"},
+    {name:"马子航", gender:"boy"},
+    {name:"唐晨栖", gender:"girl"},
+    {name:"许家硕", gender:"boy"},
+    {name:"尹国界", gender:"boy"},
+    {name:"赵扬", gender:"boy"},
+    {name:"贺雨聪", gender:"boy"},
+    {name:"蔡涵", gender:"girl"},
+    {name:"侯世馨", gender:"girl"},
+    {name:"田雨晨", gender:"girl"},
+    {name:"胡静研", gender:"girl"},
+    {name:"郭依寒", gender:"girl"},
+    {name:"赵亦楠", gender:"girl"},
+    {name:"赵梓扬", gender:"boy"},
+    {name:"刘张梦琪", gender:"girl"},
+    {name:"李金浩", gender:"boy"},
+    {name:"何梦凡", gender:"girl"},
+    {name:"李诗赫", gender:"boy"},
+    {name:"马可心", gender:"girl"},
+    {name:"殷子鹤", gender:"boy"},
+    {name:"朱梓航", gender:"boy"},
+    {name:"白梓悦", gender:"girl"},
+    {name:"胡亿臣", gender:"boy"},
+    {name:"朱亦涵", gender:"girl"},
+    {name:"王琦然", gender:"girl"},
+    {name:"董思琪", gender:"girl"},
+    {name:"王静语", gender:"girl"},
+    {name:"贾靖琪", gender:"girl"},
+
+    /*
+       注意：
+       原始名单中“贺舒雨”出现两次，
+       前面一次为 boy，
+       这里一次为 girl。
+       暂时按照原名单保留。
+    */
+    {name:"贺舒雨", gender:"girl"},
+
+    {name:"高明凯", gender:"boy"},
+    {name:"尚嘉仪", gender:"girl"},
+    {name:"王浩涵", gender:"boy"},
+    {name:"王文浩", gender:"boy"},
+    {name:"王宇博", gender:"boy"},
+    {name:"牛佳旭", gender:"boy"},
+    {name:"陈涵泽", gender:"boy"},
+    {name:"徐欣静", gender:"girl"},
+    {name:"崔子妍", gender:"girl"},
+    {name:"郭诗妍", gender:"girl"},
+    {name:"侯意然", gender:"girl"},
+    {name:"齐乐瑶", gender:"girl"},
+    {name:"李恩薪", gender:"girl"},
+    {name:"徐彬棋", gender:"boy"},
+    {name:"李可响", gender:"boy"},
+    {name:"李绍涵", gender:"boy"},
+    {name:"刘冠辰", gender:"boy"},
+    {name:"刘冠汐", gender:"girl"}
+
+];
+
+
+/* ==========================================================
+   本地存储 KEY
+
+   修改这个名字，可以避免和其他网页数据冲突。
+========================================================== */
+
+const STORAGE_KEY = "class7_morning_reading_v1";
+
+
+/* ==========================================================
+   读取本地数据
+========================================================== */
+
+let completedNames = [];
+
+try {
+
+    const saved = localStorage.getItem(STORAGE_KEY);
+
+    if (saved) {
+        completedNames = JSON.parse(saved);
+    }
+
+} catch (error) {
+
+    console.log("读取本地数据失败：", error);
+
+    completedNames = [];
+
+}
+
+
+/* ==========================================================
+   保存数据
+========================================================== */
+
+function saveData() {
+
+    try {
+
+        localStorage.setItem(
+            STORAGE_KEY,
+            JSON.stringify(completedNames)
+        );
+
+    } catch (error) {
+
+        console.log("保存失败：", error);
+
+    }
+
+}
+
+
+/* ==========================================================
+   判断学生是否完成
+
+   因为原始名单存在同名学生，
+   所以这里使用 index 作为学生唯一 ID。
+========================================================== */
+
+function isCompleted(index) {
+
+    return completedNames.includes(index);
+
+}
+
+
+/* ==========================================================
+   点击学生
+========================================================== */
+
+function toggleStudent(index) {
+
+    if (isCompleted(index)) {
+
+        /* 已完成 -> 撤销 */
+
+        completedNames =
+            completedNames.filter(
+                item => item !== index
+            );
+
+    } else {
+
+        /* 未完成 -> 完成 */
+
+        completedNames.push(index);
+
+    }
+
+    saveData();
+
+    render();
+
+}
+
+
+/* ==========================================================
+   创建学生卡片
+========================================================== */
+
+function createCard(student, index, completed) {
+
+    const card =
+        document.createElement("div");
+
+    card.className =
+        `student-card ${student.gender}`;
+
+
+    if (completed) {
+
+        card.classList.add(
+            "completed-card"
+        );
+
+    }
+
+
+    /* 姓名第一个字作为头像 */
+
+    const firstCharacter =
+        student.name.charAt(0);
+
+
+    card.innerHTML = `
+
+        <div class="avatar">
+            ${firstCharacter}
+        </div>
+
+        <div class="name">
+            ${student.name}
+        </div>
+
+    `;
+
+
+    card.onclick = function() {
+
+        toggleStudent(index);
+
+    };
+
+
+    return card;
+
+}
+
+
+/* ==========================================================
+   页面渲染
+========================================================== */
+
+function render() {
+
+    const leftBox =
+        document.getElementById("left-box");
+
+    const rightBox =
+        document.getElementById("right-box");
+
+
+    leftBox.innerHTML = "";
+
+    rightBox.innerHTML = "";
+
+
+    let leftCount = 0;
+
+    let rightCount = 0;
+
+
+    studentList.forEach(
+        (student, index) => {
+
+            const completed =
+                isCompleted(index);
+
+
+            const card =
+                createCard(
+                    student,
+                    index,
+                    completed
+                );
+
+
+            if (completed) {
+
+                rightBox.appendChild(card);
+
+                rightCount++;
+
+            } else {
+
+                leftBox.appendChild(card);
+
+                leftCount++;
+
+            }
+
+        }
+    );
+
+
+    /* =========================
+       未完成为空
+    ========================= */
+
+    if (leftCount === 0) {
+
+        const empty =
+            document.createElement("div");
+
+        empty.className =
+            "empty all-done";
+
+        empty.innerHTML =
+            "🎉 全班早读已完成！";
+
+        leftBox.appendChild(empty);
+
+    }
+
+
+    /* =========================
+       已完成为空
+    ========================= */
+
+    if (rightCount === 0) {
+
+        const empty =
+            document.createElement("div");
+
+        empty.className = "empty";
+
+        empty.innerHTML =
+            "暂时还没有同学完成早读";
+
+        rightBox.appendChild(empty);
+
+    }
+
+
+    /* =========================
+       更新人数
+    ========================= */
+
+    document.getElementById(
+        "left-count"
+    ).innerText =
+        `${leftCount}人`;
+
+
+    document.getElementById(
+        "right-count"
+    ).innerText =
+        `${rightCount}人`;
+
+
+    document.getElementById(
+        "totalCount"
+    ).innerText =
+        studentList.length;
+
+
+    /* =========================
+       完成百分比
+    ========================= */
+
+    const percentage =
+        studentList.length === 0
+            ? 0
+            : Math.round(
+                rightCount /
+                studentList.length *
+                100
+            );
+
+
+    document.getElementById(
+        "progressText"
+    ).innerText =
+        `已完成 ${rightCount} / ${studentList.length}（${percentage}%）`;
+
+
+    document.getElementById(
+        "progressBar"
+    ).style.width =
+        `${percentage}%`;
+
+}
+
+
+/* ==========================================================
+   一键重置
+========================================================== */
+
+document.getElementById(
+    "resetBtn"
+).onclick = function() {
+
+    const result = confirm(
+        "确定开始新一天吗？\n\n所有学生都会恢复为“未完成”状态。"
+    );
+
+
+    if (!result) {
+        return;
+    }
+
+
+    completedNames = [];
+
+
+    saveData();
+
+
+    render();
+
+};
+
+
+/* ==========================================================
+   初始化页面
+========================================================== */
+
+render();
+
+</script>
+
+</body>
+</html>
+```

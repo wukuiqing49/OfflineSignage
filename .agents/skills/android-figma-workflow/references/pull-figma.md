@@ -97,4 +97,4 @@ python .agents\skills\android-figma-workflow\scripts\figma_sync.py --figma-url "
 - 如果只处理单个页面，优先传 node id，避免拉取整个文件导致数据过大。
 - 如果没有本地 `figma_screenshot.png`（或显式本地截图）、`figma_layer_report.md`、`figma_asset_index.json` 和资源清单，不允许进入代码生成阶段；多页面任务优先使用页面任务卡绑定的 `asset_manifest_<page>.md`。
 - 如果没有 `figma_normalize_report.md` 或页面任务卡没有关键尺寸换算表，不允许进入代码生成阶段。
-- 如果资源清单里存在缺失的导航 / Tab / 工具栏图标，必须先停下来让用户确认补拉资源或接受降级方案。
+- 如果资源清单里存在缺失的导航 / Tab / 工具栏图标，先在现有授权内补拉资源；仍缺失且需改变设计时，说明具体降级方案并请求确认。

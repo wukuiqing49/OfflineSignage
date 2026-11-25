@@ -64,7 +64,7 @@
 23. 与黄金样板页的对齐点：页面拆分、资源命名、Adapter 结构、字体/间距缩放方式
 24. 与黄金样板页的差异点：当前 Frame 特有区域、特有 item、特有状态和必须专用处理的图层
 25. 图层生成依据：列出当前实现会参考的关键 Figma 图层、对应 Android XML / item / drawable 归属
-26. 主导航 / Tab 页面强制拆分：如果 Frame 包含底部主导航、顶部 Tab、频道 Tab、分段 Tab 或同级页面切换入口，必须列出 ViewPager2 容器、FragmentStateAdapter、每个子 Fragment、每个子页面列表/状态归属；如果不使用 ViewPager2，必须写明用户确认的降级理由和阻塞风险
+26. 导航分析：列明导航目的地、状态归属、返回行为和项目现有导航复用；仅明确需要滑动分页时规划 ViewPager2、FragmentStateAdapter 与子 Fragment，不使用分页本身不构成降级
 27. UI 工作流对齐：列出本页面如何遵守 `android-ui-workflow` 的页面结构、Tab/ViewPager2、RecyclerView/Scroll、文字字号/省略、Insets、沉浸式/Edge-to-edge、Dialog/Popup、资源样式规则
 28. 结构化门禁字段：页面类型、页面级资源清单、是否需要 ViewPager2 + Fragment、是否需要 FragmentStateAdapter、是否允许降级
 ```

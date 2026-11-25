@@ -1,0 +1,21 @@
+{
+  "source": "GooglePlay-Manager",
+  "revision": "d220678ba62f03c033faec8afafabff666cf6dff",
+  "kind": "local working-tree snapshot; hashes identify actual imported source",
+  "sha256": {
+    "apps.py": "1071c1077c87b8a3cfb9a3d4815ab71638f33cbe71c3b16364b4dad9053d1a08",
+    "aso.py": "a3173d9699bf2f176177fc0a4c272096fadb70a4486d348414024e00cc80776e",
+    "auth.py": "b52207aefafccafe67f4a0f490b4d2ab9f8d10e8a4569bdc3386482a4aefffd0",
+    "cli.py": "faaa0bbe787a71dbf3eed464ca892ecb452b21bee8126b20a95d39fe327a06ee",
+    "client.py": "76e1839838f9bda37f2fd153a3350ae85145938bcaf5f0e87afdd0a46e4b2d21",
+    "discovery.py": "c8f732777cf75b63bfb7847de5ca0eefaf36e8a7a578cd7da2aa2d42850e1c6e",
+    "health_reports.py": "9ffbde320e3d55b0dd407a1de00a6647ca980c970723331ea07b4bfd0560221b",
+    "installs.py": "17309ad1d2de4b8f85843c85ef809d94dfe834061af2577e9848c4c1cf8ac06f",
+    "reports.py": "a8208951d4181f4f29d22ace658d176c18903a959e8fba35e1f8261fad86a834",
+    "report_io.py": "a518cba8db6191299f2b1eb6f14938459cca599c8db7fa2c137bb1b8b29da91c",
+    "reviews.py": "842f02346c6ee91c27905d134bdbf9f1995883dc1d75eaa0f6df92f3599fd4bc",
+    "store_performance.py": "edf639a432a7b4b54795bf90087a7165059c13c3a0e71daf96d00549d9a6cc8c",
+    "__init__.py": "124431f87bf7102083e50b32f7bd42534e48f040e6b1a127d3048e1112ef45de"
+  },
+  "maintenance": "内置快照由本 Skill 维护；不在运行时读取或同步来源工程。"
+}

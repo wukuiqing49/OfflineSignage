@@ -30,7 +30,7 @@ object GoogleCommercialManager {
                     apiUrl = config.apiUrl,
                     appKey = config.appKey,
                     storageNamespace = "local_signage",
-                    collectionEnabled = preferences?.getBoolean(CONSENT_KEY, false) == true,
+                    collectionEnabled = preferences?.getBoolean(CONSENT_KEY, config.defaultCollectionEnabled) == true,
                     analyticsMode = AnalyticsMode.CORE_ONLY,
                     collectDeviceInfo = true,
                     collectLocale = true,

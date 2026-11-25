@@ -1,0 +1,4 @@
+interface:
+  display_name: "项目代码生成官网"
+  short_description: "根据项目源码与真实资源提取功能事实，创建产品官网并完成本地验证"
+  default_prompt: "使用 $project-official-website，分析我提供的项目代码和资源，生成对应官网并完成本地验证。"

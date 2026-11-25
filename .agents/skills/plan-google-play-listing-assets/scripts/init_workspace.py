@@ -28,6 +28,24 @@ def read_properties(path: Path) -> dict[str, str]:
     return values
 
 
+def read_android_identity(project_root: Path) -> tuple[str, str]:
+    properties = read_properties(project_root / "app-config.properties")
+    application_id = properties.get("applicationId", "")
+    namespace = properties.get("namespace", "")
+    for name in ("build.gradle", "build.gradle.kts"):
+        path = project_root / "app" / name
+        if not path.is_file():
+            continue
+        text = path.read_text(encoding="utf-8", errors="replace")
+        if not application_id:
+            match = re.search(r"\bapplicationId\s*(?:=\s*)?[\"']([^\"']+)[\"']", text)
+            application_id = match.group(1).strip() if match else ""
+        if not namespace:
+            match = re.search(r"\bnamespace\s*(?:=\s*)?[\"']([^\"']+)[\"']", text)
+            namespace = match.group(1).strip() if match else ""
+    return application_id, namespace
+
+
 def scan_app_strings(project_root: Path) -> dict[str, str]:
     strings: dict[str, str] = {}
     for res_dir in project_root.glob("**/src/main/res/values*"):
@@ -67,12 +85,13 @@ def find_app_icon(project_root: Path) -> str:
 def discover_product_profile(project_root: Path) -> dict:
     root = project_root.resolve()
     properties = read_properties(root / "app-config.properties")
+    application_id, namespace = read_android_identity(root)
     strings = scan_app_strings(root)
     colors = scan_app_colors(root)
     icon_rel_path = find_app_icon(root)
 
     app_name = strings.get("app_name") or properties.get("appName") or properties.get("project_name") or root.name
-    package_name = properties.get("applicationId") or properties.get("namespace") or "com.app"
+    package_name = application_id or namespace
 
     primary_color = colors.get("colorPrimary") or colors.get("brand_primary") or colors.get("theme_primary") or "#1A8754"
     secondary_color = colors.get("colorSecondary") or colors.get("brand_secondary") or "#71C887"
@@ -89,14 +108,6 @@ def discover_product_profile(project_root: Path) -> dict:
                     claim_id, claim = cols[1], cols[2]
                     verified_features.append({"id": claim_id, "summary": claim})
     
-    if not verified_features:
-        verified_features = [
-            {"id": "FEAT-01", "summary": "100% Offline playback with zero cloud dependencies"},
-            {"id": "FEAT-02", "summary": "Local Wi-Fi web browser management console"},
-            {"id": "FEAT-03", "summary": "Multi-format media: 4K videos, image slideshows, and dynamic text marquees"},
-            {"id": "FEAT-04", "summary": "Multi-device screen synchronization across local network"}
-        ]
-
     return {
         "schema_version": 1,
         "app_identity": {
@@ -107,23 +118,17 @@ def discover_product_profile(project_root: Path) -> dict:
         "visual_identity": {
             "primary_color": primary_color,
             "secondary_color": secondary_color,
-            "background_theme": "Modern Light & Charcoal (#F8F9FA / #17211B)",
-            "visual_style_prompt_tone": "Commercial 3D render, photorealistic product photography, 8k resolution, cinematic lighting, sleek tech aesthetic"
+            "background_theme": "Derive from verified app resources",
+            "visual_style_prompt_tone": "Preserve the verified product identity and real UI"
         },
         "verified_features": verified_features,
-        "target_verticals": [
-            "Restaurants, Cafes & Bars (Digital Menu Boards)",
-            "Retail Stores & Supermarkets (Promotional Displays)",
-            "Corporate Offices & Lobbies (Welcome & Notice Screens)",
-            "Clinics, Salons & Spas (Service Price Lists & Guidance)",
-            "Exhibitions & Events (Portable Kiosk Displays)"
-        ]
+        "target_verticals": []
     }
 
 
 def discover_project_context(project_root: Path) -> dict[str, str | int]:
     root = project_root.resolve()
-    properties = read_properties(root / "app-config.properties")
+    application_id, namespace = read_android_identity(root)
     settings_text = ""
     for name in ("settings.gradle", "settings.gradle.kts"):
         path = root / name
@@ -132,8 +137,6 @@ def discover_project_context(project_root: Path) -> dict[str, str | int]:
             break
     name_match = re.search(r"rootProject\.name\s*=\s*['\"]([^'\"]+)['\"]", settings_text)
     project_name = name_match.group(1).strip() if name_match else root.name
-    application_id = properties.get("applicationId", "")
-    namespace = properties.get("namespace", "")
     identity_source = "\n".join((str(root), project_name, application_id, namespace))
     project_id = hashlib.sha256(identity_source.encode("utf-8")).hexdigest()[:16]
     return {

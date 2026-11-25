@@ -1,6 +1,6 @@
 ---
 name: plan-google-play-listing-assets
-description: "分析 Android 项目并统一策划 Google Play Listing 的 Feature Graphic 封面、商店截图和 Preview Video：核验真实功能，先推导恰好 10 个 en-US 英文 Seed Keywords 且只向用户展示关键词，再读取 Keyword Planner/ASO 工具 CSV 或 XLSX，统一 ASO/SEO/GEO 定位，并输出素材总策略、三类 Brief、独立 Prompt 和合规检查。用于完整 Google Play 素材包、封面策划、截图组规划、预览视频脚本、关键词生成或回填、提示词文件生成及跨素材一致性验收；不虚构 App UI 或产品能力。"
+description: "依据 Android 项目真实功能策划 Google Play 封面、截图和预览视频，输出共享策略、Brief 与独立 Prompt。适用于商店素材和关键词研究交接；缺少研究数据时先输出 10 个 en-US Seed Keywords。"
 ---
 
 # Google Play 商店素材策划
@@ -13,6 +13,7 @@ description: "分析 Android 项目并统一策划 Google Play Listing 的 Featu
 - `.agents/rules/execution.md`（存在时读取）
 - `.agents/rules/play-assets.md`（存在时读取）
 - Manifest、Gradle、导航、页面、ViewModel、Repository、资源和产品文档
+- 目标项目已有的关键词资料索引 `doc/aso/README.md`（存在时）及所选报表来源说明。有资料时先评估市场、周期和口径，不重复要求用户提供已有文件。Google Ads 数据仅为搜索需求线索，不替代 Play 数据或产品事实门禁；需要工作区输入时复制原件并核对来源摘要。
 
 只追踪与待宣传能力相关的可达源码链路。排除构建产物、生成代码、缓存、prebuilt 和无关测试夹具。
 每次调用都以当前项目为唯一产品事实源，重新核验产品类别、功能、卖点、页面、关键词和素材。不得复用其他项目或上一次运行的产品结论；固定内容仅限 Google Play 规则、流程协议、文件结构和校验格式。

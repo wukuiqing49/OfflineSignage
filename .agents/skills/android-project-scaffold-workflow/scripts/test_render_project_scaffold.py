@@ -19,22 +19,6 @@ GENERATOR = SCRIPT_DIR / "render_project_scaffold.py"
 BASE_CONFIG = AGENTS_DIR / "config" / "project-scaffold.yml"
 
 
-def base_config_values() -> dict[str, str]:
-    config = yaml.safe_load(BASE_CONFIG.read_text(encoding="utf-8"))
-    package_name = config["packageName"]
-    package_dir = "/".join(package_name.split("."))
-    application_class = config["application"].get("applicationClassName", "")
-    if not application_class:
-        application_class = "LocalSignageApplication"
-    return {
-        "package_dir": package_dir,
-        "package_name": package_name,
-        "application_class": application_class,
-        "version_name": config["application"]["versionName"],
-        "signing_keystore": config["release"]["signingKeystoreFile"],
-    }
-
-
 class RenderProjectScaffoldTest(unittest.TestCase):
     def run_generator(self, config: Path, target: Path, *extra: str, expect_ok: bool = True):
         env = dict(os.environ)
@@ -64,13 +48,27 @@ class RenderProjectScaffoldTest(unittest.TestCase):
             self.fail("Generator unexpectedly succeeded")
         return result
 
+    def test_rejects_unsupported_android17_toolchain_before_writing(self):
+        for key, value in (("agp", "8.13.2"), ("gradle", "8.13"), ("kotlin", "2.1.21")):
+            with self.subTest(key=key), tempfile.TemporaryDirectory() as temp:
+                config = yaml.safe_load(BASE_CONFIG.read_text(encoding="utf-8"))
+                config["versions"][key] = value
+                path = Path(temp) / "config.yml"
+                path.write_text(yaml.safe_dump(config, allow_unicode=True), encoding="utf-8")
+                target = Path(temp) / "project"
+                self.run_generator(path, target, expect_ok=False)
+                self.assertFalse((target / "settings.gradle").exists())
+
     def test_generates_complete_project_and_refuses_accidental_overwrite(self):
         with tempfile.TemporaryDirectory() as temp:
             target = Path(temp) / "project"
             self.run_generator(BASE_CONFIG, target)
-            values = base_config_values()
-            app_source = f"app/src/main/java/{values['package_dir']}"
 
+            base_config = yaml.safe_load(BASE_CONFIG.read_text(encoding="utf-8"))
+            package_name = base_config["packageName"]
+            package_path = package_name.replace(".", "/")
+            application_class = base_config["application"]["applicationClassName"]
+            version_name = base_config["application"]["versionName"]
             expected = [
                 "settings.gradle",
                 "build.gradle",
@@ -81,8 +79,8 @@ class RenderProjectScaffoldTest(unittest.TestCase):
                 "gradle/app-conventions.gradle",
                 "app-config.properties",
                 "app/build.gradle",
-                f"{app_source}/MainActivity.kt",
-                f"{app_source}/{values['application_class']}.kt",
+                f"app/src/main/java/{package_path}/MainActivity.kt",
+                f"app/src/main/java/{package_path}/{application_class}.kt",
                 "app/src/main/res/drawable/bg_scaffold_surface.xml",
                 "app/src/main/res/drawable-night/bg_scaffold_surface.xml",
                 "app/src/main/res/values/dimens.xml",
@@ -109,7 +107,7 @@ class RenderProjectScaffoldTest(unittest.TestCase):
 
             app_build = (target / "app/build.gradle").read_text(encoding="utf-8")
             app_conventions = (target / "gradle/app-conventions.gradle").read_text(encoding="utf-8")
-            main_activity = (target / app_source / "MainActivity.kt").read_text(encoding="utf-8")
+            main_activity = (target / f"app/src/main/java/{package_path}/MainActivity.kt").read_text(encoding="utf-8")
             manifest = (target / "app/src/main/AndroidManifest.xml").read_text(encoding="utf-8")
             main_layout = (target / "app/src/main/res/layout/activity_main.xml").read_text(encoding="utf-8")
             theme = (target / "app/src/main/res/values/themes.xml").read_text(encoding="utf-8")
@@ -120,11 +118,12 @@ class RenderProjectScaffoldTest(unittest.TestCase):
             self.assertIn("<item name=\"android:windowLightStatusBar\">true</item>", theme)
             self.assertIn("<item name=\"android:windowLightNavigationBar\">true</item>", theme)
             self.assertIn("<item name=\"android:enforceNavigationBarContrast\">false</item>", theme)
-            self.assertIn("CoreUtils.init", (target / app_source / f"{values['application_class']}.kt").read_text(encoding="utf-8"))
+            self.assertIn("CoreUtils.init", (target / f"app/src/main/java/{package_path}/{application_class}.kt").read_text(encoding="utf-8"))
             self.assertIn("apply from: rootProject.file('gradle/app-conventions.gradle')", app_build)
             self.assertNotIn("storePassword", app_build)
             self.assertIn("calculatedVersionCode", app_conventions)
-            self.assertEqual(2, app_conventions.count("signingConfig = signingConfigs.sharedApp"))
+            self.assertEqual(1, app_conventions.count("signingConfig = signingConfigs.sharedApp"))
+            self.assertIn("runsRelease && requireReleaseSigning && !appSigningReady", app_conventions)
             self.assertIn(
                 "requireReleaseSigning=true",
                 (target / "app-config.properties").read_text(encoding="utf-8"),
@@ -136,7 +135,7 @@ class RenderProjectScaffoldTest(unittest.TestCase):
 
             self.run_generator(BASE_CONFIG, target, expect_ok=False)
             user_config = (target / "app-config.properties").read_text(encoding="utf-8").replace(
-                f"versionName={values['version_name']}",
+                f"versionName={version_name}",
                 "versionName=2.3.4\ncustomPublicValue=keep_me",
             )
             (target / "app-config.properties").write_text(user_config, encoding="utf-8")
@@ -154,7 +153,7 @@ class RenderProjectScaffoldTest(unittest.TestCase):
             self.assertTrue(marker["rtlPreferRelativeAttributes"])
             self.assertTrue(marker["rtlRequireVisualValidationForDirectionalUi"])
             self.assertEqual(
-                ["app-config.properties", "keystore.properties", values["signing_keystore"]],
+                ["app-config.properties", "keystore.properties", base_config["release"]["signingKeystoreFile"]],
                 marker["preservedPaths"],
             )
             self.assertFalse((target / "keystore.properties.example").exists())
@@ -201,8 +200,8 @@ class RenderProjectScaffoldTest(unittest.TestCase):
 
             manifest = (target / "app/src/main/AndroidManifest.xml").read_text(encoding="utf-8")
             app_conventions = (target / "gradle/app-conventions.gradle").read_text(encoding="utf-8")
-            values = base_config_values()
-            main_activity = (target / "app/src/main/java" / values["package_dir"] / "MainActivity.kt").read_text(encoding="utf-8")
+            package_path = config["packageName"].replace(".", "/")
+            main_activity = (target / f"app/src/main/java/{package_path}/MainActivity.kt").read_text(encoding="utf-8")
             self.assertNotIn("networkSecurityConfig", manifest)
             self.assertNotIn("FileProvider", manifest)
             self.assertNotIn("enableEdgeToEdge", main_activity)
@@ -281,13 +280,13 @@ class RenderProjectScaffoldTest(unittest.TestCase):
             target = root / "project"
             self.run_generator(config_path, target)
 
-            values = base_config_values()
-            application = target / "app/src/main/kotlin" / values["package_dir"] / "WorkflowApplication.kt"
+            package_path = config["packageName"].replace(".", "/")
+            application = target / f"app/src/main/kotlin/{package_path}/WorkflowApplication.kt"
             manifest = (target / "app/src/main/AndroidManifest.xml").read_text(encoding="utf-8")
             self.assertTrue(application.is_file())
             self.assertIn("class WorkflowApplication", application.read_text(encoding="utf-8"))
             self.assertIn('android:name=".WorkflowApplication"', manifest)
-            self.assertTrue((target / "feature/feature_app/src/main/kotlin" / values["package_dir"] / "feature/app/FeatureAppEntry.kt").is_file())
+            self.assertTrue((target / f"feature/feature_app/src/main/kotlin/{package_path}/feature/app/FeatureAppEntry.kt").is_file())
 
 
 if __name__ == "__main__":

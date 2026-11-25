@@ -26,6 +26,7 @@ class LocalSignageApplication : Application() {
             commercialConfig = GoogleCommercialConfig(
                 enabled = BuildConfig.DEVHUB_ENABLED &&
                     (!BuildConfig.DEBUG || BuildConfig.DEVHUB_DEBUG_ENABLED),
+                defaultCollectionEnabled = !BuildConfig.DEBUG,
                 apiUrl = BuildConfig.DEVHUB_API_URL,
                 appKey = BuildConfig.DEVHUB_APP_KEY,
                 playIntegrityCloudProjectNumber =

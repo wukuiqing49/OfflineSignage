@@ -276,6 +276,24 @@ def prepare_outputs(
     versions = require_mapping(config, "versions", "project config")
     if versions.get("policy") != "pinned-stable-baseline":
         raise ValueError("Only pinned-stable-baseline versions.policy is supported")
+    # Reject unsupported API/tool combinations before writing any generated files.
+    compile_sdk = int(require(versions, "compileSdk", "versions config"))
+    target_sdk = int(require(versions, "targetSdk", "versions config"))
+    if compile_sdk < target_sdk:
+        raise ValueError("compileSdk must not be below targetSdk")
+    if compile_sdk >= 37:
+        def stable_version(key):
+            value = str(require(versions, key, "versions config"))
+            if not re.fullmatch(r"[0-9]+(?:[.][0-9]+)+", value):
+                raise ValueError(f"API 37 baseline requires a stable {key} version")
+            return tuple(map(int, value.split(".")))
+        agp_version = stable_version("agp")
+        if agp_version < (9, 1, 1):
+            raise ValueError("API 37 requires AGP >= 9.1.1")
+        if (9, 1, 1) <= agp_version < (9, 2) and stable_version("gradle") < (9, 3, 1):
+            raise ValueError("AGP 9.1.x requires Gradle >= 9.3.1")
+        if stable_version("kotlin") < (2, 2, 10):
+            raise ValueError("AGP 9.1 baseline requires Kotlin >= 2.2.10")
     modules = require_mapping(config, "modules", "project config")
     module_paths = {
         name: relative_path(str(require(modules, key, "modules config")), f"modules.{key}")
@@ -595,7 +613,7 @@ def prepare_outputs(
         )
 
     gitignore_lines = [
-        ".gradle/", "build/", "local.properties", "*.iml", "__pycache__/", "*.pyc", "", "app/build/",
+        ".gradle/", "build/", "local.properties", "*.iml", "", "app/build/",
         "core/*/build/", "feature/*/build/", ".ai-work/",
     ]
     outputs[Path(".gitignore")] = "\n".join(gitignore_lines).rstrip() + "\n"

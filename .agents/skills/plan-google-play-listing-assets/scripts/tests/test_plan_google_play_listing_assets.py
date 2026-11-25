@@ -253,6 +253,30 @@ def screenshots_text(
 
 
 class InitWorkspaceTest(unittest.TestCase):
+    def test_does_not_invent_product_features_without_evidence(self) -> None:
+        with tempfile.TemporaryDirectory() as temp:
+            root = Path(temp)
+            profile = init_workspace.discover_product_profile(root)
+
+            self.assertEqual([], profile["verified_features"])
+            self.assertEqual([], profile["target_verticals"])
+
+    def test_reads_android_identity_from_groovy_app_build(self) -> None:
+        with tempfile.TemporaryDirectory() as temp:
+            root = Path(temp)
+            app = root / "app"
+            app.mkdir()
+            (app / "build.gradle").write_text(
+                'android {\n    namespace = "com.example.report"\n'
+                '    defaultConfig { applicationId "com.example.report" }\n}\n',
+                encoding="utf-8",
+            )
+
+            application_id, namespace = init_workspace.read_android_identity(root)
+
+            self.assertEqual("com.example.report", application_id)
+            self.assertEqual("com.example.report", namespace)
+
     def test_creates_and_preserves_keyword_readme(self) -> None:
         with tempfile.TemporaryDirectory() as temp:
             root = Path(temp)

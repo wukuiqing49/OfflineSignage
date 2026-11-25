@@ -14,7 +14,7 @@
 
 ## 目标
 
-按 `page_task_<page>.md` 施工图实现当前 Figma Frame。此阶段必须先移除旧页面实现的错误布局影响，再按任务卡重建。
+按 `page_task_<page>.md` 实现当前 Figma Frame。根据用户要求区分局部修改和整体重建，保留可复用代码，按影响范围修正旧布局。
 
 ## 前置条件
 
@@ -47,7 +47,7 @@
 12. 颜色放 colors.xml。
 13. 尺寸放 dimens.xml。
 14. 列表使用 RecyclerView。
-15. Tab / BottomNav / 同级页面切换必须使用 ViewPager2 + FragmentStateAdapter + 子 Fragment。
+15. 导航实现遵循项目 UI 规则和页面任务卡；需要滑动同级页时使用 ViewPager2 + FragmentStateAdapter，BottomNav 不自动等同于滑动分页。已存在的项目导航复用方案按任务卡说明。
 16. Adapter 不写业务逻辑。
 17. 如果项目基类来自 `core:core_base`、AAR 或外部依赖，必须按任务卡审计结果使用；不能只因当前 feature 模块源码搜不到就降级为 AndroidX 标准类。
 18. 实现入口必须严格落地任务卡中的 Launcher / Host / Feature 页面链路；新增 Splash 时 Launcher 必须是 Splash，Host 只承载页面，不混用职责。
@@ -101,7 +101,7 @@
 - BottomNav 视觉高度和系统 bottom inset 必须分离。
 - Figma 状态栏、手势条、三键导航预览默认不绘制。
 - 三键导航和手势导航下都不能让 BottomNav 视觉区被系统栏撑大。
-- 首屏区域预算必须接近任务卡；如果直播卡片可见数量明显少于 Figma，继续调整。
+- 首屏区域预算必须接近任务卡；如果目标内容可见数量明显少于 Figma，继续调整。
 - 首屏纵向必须采用“固定视觉块 + 弹性内容区”模型：Header/Tab/BottomNav 等固定区按 360dp 基准换算，RecyclerView/ViewPager2/ScrollView 使用 `0dp + 约束` 填充剩余高度。
 - Figma Frame 高度只用于首屏可见数量和区域比例参考，不得落成 Android 根布局高度或主内容高度。
 
@@ -125,23 +125,23 @@ python .agents/skills/android-figma-workflow/scripts/validate_figma_output.py `
   --module-res app/src/main/res --module-res feature/feature_app/src/main/res --module-res feature/feature_res/src/main/res `
   --asset-manifest .ai-work/figma/output/asset_manifest_<page>.md `
   --analysis-report .ai-work/figma/output/page_task_<page>.md `
-  --require-screen-adaptation `
-  --require-pager-navigation
+  --require-screen-adaptation
 
 python .agents/skills/android-ui-workflow/scripts/validate_ui_output.py `
   --module-src app/src/main/java --module-src feature/feature_app/src/main/java `
-  --module-res app/src/main/res --module-res feature/feature_app/src/main/res --module-res feature/feature_res/src/main/res `
-  --require-pager-navigation
+  --module-res app/src/main/res --module-res feature/feature_app/src/main/res --module-res feature/feature_res/src/main/res
 
 .\gradlew.bat --no-daemon --max-workers=1 :app:assembleDebug --stacktrace
 ```
 
-条件允许时继续做运行截图验收：
+上述模块路径须替换为真实受影响模块；仅任务卡明确要求分页时，为两个验证器追加 `--require-pager-navigation`。
+
+先读取 executionPolicy 与用户排除项；允许设备操作且条件具备时继续做运行截图验收：
 
 1. 安装并打开页面。
 2. 截取目标设备截图。
 3. 对比 Figma 截图。
-4. 若 Header 高度、BottomNav、系统栏、直播卡片可见数量、主要间距明显不一致，继续调整后重新验证。
+4. 若 Header 高度、BottomNav、系统栏、目标内容可见数量、主要间距明显不一致，继续调整后重新验证。
 5. 若真机截图出现“顶部空白过大”“BottomNav 被系统三键导航挤压”“首屏可见内容明显少于任务卡”，优先回查 Insets owner 和视觉高度拆分，不要只调 margin。
 
 ## 输出要求

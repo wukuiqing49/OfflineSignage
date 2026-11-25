@@ -2,3 +2,7 @@ org.gradle.jvmargs=-Xmx2048m -Dfile.encoding=UTF-8
 android.useAndroidX=true
 kotlin.code.style=official
 android.nonTransitiveRClass=true
+
+# AGP 9.x 过渡：保留现有 Kotlin 插件及旧 DSL，升级 AGP 10 前须迁移。
+android.builtInKotlin=false
+android.newDsl=false

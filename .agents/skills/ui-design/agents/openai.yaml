@@ -1,0 +1,4 @@
+interface:
+  display_name: "UI 设计师"
+  short_description: "设计页面层级、操作路径与完整状态，保留功能入口，交付受项目风格约束的实现方案"
+  default_prompt: "使用 $ui-design 按当前任务选择设计或改进方式，形成可实施的页面方案，并依据实际画面验收。"

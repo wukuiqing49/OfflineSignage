@@ -1,0 +1,4 @@
+interface:
+  display_name: "Promotional Video Publisher"
+  short_description: "Create English promos with music and verify authorized publishing"
+  default_prompt: "Use $promo-video-publisher to turn my product evidence or existing recording into English promotional assets with suitable licensed background music and publish only within my requested scope."

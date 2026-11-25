@@ -57,6 +57,11 @@ def find_target_sdk(root: Path, app_build: Path) -> int | None:
         match = re.search(r"targetSdk\s*=?\s*(?:libs\.versions\.targetSdk\.get\(\)\.toInteger\(\)|(?P<value>\d+))", read_text(app_build))
         if match and match.groupdict().get("value"):
             return int(match.group("value"))
+    root_build = next((root / name for name in ("build.gradle", "build.gradle.kts") if (root / name).exists()), None)
+    if root_build is not None:
+        match = re.search(r"\btargetSdk\s*(?::|=)\s*(?P<value>\d+)", read_text(root_build))
+        if match:
+            return int(match.group("value"))
     return None
 
 
@@ -69,7 +74,7 @@ def validate_versions_and_signing(root: Path, app_build: Path, errors: list[str]
         add(errors, "ERROR", app_build, "applicationId appears hardcoded; use project property/provider.")
     if re.search(r"versionName\s*=\s*['\"][^'\"]+['\"]", text):
         add(errors, "ERROR", app_build, "versionName appears hardcoded; use single semantic version property.")
-    if "calculatedVersionCode" not in text:
+    if "calculatedVersionCode" not in text and "appConfig.versionCode" not in text:
         add(warnings, "WARN", app_build, "semantic versionCode calculation was not found.")
     if re.search(r"release\s*\{[\s\S]*signingConfig\s*=\s*signingConfigs\.debug", text):
         add(errors, "ERROR", app_build, "release buildType must not fall back to debug signing.")
@@ -130,11 +135,26 @@ def validate_manifest(app_manifest: Path, errors: list[str], warnings: list[str]
             add(errors, "ERROR", app_manifest, "FileProvider must grant temporary URI permissions.")
 
 
+def allows_user_configured_cleartext(root: Path) -> bool:
+    profile = root / ".agents" / "config" / "project-profile.yml"
+    if not profile.is_file():
+        return False
+    return bool(re.search(r"^\s*allowUserConfiguredCleartextEndpoints:\s*true\s*$", read_text(profile), re.M | re.I))
+
+
 def validate_network_security(root: Path, errors: list[str], warnings: list[str]) -> None:
+    allow_cleartext = allows_user_configured_cleartext(root)
     for path in root.glob("**/src/main/res/xml/network_security_config.xml"):
         text = read_text(path)
         if re.search(r"<base-config[^>]*cleartextTrafficPermitted=\"true\"", text):
-            add(errors, "ERROR", path, "base-config must not globally allow cleartext traffic.")
+            target = warnings if allow_cleartext else errors
+            level = "WARN" if allow_cleartext else "ERROR"
+            message = (
+                "global cleartext is enabled for user-configured endpoints; keep the in-app transport warning visible."
+                if allow_cleartext
+                else "base-config must not globally allow cleartext traffic."
+            )
+            add(target, level, path, message)
         if 'certificates src="user"' in text:
             add(warnings, "WARN", path, "user certificates are trusted; verify this does not enter release unintentionally.")
 
@@ -151,7 +171,7 @@ def validate_file_paths(root: Path, errors: list[str]) -> None:
 def validate_edge_to_edge(root: Path, target_sdk: int | None, errors: list[str], warnings: list[str]) -> None:
     if target_sdk is None or target_sdk < 35:
         return
-    theme_text = "\n".join(read_text(path) for path in root.glob("app/src/main/res/values*/themes.xml"))
+    theme_text = "\n".join(read_text(path) for path in root.glob("**/src/main/res/values*/themes.xml"))
     code_text = "\n".join(read_text(path) for path in root.glob("**/src/main/**/*.kt"))
     code_text += "\n".join(read_text(path) for path in root.glob("**/src/main/**/*.java"))
     for item in ("statusBarColor", "navigationBarColor", "windowLightStatusBar"):
@@ -161,6 +181,46 @@ def validate_edge_to_edge(root: Path, target_sdk: int | None, errors: list[str],
         add(errors, "ERROR", "source", f"targetSdk {target_sdk} requires an Edge-to-edge runtime entry.")
     if "fitsSystemWindows=\"true\"" in theme_text:
         add(warnings, "WARN", "resources", "fitsSystemWindows should not be used as a global Edge-to-edge fallback.")
+
+
+def validate_android17(root: Path, target_sdk: int | None, errors: list[str], warnings: list[str]) -> None:
+    """Validate known API 37 tool constraints; runtime capability checks stay explicit."""
+    catalog = root / "gradle/libs.versions.toml"
+    text = read_text(catalog) if catalog.is_file() else ""
+    def version(key: str) -> tuple[int, ...] | None:
+        match = re.search(r'^\s*' + key + r'\s*=\s*"([0-9.]+)"', text, re.M)
+        return tuple(map(int, match[1].split("."))) if match else None
+    compile_sdk = version("compileSdk")
+    if (target_sdk or 0) < 37 and (compile_sdk or (0,)) < (37,):
+        return
+    agp = version("agp")
+    if agp is None:
+        add(warnings, "WARN", catalog, "API 37: AGP version not resolved; verify official tool support manually.")
+    elif agp < (9, 1, 1):
+        add(errors, "ERROR", catalog, "API 37 requires AGP >= 9.1.1.")
+    kotlin = version("kotlin")
+    if agp and (9, 1, 1) <= agp < (9, 2) and kotlin and kotlin < (2, 2, 10):
+        add(errors, "ERROR", catalog, "AGP 9.1 baseline requires Kotlin >= 2.2.10.")
+    properties = root / "gradle.properties"
+    if agp and agp >= (9,) and properties.is_file():
+        flags = read_text(properties)
+        disabled = [bool(re.search(r"^\s*" + re.escape(key) + r"\s*=\s*false\s*$", flags, re.M))
+                    for key in ("android.builtInKotlin", "android.newDsl")]
+        if disabled[0] and not disabled[1]:
+            add(errors, "ERROR", properties, "Legacy Kotlin opt-out also requires android.newDsl=false on AGP 9.")
+    if compile_sdk and target_sdk and compile_sdk < (target_sdk,):
+        add(errors, "ERROR", catalog, "compileSdk must not be below targetSdk.")
+    wrapper = root / "gradle/wrapper/gradle-wrapper.properties"
+    match = re.search(r"gradle-([0-9.]+)-(?:bin|all)\.zip", read_text(wrapper)) if wrapper.is_file() else None
+    if agp and (9, 1, 1) <= agp < (9, 2):
+        if not match or tuple(map(int, match[1].split("."))) < (9, 3, 1):
+            add(errors, "ERROR", wrapper, "AGP 9.1.x requires Gradle >= 9.3.1.")
+    # Only app/feature declarations: preserve independent library manifests and report host overrides.
+    for parent in (root / "app", root / "feature"):
+        for manifest in parent.glob("**/src/main/AndroidManifest.xml"):
+            value = read_text(manifest)
+            if (target_sdk or 0) >= 37 and re.search(r'android:(?:screenOrientation|resizeableActivity)=\"(?:portrait|landscape|false)\"', value):
+                add(warnings, "WARN", manifest, "API 37 large screens: orientation/resizability restrictions cannot replace adaptive layouts.")
 
 
 def main() -> int:
@@ -175,6 +235,7 @@ def main() -> int:
         app_build = app / "build.gradle.kts"
     target_sdk = find_target_sdk(root, app_build)
 
+    validate_android17(root, target_sdk, errors, warnings)
     validate_settings(root, errors, warnings)
     validate_versions_and_signing(root, app_build, errors, warnings)
     validate_manifest(app / "src/main/AndroidManifest.xml", errors, warnings)

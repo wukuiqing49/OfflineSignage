@@ -1,0 +1,4 @@
+interface:
+  display_name: "资深开发评审"
+  short_description: "审查技术方案、实际代码与变更影响，给出有依据的工程问题和最小修复建议"
+  default_prompt: "使用 $engineering-review 评审当前方案或代码，核对复用、状态、兼容与测试缺口，并按已有授权推进修复。"

@@ -1,0 +1,4 @@
+interface:
+  display_name: "需求澄清"
+  short_description: "将口语和模糊优化诉求整理为明确范围、合理假设及可验证的验收条件"
+  default_prompt: "使用 $clarify-requirements 梳理当前需求，核对项目事实，明确范围和验收条件，并按已有授权继续推进。"

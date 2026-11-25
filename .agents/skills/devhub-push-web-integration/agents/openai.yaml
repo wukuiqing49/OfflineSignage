@@ -1,0 +1,4 @@
+interface:
+  display_name: "DevHub 推送与 Web / JS"
+  short_description: "配置 DevHub 推送、品牌状态栏图标、内置网页与 JS 回调，验证指定设备完整链路"
+  default_prompt: "使用 $devhub-push-web-integration，为当前 Android 项目配置 DevHub 推送、App 内网页及 JS 交互，并核对状态栏图标和联调证据。"

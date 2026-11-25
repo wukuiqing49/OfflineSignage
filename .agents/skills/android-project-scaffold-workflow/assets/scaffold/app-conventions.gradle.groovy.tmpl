@@ -79,9 +79,6 @@ android {
 
     buildTypes {
         debug {
-            if (appSigningReady) {
-                signingConfig = signingConfigs.sharedApp
-            }
             minifyEnabled = false
         }
         release {
@@ -95,14 +92,15 @@ android {
     }
 }
 
-if (signingConfigurationError) {
-    throw new GradleException(signingConfigurationError)
-}
+// 仅在执行应用 Release 任务时检查，避免阻止同步和 Debug 构建。
 gradle.taskGraph.whenReady { graph ->
-    def releaseTaskRequested = graph.allTasks.any { task ->
-        task.name.toLowerCase().contains('release')
+    def runsRelease = graph.allTasks.any {
+        it.project == project && it.name.toLowerCase(java.util.Locale.ROOT).contains('release')
     }
-    if (requireReleaseSigning && releaseTaskRequested && !appSigningReady) {
+    if (runsRelease && signingConfigurationError) {
+        throw new GradleException(signingConfigurationError)
+    }
+    if (runsRelease && requireReleaseSigning && !appSigningReady) {
         throw new GradleException('正式发布要求签名，请配置 {{SIGNING_PROPERTIES_FILE}} 或签名环境变量')
     }
 }

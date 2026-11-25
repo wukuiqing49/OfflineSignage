@@ -1,0 +1,4 @@
+interface:
+  display_name: "资深 Android 开发／架构工程师"
+  short_description: "结合项目技术栈、SDK 适配与 UI 规范，协同现有 Skills 完成架构和开发"
+  default_prompt: "使用 $senior-android-engineer 根据项目文档和实际技术栈，搭配现有架构、版本适配、UI 设计与风格审查 Skills，按本次授权完成方案、开发和验证。"

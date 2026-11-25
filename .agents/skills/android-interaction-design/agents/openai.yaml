@@ -1,0 +1,4 @@
+interface:
+  display_name: "Android 交互设计"
+  short_description: "结合现有基础库设计页面交互、导航和恢复，按项目复杂度选择路由"
+  default_prompt: "使用 $android-interaction-design 核实本项目基础组件，补齐页面交互与恢复方案，并合入已有设计交接。"

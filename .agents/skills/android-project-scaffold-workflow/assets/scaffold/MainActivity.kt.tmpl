@@ -4,10 +4,13 @@ package {{PACKAGE_NAME}}
 import com.wkq.base.activity.BaseActivity
 import {{PACKAGE_NAME}}.databinding.ActivityMainBinding
 
+/** 应用主入口，复用基础页面并初始化界面。 */
 class MainActivity : BaseActivity<ActivityMainBinding>() {
 
+    /** 初始化页面视图和窗口适配。 */
     override fun initView() {
 {{EDGE_TO_EDGE_INIT}}    }
 
+    /** 当前骨架没有首屏数据，业务接入后在此加载。 */
     override fun initData() = Unit
 }

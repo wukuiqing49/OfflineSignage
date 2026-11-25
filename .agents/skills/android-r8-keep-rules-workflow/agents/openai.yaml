@@ -1,0 +1,4 @@
+interface:
+  display_name: "Android R8 Keep Rules 优化"
+  short_description: "审计并收敛 R8 Keep Rules 与 consumer-rules.pro，满足 Google Play DEX 优化门槛"
+  default_prompt: "使用 $android-r8-keep-rules-workflow 审计并优化当前 Android 项目的 R8 Keep Rules 与 DEX 优化配置。"

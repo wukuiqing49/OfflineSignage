@@ -1,0 +1,64 @@
+{
+  "project_name": "sample-video-project",
+  "aspect_ratio": "16:9",
+  "target_resolution": "1920x1080",
+  "total_target_seconds": 12,
+  "shots": [
+    {
+      "shot_id": "shot-01",
+      "status": "planned",
+      "target_duration_sec": 6,
+      "prompt": "Prompt text for shot 1",
+      "reference_assets": {
+        "start_frame": null,
+        "character_ref": "assets/char_ref.png"
+      },
+      "render_output": {
+        "file_path": null,
+        "actual_duration_sec": null,
+        "extracted_last_frame": "shot-01-last.png",
+        "review_status": "pending",
+        "review_evidence": null
+      },
+      "attempts": [],
+      "selected_candidate_id": null,
+      "continuation_from": null
+    },
+    {
+      "shot_id": "shot-02",
+      "status": "planned",
+      "target_duration_sec": 6,
+      "prompt": "Prompt text for shot 2",
+      "reference_assets": {
+        "start_frame": "shot-01-last.png",
+        "character_ref": null
+      },
+      "render_output": {
+        "file_path": null,
+        "actual_duration_sec": null,
+        "extracted_last_frame": "shot-02-last.png",
+        "review_status": "pending",
+        "review_evidence": null
+      },
+      "attempts": [],
+      "selected_candidate_id": null,
+      "continuation_from": "shot-01"
+    }
+  ],
+  "assembly": {
+    "output_file": "final_assembled_cut.mp4",
+    "status": "not_started"
+  },
+  "schema_version": 1,
+  "fps": 30,
+  "budget": {
+    "provider": null,
+    "model_version": null,
+    "authorization_reference": null,
+    "unit": null,
+    "limit": null,
+    "spent": 0,
+    "pending_cost": 0,
+    "max_attempts_per_shot": 2
+  }
+}

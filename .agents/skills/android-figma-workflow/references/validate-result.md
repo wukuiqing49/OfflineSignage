@@ -28,7 +28,7 @@
 - 是否没有引入不必要的新依赖。
 - 是否没有改变外部调用方式，或已明确说明原因。
 - 是否保留了分析阶段确认的 Android 架构，没有在实现中降级成临时结构。
-- 是否没有把主页、主导航、底部导航或 Tab 页面合并成单 Activity + 单 RecyclerView 数据切换。
+- 页面状态和导航职责是否符合任务卡；不因底部导航外观强制拆分 Fragment 或添加分页。
 
 ## 视觉还原检查
 
@@ -57,7 +57,7 @@
 - 系统字体放大后文字是否重叠或被截断。
 - 长文案、多语言是否破坏布局。
 - 普通 TextView 是否避免固定 dp 宽高。
-- 顶部 Tab / 底部主导航 / 同级页面切换是否使用 Tab/BottomNav + ViewPager2 + FragmentStateAdapter + 子 Fragment。
+- 导航是否符合任务卡与项目 UI 规则；仅需滑动分页时核对 ViewPager2 + FragmentStateAdapter + 子 Fragment，BottomNav 可复用已有导航。
 - 重复 item 是否抽成 RecyclerView，而不是静态复制。
 - 底部导航 / 顶部 Tab / 工具栏是否保留了 Figma 图标。
 - normal / selected / pressed 状态是否与 Figma 一致或有明确差异说明。
@@ -122,7 +122,7 @@
 python .agents\skills\android-figma-workflow\scripts\validate_figma_output.py --module-src <目标模块源码目录> --module-res <目标模块资源目录> --asset-manifest .ai-work\figma\output\asset_manifest_<page>.md
 ```
 
-主页容器、底部主导航或顶部 Tab 页面必须启用强校验：
+页面适配验收使用以下命令；仅任务卡明确要求 ViewPager2 分页时追加 `--require-pager-navigation`：
 
 ```powershell
 python .agents\skills\android-figma-workflow\scripts\validate_figma_output.py `
@@ -131,8 +131,7 @@ python .agents\skills\android-figma-workflow\scripts\validate_figma_output.py `
   --asset-manifest .ai-work\figma\output\asset_manifest_<page>.md `
   --analysis-report .ai-work\figma\output\page_task_<page>.md `
   --figma-output-dir .ai-work\figma\output `
-  --require-screen-adaptation `
-  --require-pager-navigation
+  --require-screen-adaptation
 ```
 
 强校验会要求输出目录存在本地 Figma 位图截图、图层报告、规范化报告和 Node 资源索引，并检查任务卡的降级声明是否与资源清单一致。脚本也会读取 `--analysis-report` 判断系统栏策略是否已落地。代码或 XML 中命中 `WindowInsets` / system bar / Edge-to-edge 相关 API 时：

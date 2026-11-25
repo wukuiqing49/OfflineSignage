@@ -1,0 +1,4 @@
+interface:
+  display_name: "DevHub 基础接入"
+  short_description: "配置私有库引用及初始化，仅接入安装日活、手机基础信息和国家语言"
+  default_prompt: "使用 $devhub-basic-integration，为本 Skill 所在项目接入 DevHub 基础统计，配置私有库 token 引用，只启用手机基础信息与国家语言。"

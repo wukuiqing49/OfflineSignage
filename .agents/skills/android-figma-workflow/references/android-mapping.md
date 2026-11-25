@@ -55,21 +55,9 @@ FragmentStateAdapter / ViewPager 封装：
 
 适用：首页、关注、消息、我的、发布入口等同级主页面切换。
 
-必须优先使用：
+先复用目标项目现有导航，明确目的地、页面状态、返回行为和公共入口。仅任务卡要求滑动分页时采用 ViewPager2 + FragmentStateAdapter + 子 Fragment；纯底部导航不强制使用分页。操作按钮若不是导航目的地，应作为独立操作或弹窗入口。
 
-- 容器：`Activity` 或主页 `Fragment` 只持有底部导航、`ViewPager2` 和公共入口。
-- 内容：`ViewPager2`。
-- Adapter：按 `android-ui-workflow` 使用 `FragmentStateAdapter`。
-- 子页面：每个底部 Tab 对应一个 Fragment；中间发布/直播按钮如果不是页面 Tab，应作为独立点击入口或弹窗入口。
-- 子页面列表：各自使用项目已有列表页封装或标准 RecyclerView。
-
-禁止：
-
-- 只画静态底部导航但不接入页面切换。
-- 用一个 Activity + 一个 RecyclerView 根据 tabType 切换多个主页面。
-- 把所有主页面内容写在一个 XML 或一个 Fragment 中。
-
-例外：用户明确要求只还原当前 Frame 的静态视觉稿，或当前 Frame 已被明确裁剪为“单个子页面内容 Fragment”。例外必须写入门禁记录。
+不得只绘制导航外观却不接入约定交互。状态和列表职责按页面实际复杂度拆分，避免把全部业务集中到一个容器；不以固定 Fragment 数量作为验收条件。用户仅要求静态视觉稿时记录该范围。
 
 ### 普通展示页
 

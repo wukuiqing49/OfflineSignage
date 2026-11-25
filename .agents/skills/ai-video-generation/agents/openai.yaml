@@ -1,0 +1,4 @@
+interface:
+  display_name: "AI 视频生成"
+  short_description: "策划多镜头 AI 视频，追踪生成预算与候选审核，按目标画幅合成成片"
+  default_prompt: "使用 $ai-video-generation，将我的视频需求转为分镜、受控生成任务和经验证的成片。"

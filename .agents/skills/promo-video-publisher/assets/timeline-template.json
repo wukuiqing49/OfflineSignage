@@ -1,0 +1,72 @@
+{
+  "schema_version": 1,
+  "template_note": "Illustrative timing only. Replace sources, observed actions and cues after inspecting the actual recording.",
+  "time_unit": "seconds",
+  "language": "en",
+  "output": {
+    "width": 1080,
+    "height": 1920,
+    "duration": 6
+  },
+  "sources": [
+    {
+      "id": "source_01",
+      "path": "raw/recording.mp4",
+      "duration": 6
+    }
+  ],
+  "segments": [
+    {
+      "id": "segment_01",
+      "source_id": "source_01",
+      "source_start": 0,
+      "source_end": 6,
+      "output_start": 0,
+      "output_end": 6,
+      "playback_rate": 1,
+      "observed_action": "Replace with the action or result actually visible in this interval."
+    }
+  ],
+  "styles": {
+    "explanation": {
+      "anchor": "top_center",
+      "position_normalized": [
+        0.5,
+        0.12
+      ],
+      "max_width_normalized": 0.8,
+      "font_family": "Choose an available licensed font",
+      "font_size_px": 48,
+      "foreground": "#FFFFFF",
+      "background": "#000000CC",
+      "note": "Example layout. Inspect actual UI and platform overlays before use."
+    }
+  },
+  "cues": [
+    {
+      "id": "cue_01",
+      "kind": "explanation",
+      "segment_id": "segment_01",
+      "output_start": 0.5,
+      "output_end": 5.5,
+      "language": "en",
+      "text": "Replace with a short, evidence-based explanation.",
+      "style_id": "explanation"
+    }
+  ],
+  "exports": {
+    "clean_master": "videos/master-clean.mp4",
+    "delivery_video": "videos/delivery-en-v01.mp4",
+    "explanation_text": "subtitles/explanations-en.srt"
+  },
+  "verification": {
+    "timing_checked": false,
+    "layout_checked": false,
+    "export_decoded": false,
+    "audio_listened": false
+  },
+  "audio": {
+    "music": [],
+    "note": "For each selected track record id, title, creator, source_path_or_platform_id, source_url, license_url, rights_checked_at, permitted_platforms, attribution, application (embedded or in_app), source_start, output_start, output_end, gain_db and fades. Keep selection and applied/listened states distinct; remove this note after recording actual decisions."
+  }
+}

@@ -71,13 +71,13 @@ val entitlement = GoogleKit.billing.queryEntitlement()
 
 - 参考 SiteReport 的 `GoogleKit.commercial` 封装，使用 DevHub `1.2.0`，仅开启 `CORE_ONLY`。
 - `collectDeviceInfo=true`、`collectLocale=true`，授权后采集设备厂商、机型、Android 版本和语言区域；不发送业务事件、媒体或局域网信息。
-- DevHub 默认未授权；用户在“法律与隐私 > 使用统计”主动开启。关闭后 SDK 停止请求并清除本地待上报队列，已上报记录不自动删除。
+- DevHub 在 Release 版本默认开启；用户可在“法律与隐私 > 使用统计”随时关闭或重新开启。关闭后 SDK 停止请求并清除本地待上报队列，已上报记录不自动删除。
 - Firebase 保持既有 Release 行为，该开关只控制 DevHub。
 - `SignageService` 运行时每小时调用 `reportActive()`，SDK 按 UTC 日期去重；服务销毁时取消回调，Activity 恢复时由 SDK 补报。
 - Debug 默认不初始化 DevHub；本地测试可显式设置 `DEVHUB_DEBUG_ENABLED=true`，仍需用户授权。
 - SDK 初始化或上报失败不阻断本地运行。采集开关成功表示本地 SDK 状态更新成功，不代表后台已收到数据。
 
-共享 API 地址、客户端 App Key 和默认开关在已跟踪的 `gradle/devhub-config.properties`，拉取仓库即可取得。可选本机覆盖放在被忽略的 `devhub.properties`，模板见根目录 `devhub.properties.example`。读取优先级为同名环境变量、显式 `-P` 参数、本机覆盖、共享 DevHub 配置；不读取用户级 Gradle 文件中的同名 DevHub 配置，避免跨项目串用 App Key。启用条件按构建变体判断：Release APK/AAB 启用 SDK，Debug 测试包默认不初始化；Release 仍需用户授权才上报：
+共享 API 地址、客户端 App Key 和默认开关在已跟踪的 `gradle/devhub-config.properties`，拉取仓库即可取得。可选本机覆盖放在被忽略的 `devhub.properties`，模板见根目录 `devhub.properties.example`。读取优先级为同名环境变量、显式 `-P` 参数、本机覆盖、共享 DevHub 配置；不读取用户级 Gradle 文件中的同名 DevHub 配置，避免跨项目串用 App Key。启用条件按构建变体判断：Release APK/AAB 启用 SDK，Debug 测试包默认不初始化；Release 默认上报，用户可随时关闭：
 
 ```properties
 DEVHUB_API_URL=https://devhub.wukuiqing0409.workers.dev

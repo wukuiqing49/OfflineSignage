@@ -49,7 +49,7 @@
 12. 颜色放 colors.xml
 13. 尺寸放 dimens.xml
 14. 列表使用 RecyclerView
-15. 顶部 Tab、底部主导航、频道 Tab、分段 Tab 或同级页面切换入口必须遵循 `android-ui-workflow`，使用 Tab/BottomNav 组件 + ViewPager2 + FragmentStateAdapter + 子 Fragment；只有用户明确要求静态单页视觉稿时才能降级
+15. 导航遵循项目 UI 规则和任务卡；滑动分页采用 ViewPager2 + FragmentStateAdapter + 子 Fragment，底部导航可复用项目现有导航实现，不视为降级
 16. 单列表页优先使用目标项目已有列表页封装；没有封装时使用标准 RecyclerView
 17. Adapter 优先使用目标项目已有 Adapter 基类；没有基类时使用标准 Adapter
 18. Adapter 不写业务逻辑
@@ -71,7 +71,7 @@
 34. 生成时必须实现屏幕适配方案：根布局不写死 Frame 宽高，列表按可用宽度/列数/间距计算，图片用 ratio 或固定视觉例外，状态栏/底部虚拟导航栏使用 WindowInsets 或项目已有 inset 工具
 35. 生成时必须实现沉浸式 / Edge-to-edge 方案：说明普通 Edge-to-edge、隐藏系统栏全屏或非沉浸式；顶部 Header/Toolbar、底部 BottomNav/按钮、RecyclerView 最后一项、Dialog/Popup/BottomSheet 都必须有 Insets 归属
 36. Figma 状态栏、手势条、虚拟导航栏、刘海/安全区默认只作为设计参考和 Insets 依据，不作为 Android 页面主体绘制；如果它们是业务 UI，必须在图层报告和实现说明中单独证明
-37. 生成时必须落实关键尺寸合同：读取页面任务卡的关键尺寸换算表，`dimen/style 名` 中的每个 `dimen` 都要写入资源并与目标 dp/sp 保持一致；默认误差不超过 `2dp` / `1sp`，超过时必须在固定尺寸例外清单中写明原因并等待用户确认
+37. 生成时必须落实关键尺寸合同：读取页面任务卡的关键尺寸换算表，`dimen/style 名` 中的每个 `dimen` 都要写入资源并与目标 dp/sp 保持一致；默认误差不超过 `2dp` / `1sp`，超过时在固定尺寸例外清单记录原因和替代验收；仅涉及改变已确认设计或业务取舍时请求用户确认
 38. 生成时必须落实 Insets owner 合同：同一个 `statusBars.top` / `navigationBars.bottom` 只能由一个 owner 消费；父容器或 BottomNav 消费 bottom inset 后，子 Fragment 的 RecyclerView 不能再次追加同一个 navigation bar inset
 39. BottomNav 高度必须拆分为业务视觉高度和运行时 bottom inset；禁止把包含 Figma 手势条、三键导航预览或安全区的底部总高度直接写成 `main_bottom_nav_height`
 40. 必须落实“宽度基准与高度填充合同”：Figma 逻辑宽度换算到 Android 360dp/项目基准宽度，固定视觉块按该基准落地，根布局/主页容器/ViewPager2/RecyclerView/ScrollView 用 `match_parent` 或 `0dp + ConstraintLayout 约束` 填充真实屏幕和剩余高度
@@ -121,7 +121,7 @@
 - 旧通用 block 体系只能作为迁移期兜底，不能作为新页面最终实现。
 - 普通 `TextView` 默认 `wrap_content`；需要占满剩余空间时使用 `0dp + ConstraintLayout` 约束。
 - 只有按钮、徽章、头像、图标、倒计时格、Tab 指示器等固定视觉元素允许固定宽高。
-- 主页容器或 Tab 容器必须按 `android-ui-workflow` 生成专用容器 Fragment/Activity、`ViewPager2`、`FragmentStateAdapter` 和子 Fragment。禁止只画静态底部导航、静态 Tab 或用单个 Fragment/RecyclerView 切换多个主页面。
+- 主页和 Tab 容器按任务卡落实真实导航、页面状态与返回行为；仅需滑动分页时生成 ViewPager2、FragmentStateAdapter 和子 Fragment，不能用静态外观冒充交互。
 - Android 适配必须优先使用 `ConstraintLayout` 约束、`0dp`、`layout_weight`、`layout_constraintDimensionRatio`、RecyclerView span/ItemDecoration、WindowInsets；禁止把 Figma 绝对坐标成批转为 margin/top/height。
 - Figma 屏幕宽度必须先识别逻辑屏幕：默认 Android 设计基准宽度为 360dp；若项目或设计明确使用 375dp，可使用 375dp 并说明。Figma Frame 宽度在 360-430px 范围内视为移动端逻辑宽；明显大于 430px 但比例接近常见手机屏的高清稿，必须先推断 logicalFrameWidth 再换算。
 - 屏幕适配必须按“宽度建基准，高度填充屏幕”：Figma 宽度用于换算 dp/sp；Figma 高度用于首屏可见数量、区域比例和滚动起点参考；Android 真实高度由根布局 `match_parent`、ConstraintLayout `0dp` 约束、ViewPager2/RecyclerView/ScrollView 剩余空间填充承担。

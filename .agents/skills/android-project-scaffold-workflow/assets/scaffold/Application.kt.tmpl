@@ -4,8 +4,10 @@ import android.app.Application
 import com.wkq.util.CoreUtils
 import com.wkq.util.CoreUtilsConfig
 
+/** 初始化应用级公共工具，保持宿主配置集中管理。 */
 class {{APPLICATION_CLASS}} : Application() {
 
+    /** 在应用启动时初始化公共工具配置。 */
     override fun onCreate() {
         super.onCreate()
         CoreUtils.init(

@@ -1,0 +1,4 @@
+interface:
+  display_name: "需求验收"
+  short_description: "将原始需求与实现、测试和视觉证据逐项对应，明确通过、失败及未验证范围"
+  default_prompt: "使用 $acceptance-review 核对当前交付与原始需求，整合有效证据，明确验收状态、剩余问题及下一步。"

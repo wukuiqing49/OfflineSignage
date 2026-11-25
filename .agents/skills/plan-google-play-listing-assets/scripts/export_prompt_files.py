@@ -20,6 +20,7 @@ MANAGED_ASSET_ID_RE = re.compile(
     re.IGNORECASE,
 )
 PLACEHOLDER_PATTERNS = [
+    re.compile(r"\[(?:app|product|brand)[ _-]?name\]", re.IGNORECASE),
     re.compile(r"\[[A-Za-z][A-Za-z0-9_ -]*(?:placeholder|prompt|fill|todo|tbd|brief|asset)[^\]]*\]", re.IGNORECASE),
     re.compile(r"\{\{[^}\r\n]+\}\}"),
     re.compile(r"\$\{[^}\r\n]+\}"),
@@ -137,7 +138,26 @@ def screenshot_output_format(summary: str) -> str:
 
 
 def replace_canvas_size(prompt: str, canvas_size: str) -> str:
-    return CANVAS_DECLARATION_RE.sub(rf"\g<1>{canvas_size}\g<2>", prompt)
+    prompt = CANVAS_DECLARATION_RE.sub(rf"\g<1>{canvas_size}\g<2>", prompt)
+    return re.sub(
+        r"(\bCreate\s+(?:a\s+)?)\d+x\d+\s+(?:portrait|landscape)\b",
+        rf"\g<1>{canvas_size} portrait",
+        prompt,
+        count=1,
+        flags=re.IGNORECASE,
+    )
+
+
+def replace_canvas_orientation(prompt: str, canvas_size: str) -> str:
+    """Keep the generated canvas declaration consistent with each device set."""
+    width, height = (int(value) for value in canvas_size.split("x"))
+    orientation = "portrait" if height >= width else "landscape"
+    return re.sub(
+        rf"(\b{re.escape(canvas_size)}\s+)(?:portrait|landscape)\b",
+        rf"\g<1>{orientation}",
+        prompt,
+        flags=re.IGNORECASE,
+    )
 
 
 def require_prompt_values(prompt: str, label: str, values: dict[str, str]) -> list[str]:
@@ -178,7 +198,15 @@ def derive_engine_prompts(artifact: PromptArtifact) -> tuple[str, str, str, str,
     title = artifact.title.upper()
     asset_type = artifact.asset_type.casefold()
 
-    if "feature" in asset_type or "feature" in title:
+    canvas_match = re.search(r"\bCanvas:\s*(\d+)x(\d+)\b", raw_prompt, re.IGNORECASE)
+    if canvas_match:
+        width, height = (int(value) for value in canvas_match.groups())
+        orientation = "portrait" if height >= width else "landscape"
+        dims = f"{width}x{height} px"
+        ratio = f"{width}:{height} {orientation}"
+        mj_flags = f"--ar {width}:{height} --v 6.1 --style raw"
+        dalle_note = f"Generate in a matching {orientation} ratio, then fit to exactly {width}x{height} px without distortion."
+    elif "feature" in asset_type or "feature" in title:
         dims = "1024x500 px"
         ratio = "1024:500 (approx. 2.05:1 landscape banner)"
         mj_flags = "--ar 1024:500 --v 6.1 --style raw"
@@ -226,52 +254,13 @@ def render(artifact: PromptArtifact) -> str:
             f"- Asset Type: Google Play Preview Video (YouTube Link)\n"
             f"{GENERATED_MARKER}\n\n"
             "---\n\n"
-            "## 🎯 Target Specifications (Google Play Official Requirements)\n"
-            "- **Canvas Resolution**: `1920x1080 px, 60fps (16:9 Landscape)`\n"
-            "- **Target Duration**: `24 Seconds` (6 Continuous 4-Second Scenes)\n"
-            "- **Distribution**: Upload to **YouTube** (Public / Unlisted), add URL to Google Play Console\n"
-            "- **Cover Thumbnail**: Automatically uses your **Feature Graphic (1024x500)**\n"
-            "- **Sound Policy**: Autoplay is **muted by default**; high-contrast text overlays are mandatory\n\n"
+            "## Target Specifications\n"
+            f"- Canvas: `{dims}`\n"
+            f"- Aspect Ratio: `{ratio}`\n"
+            "- Source: validated real recordings and assets referenced by the Brief\n"
+            "- UI Fidelity: preserve the real App UI; do not generate or redraw it\n\n"
             "---\n\n"
-            "## 🎬 Recommended Production Workflow: Image-to-Video\n"
-            "1. Generate 6 high-res 16:9 static frames using Screenshot prompts (`SCREENSHOT_01` to `06`).\n"
-            "2. Upload each first-frame into **Runway Gen-3 Alpha / Kling (可灵) / Sora / Luma**.\n"
-            "3. Paste the corresponding Scene Prompt below to generate 4-second dynamic clips.\n"
-            "4. Stitch clips in CapCut / Premiere, add text overlays and rights-cleared background music.\n\n"
-            "---\n\n"
-            "## 🚀 Shot-by-Shot Video Prompts (Runway Gen-3 / Kling / Sora)\n\n"
-            "### 📍 Scene 01 (00:00 - 00:04) | Hook: 100% Offline Digital Signage\n"
-            "- **Text Overlay**: `100% Offline Digital Signage & Menu Board`\n"
-            "```text\n"
-            "A smooth cinematic push-in shot inside a modern minimalist cafe. The camera slowly tracks forward toward a sleek wall-mounted ultra-thin 4K Android TV. The screen bursts to life with a vibrant, high-definition digital food menu board featuring gourmet burgers, specialty artisan coffee, and crisp price tags. Warm studio lighting, photorealistic 8k, shallow depth of field, fluid motion, professional commercial tech aesthetic. --ar 16:9\n"
-            "```\n\n"
-            "### 📍 Scene 02 (00:04 - 00:08) | Instant Local Wi-Fi Web Control\n"
-            "- **Text Overlay**: `Control From Any Web Browser · No PC Software Needed`\n"
-            "```text\n"
-            "Cinematic over-the-shoulder shot of a store manager operating a sleek laptop on a cafe table. On the laptop browser screen, the user drags and drops a new retail promotional video. The camera smoothly pulls focus to the background wall TV, which instantly updates its display seamlessly over local Wi-Fi without delay. Crisp tech interface, subtle emerald green (#1A8754) Wi-Fi glow, photorealistic commercial product video. --ar 16:9\n"
-            "```\n\n"
-            "### 📍 Scene 03 (00:08 - 00:12) | Multi-Format Media Support\n"
-            "- **Text Overlay**: `4K Videos, Images & Live Scrolling Banners`\n"
-            "```text\n"
-            "Slow panning commercial shot of a vibrant large-screen digital signage display. The screen shows a dynamic split-screen composition: a continuous looping 4K fashion promotional video playing smoothly on the left, an appetizing food special photo slideshow on the right, and a bright scrolling marquee ticker banner along the bottom. Vibrant colors, ultra-high resolution, zero screen glare, premium retail boutique setting. --ar 16:9\n"
-            "```\n\n"
-            "### 📍 Scene 04 (00:12 - 00:16) | 100% Offline Continuous Reliability\n"
-            "- **Text Overlay**: `Zero Cloud Subscriptions · Never Goes Black`\n"
-            "```text\n"
-            "A confident hero shot of a standalone digital signage totem kiosk and wall display playing smoothly 24/7 in an architectural retail space. An elegant, glowing 3D translucent shield badge with a local storage icon pulses softly next to the screen. Continuous seamless looping playback without buffering, highlighting 100% local device storage and zero cloud dependency. Sophisticated lighting, clean shadows, photorealistic. --ar 16:9\n"
-            "```\n\n"
-            "### 📍 Scene 05 (00:16 - 00:20) | Smart Playlists & Recovery\n"
-            "- **Text Overlay**: `Smart Playlists & Commercial Auto-Recovery`\n"
-            "```text\n"
-            "A futuristic commercial 3D shot showing a floating carousel of media playlist cards smoothly transitioning and feeding into an Android TV screen. Floating subtle timer icons and circular loop indicators show automated playlist sequencing and failover recovery. Emerald green accents, clean depth of field, sleek UI motion graphics, premium tech commercial style. --ar 16:9\n"
-            "```\n\n"
-            "### 📍 Scene 06 (00:20 - 00:24) | Multi-Screen Sync & Brand Resolve\n"
-            "- **Text Overlay**: `Multi-Screen Fleet Synchronization · LocalSignage`\n"
-            "```text\n"
-            "A wide cinematic pull-back shot revealing a modern multi-screen restaurant interior. Three ultra-thin Android TV screens mounted along the counter display synchronized, harmonized digital menu boards and advertisements in perfect rhythm. The scene smoothly resolves into a clean, minimalist brand closing frame with the LocalSignage logo and green emerald brand accents. Cinematic 8k lighting, high-end commercial finale. --ar 16:9\n"
-            "```\n\n"
-            "---\n\n"
-            "## 🤖 Full Combined Storyboard Prompt\n\n"
+            "## Final Execution Prompt\n\n"
             "```text\n"
             f"{raw_prompt}\n"
             "```\n"
@@ -323,15 +312,15 @@ def collect_feature(path: Path, output_root: Path, errors: list[str]) -> list[Pr
     prompt = prompt_content(numbered_section(text, "Final Image Prompt"))
     errors.extend(validate_prompt(prompt, "feature graphic Final Image Prompt"))
     summary = numbered_section(text, "Executive Summary")
-    composition = numbered_section(text, "Composition")
+    message = numbered_section(text, "Message")
     return [PromptArtifact(
         output_path=output_root / "feature-graphic" / "FEATURE_GRAPHIC_PROMPT.md",
         source_brief=path,
         title="FEATURE_GRAPHIC_PROMPT",
         asset_type="Feature Graphic",
         prompt=prompt,
-        headline="100% Offline Digital Signage & Menu Board",
-        supporting_text="Zero Cloud Subscriptions · Instant Local Wi-Fi Control",
+        headline=field(summary, "Primary Message") or field(message, "Primary Message"),
+        supporting_text=field(summary, "Supporting Message") or field(message, "Secondary Message"),
     )]
 
 
@@ -367,9 +356,17 @@ def collect_screenshots(path: Path, output_root: Path, errors: list[str]) -> lis
             prompt = re.sub(r"^Device Type:[^\r\n]+\r?\n\r?\n", "", base_prompt)
             if canvas_size:
                 prompt = replace_canvas_size(prompt, canvas_size)
+                prompt = replace_canvas_orientation(prompt, canvas_size)
+            prompt = re.sub(
+                r"\bfor Android phone\b",
+                f"for {device_type}",
+                prompt,
+                flags=re.IGNORECASE,
+            )
             prompt = (
                 f"Device Type: {device_type}. Locale: {locale or 'en-US'}."
                 + (f" Canvas: {canvas_size}." if canvas_size else "")
+                + (f" Orientation: {orientation}." if orientation else "")
                 + f" Output: {output_format}."
                 + f"\n\n{prompt}"
             )

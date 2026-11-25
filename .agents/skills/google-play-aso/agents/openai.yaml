@@ -1,0 +1,4 @@
+interface:
+  display_name: "逐项目 Google Play 分析"
+  short_description: "结合项目真实代码和授权商店数据，逐个生成数据分析报告及 ASO 文案优化方案"
+  default_prompt: "使用 $google-play-aso，分析本 Skill 所在项目的代码、资源与发行包，结合最近 30 天的 Google Play 数据，生成数据分析和 ASO 优化方案。"

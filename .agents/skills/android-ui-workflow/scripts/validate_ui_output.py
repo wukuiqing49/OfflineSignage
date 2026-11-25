@@ -6,19 +6,19 @@ from __future__ import annotations
 import argparse
 import re
 import sys
+import xml.etree.ElementTree as ET
 from pathlib import Path
 
 
-TEXTVIEW_RE = re.compile(r"<TextView\b[\s\S]*?(?=/?>)", re.I)
-FIXED_DP_RE = re.compile(r'android:layout_(width|height)="(?:[1-9]\d*(?:\.\d+)?|0\.\d*[1-9]\d*)dp"', re.I)
-SCROLLABLE_RE = re.compile(r"<(?:androidx\.[\w.]+\.|android\.[\w.]+\.|)(RecyclerView|ViewPager2|ScrollView|NestedScrollView|HorizontalScrollView)\b[\s\S]*?(?=/?>)", re.I)
+ANDROID_NS = "http://schemas.android.com/apk/res/android"
+ANDROID_ATTR = f"{{{ANDROID_NS}}}"
+FIXED_DP_RE = re.compile(r"(?:[1-9]\d*(?:\.\d+)?|0\.\d*[1-9]\d*)dp", re.I)
+SCROLLABLE_NAMES = {"RecyclerView", "ViewPager2", "ScrollView", "NestedScrollView", "HorizontalScrollView"}
 VIEWPAGER_RE = re.compile(r"(ViewPager2|androidx\.viewpager2\.widget\.ViewPager2)")
 FRAGMENT_STATE_ADAPTER_RE = re.compile(r"FragmentStateAdapter")
 SYSTEM_BAR_RE = re.compile(r"(fitsSystemWindows|SYSTEM_UI_FLAG|hide\(|systemBars\(|decorFitsSystemWindows|setStatusBarColor|setNavigationBarColor)", re.I)
 DIALOG_RE = re.compile(r"(Dialog\(|PopupWindow|BottomSheet|XPopup|FullScreenPopup|AttachPopup)", re.I)
 WINDOW_INSETS_RE = re.compile(r"(WindowInsets|WindowInsetsCompat|setOnApplyWindowInsetsListener|enableEdgeToEdge)", re.I)
-BOTTOM_INSET_RE = re.compile(r"(navigationBars\(\)|systemBars\(\))", re.I)
-BOTTOM_PADDING_RE = re.compile(r"(updatePadding\s*\([^)]*bottom|setPadding\s*\(|paddingBottom)", re.I | re.S)
 
 
 def parse_args() -> argparse.Namespace:
@@ -48,18 +48,40 @@ def issue(items: list[str], level: str, path: Path | str, message: str) -> None:
     items.append(f"{level}: {path}: {message}")
 
 
+def short_tag(element: ET.Element) -> str:
+    return element.tag.rsplit("}", 1)[-1].rsplit(".", 1)[-1]
+
+
+def android_attr(element: ET.Element, name: str) -> str | None:
+    return element.attrib.get(f"{ANDROID_ATTR}{name}")
+
+
 def validate_xml(files: list[Path], errors: list[str], warnings: list[str]) -> None:
     for path in files:
         text = read_text(path)
-        for match in TEXTVIEW_RE.finditer(text):
-            if FIXED_DP_RE.search(match.group(0)):
-                issue(errors, "ERROR", path, "TextView has fixed dp width/height risk.")
-        for match in SCROLLABLE_RE.finditer(text):
-            tag = match.group(0)
-            if 'android:scrollbars="none"' not in tag:
+        try:
+            root = ET.fromstring(text)
+        except ET.ParseError as exc:
+            issue(errors, "ERROR", path, f"XML parse failed: {exc}")
+            continue
+        for element in root.iter():
+            tag = short_tag(element)
+            if tag == "TextView":
+                width = android_attr(element, "layout_width") or ""
+                height = android_attr(element, "layout_height") or ""
+                has_declared_text = bool(android_attr(element, "text") or android_attr(element, "hint"))
+                is_fixed_square = width == height and bool(FIXED_DP_RE.fullmatch(width))
+                if has_declared_text and not is_fixed_square and (
+                    FIXED_DP_RE.fullmatch(width) or FIXED_DP_RE.fullmatch(height)
+                ):
+                    issue(warnings, "WARN", path, "TextView has fixed dp width/height; verify long text and font scaling.")
+            if tag not in SCROLLABLE_NAMES:
+                continue
+            if android_attr(element, "scrollbars") != "none":
                 issue(warnings, "WARN", path, "Scrollable view should usually set android:scrollbars=\"none\".")
-            if "RecyclerView" in tag and 'android:clipToPadding="false"' not in tag:
-                issue(warnings, "WARN", path, "RecyclerView may need clipToPadding=false when used with bottom bars.")
+            has_bottom_padding = bool(android_attr(element, "paddingBottom"))
+            if tag == "RecyclerView" and has_bottom_padding and android_attr(element, "clipToPadding") != "false":
+                issue(warnings, "WARN", path, "RecyclerView with bottom padding should set clipToPadding=false.")
         if "fitsSystemWindows" in text:
             issue(warnings, "WARN", path, "fitsSystemWindows found; verify this is a local compatibility decision.")
 
@@ -68,23 +90,12 @@ def validate_code(files: list[Path], errors: list[str], warnings: list[str]) -> 
     all_text = "\n".join(read_text(path) for path in files)
     if DIALOG_RE.search(all_text) and not WINDOW_INSETS_RE.search(all_text):
         issue(warnings, "WARN", "source", "Dialog/Popup usage found without obvious WindowInsets handling.")
-    bottom_inset_files: list[Path] = []
     for path in files:
         text = read_text(path)
         if SYSTEM_BAR_RE.search(text) and not WINDOW_INSETS_RE.search(text):
             issue(warnings, "WARN", path, "system bar API found; verify Edge-to-edge/Insets strategy is documented.")
         if "PopupWindow" in text and "XPopup" not in all_text:
             issue(warnings, "WARN", path, "PopupWindow found; verify project wrapper or XPopup cannot be reused.")
-        if BOTTOM_INSET_RE.search(text) and BOTTOM_PADDING_RE.search(text):
-            bottom_inset_files.append(path)
-    if len(bottom_inset_files) > 1:
-        joined = ", ".join(str(path) for path in bottom_inset_files)
-        issue(
-            warnings,
-            "WARN",
-            "source",
-            "multiple files appear to consume bottom system insets; verify a single Insets owner contract. Files: " + joined,
-        )
 
 
 def validate_pager(files: list[Path], xml_files: list[Path], require: bool, errors: list[str], warnings: list[str]) -> None:

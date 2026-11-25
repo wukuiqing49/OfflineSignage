@@ -1,0 +1,4 @@
+interface:
+  display_name: "用户旅程审查"
+  short_description: "依据实际材料检查用户或开发者从入口到完成目标的障碍，并给出可复核建议"
+  default_prompt: "使用 $review-user-journey 从具体用户目标审查当前成果，列出有证据的障碍、修复建议和未验证项。"

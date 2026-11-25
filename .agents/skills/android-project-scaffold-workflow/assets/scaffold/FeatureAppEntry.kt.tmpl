@@ -2,7 +2,9 @@ package {{FEATURE_APP_NAMESPACE}}
 
 import com.wkq.util.CoreUtils
 
+/** 提供业务模块的宿主接入状态。 */
 object FeatureAppEntry {
 
+    /** 判断宿主是否已完成公共工具初始化。 */
     fun isAvailable(): Boolean = CoreUtils.isInitialized()
 }

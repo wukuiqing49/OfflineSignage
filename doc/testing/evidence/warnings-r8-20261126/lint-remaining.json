@@ -1,0 +1,266 @@
+[
+  {
+    "id": "OldTargetApi",
+    "file": "gradle/libs.versions.toml",
+    "line": "5",
+    "message": "Not targeting the latest versions of Android; compatibility modes apply. Consider testing and updating this version. Consult the `android.os.Build.VERSION_CODES` javadoc for details."
+  },
+  {
+    "id": "CustomSplashScreen",
+    "file": "app/src/main/java/com/wkq/localsignage/SplashActivity.kt",
+    "line": "17",
+    "message": "The application should not provide its own launch screen"
+  },
+  {
+    "id": "AndroidGradlePluginVersion",
+    "file": "gradle/wrapper/gradle-wrapper.properties",
+    "line": "3",
+    "message": "A newer version of Gradle than 8.13 is available: 8.14.8"
+  },
+  {
+    "id": "AndroidGradlePluginVersion",
+    "file": "gradle/libs.versions.toml",
+    "line": "2",
+    "message": "A newer version of com.android.application than 8.13.2 is available: 9.5.3"
+  },
+  {
+    "id": "AndroidGradlePluginVersion",
+    "file": "gradle/libs.versions.toml",
+    "line": "2",
+    "message": "A newer version of com.android.library than 8.13.2 is available: 9.5.3"
+  },
+  {
+    "id": "GradleDependency",
+    "file": "gradle/libs.versions.toml",
+    "line": "7",
+    "message": "A newer version of androidx.core:core-ktx than 1.18.0 is available: 1.19.1"
+  },
+  {
+    "id": "GradleDependency",
+    "file": "gradle/libs.versions.toml",
+    "line": "9",
+    "message": "A newer version of androidx.appcompat:appcompat than 1.7.1 is available: 1.8.0"
+  },
+  {
+    "id": "GradleDependency",
+    "file": "gradle/libs.versions.toml",
+    "line": "10",
+    "message": "A newer version of androidx.fragment:fragment-ktx than 1.8.9 is available: 1.9.1"
+  },
+  {
+    "id": "GradleDependency",
+    "file": "gradle/libs.versions.toml",
+    "line": "11",
+    "message": "A newer version of androidx.lifecycle:lifecycle-livedata-ktx than 2.10.0 is available: 2.11.1"
+  },
+  {
+    "id": "GradleDependency",
+    "file": "gradle/libs.versions.toml",
+    "line": "11",
+    "message": "A newer version of androidx.lifecycle:lifecycle-runtime-ktx than 2.10.0 is available: 2.11.1"
+  },
+  {
+    "id": "GradleDependency",
+    "file": "gradle/libs.versions.toml",
+    "line": "11",
+    "message": "A newer version of androidx.lifecycle:lifecycle-viewmodel-ktx than 2.10.0 is available: 2.11.1"
+  },
+  {
+    "id": "GradleDependency",
+    "file": "gradle/libs.versions.toml",
+    "line": "12",
+    "message": "A newer version of androidx.constraintlayout:constraintlayout than 2.2.1 is available: 2.2.2"
+  },
+  {
+    "id": "GradleDependency",
+    "file": "gradle/libs.versions.toml",
+    "line": "15",
+    "message": "A newer version of com.google.android.material:material than 1.13.0 is available: 1.14.0"
+  },
+  {
+    "id": "GradleDependency",
+    "file": "gradle/libs.versions.toml",
+    "line": "18",
+    "message": "A newer version of androidx.media3:media3-exoplayer than 1.8.0 is available: 1.11.1"
+  },
+  {
+    "id": "GradleDependency",
+    "file": "gradle/libs.versions.toml",
+    "line": "18",
+    "message": "A newer version of androidx.media3:media3-exoplayer-dash than 1.8.0 is available: 1.11.1"
+  },
+  {
+    "id": "GradleDependency",
+    "file": "gradle/libs.versions.toml",
+    "line": "18",
+    "message": "A newer version of androidx.media3:media3-exoplayer-hls than 1.8.0 is available: 1.11.1"
+  },
+  {
+    "id": "GradleDependency",
+    "file": "gradle/libs.versions.toml",
+    "line": "18",
+    "message": "A newer version of androidx.media3:media3-exoplayer-rtsp than 1.8.0 is available: 1.11.1"
+  },
+  {
+    "id": "GradleDependency",
+    "file": "gradle/libs.versions.toml",
+    "line": "18",
+    "message": "A newer version of androidx.media3:media3-ui than 1.8.0 is available: 1.11.1"
+  },
+  {
+    "id": "GradleDependency",
+    "file": "gradle/libs.versions.toml",
+    "line": "23",
+    "message": "A newer version of androidx.credentials:credentials than 1.5.0 is available: 1.6.0"
+  },
+  {
+    "id": "GradleDependency",
+    "file": "gradle/libs.versions.toml",
+    "line": "23",
+    "message": "A newer version of androidx.credentials:credentials-play-services-auth than 1.5.0 is available: 1.6.0"
+  },
+  {
+    "id": "GradleDependency",
+    "file": "gradle/libs.versions.toml",
+    "line": "24",
+    "message": "A newer version of com.google.android.libraries.identity.googleid:googleid than 1.1.1 is available: 1.2.1"
+  },
+  {
+    "id": "GradleDependency",
+    "file": "gradle/libs.versions.toml",
+    "line": "27",
+    "message": "A newer version of com.google.android.gms:play-services-ads than 24.8.0 is available: 25.5.0"
+  },
+  {
+    "id": "GradleDependency",
+    "file": "gradle/libs.versions.toml",
+    "line": "29",
+    "message": "A newer version of com.google.firebase:firebase-bom than 34.13.0 is available: 35.2.0"
+  },
+  {
+    "id": "GradleDependency",
+    "file": "gradle/libs.versions.toml",
+    "line": "31",
+    "message": "A newer version of com.google.gms.google-services than 4.4.4 is available: 4.6.0"
+  },
+  {
+    "id": "NewerVersionAvailable",
+    "file": "gradle/libs.versions.toml",
+    "line": "3",
+    "message": "A newer version of org.jetbrains.kotlin.android than 2.3.0 is available: 2.4.21"
+  },
+  {
+    "id": "NewerVersionAvailable",
+    "file": "gradle/libs.versions.toml",
+    "line": "17",
+    "message": "A newer version of io.ktor:ktor-server-cio-jvm than 3.3.1 is available: 3.6.2"
+  },
+  {
+    "id": "NewerVersionAvailable",
+    "file": "gradle/libs.versions.toml",
+    "line": "17",
+    "message": "A newer version of io.ktor:ktor-server-core-jvm than 3.3.1 is available: 3.6.2"
+  },
+  {
+    "id": "NewerVersionAvailable",
+    "file": "gradle/libs.versions.toml",
+    "line": "17",
+    "message": "A newer version of io.ktor:ktor-server-partial-content-jvm than 3.3.1 is available: 3.6.2"
+  },
+  {
+    "id": "NewerVersionAvailable",
+    "file": "gradle/libs.versions.toml",
+    "line": "17",
+    "message": "A newer version of io.ktor:ktor-server-websockets-jvm than 3.3.1 is available: 3.6.2"
+  },
+  {
+    "id": "NewerVersionAvailable",
+    "file": "gradle/libs.versions.toml",
+    "line": "19",
+    "message": "A newer version of com.google.zxing:core than 3.5.3 is available: 3.5.4"
+  },
+  {
+    "id": "NewerVersionAvailable",
+    "file": "gradle/libs.versions.toml",
+    "line": "21",
+    "message": "A newer version of org.robolectric:robolectric than 4.16.1 is available: 4.18.1"
+  },
+  {
+    "id": "NewerVersionAvailable",
+    "file": "gradle/libs.versions.toml",
+    "line": "22",
+    "message": "A newer version of org.jetbrains.kotlinx:kotlinx-coroutines-android than 1.10.2 is available: 1.11.0"
+  },
+  {
+    "id": "NewerVersionAvailable",
+    "file": "gradle/libs.versions.toml",
+    "line": "25",
+    "message": "A newer version of com.google.code.gson:gson than 2.13.2 is available: 2.15.0"
+  },
+  {
+    "id": "Overdraw",
+    "file": "app/src/main/res/layout/activity_main.xml",
+    "line": "8",
+    "message": "Possible overdraw: Root element paints background `#000000` with a theme that also paints a background (inferred theme is `@style/Theme.LocalSignage`)"
+  },
+  {
+    "id": "Overdraw",
+    "file": "app/src/main/res/layout/activity_welcome.xml",
+    "line": "7",
+    "message": "Possible overdraw: Root element paints background `@color/welcome_background` with a theme that also paints a background (inferred theme is `@style/Theme.LocalSignage`)"
+  },
+  {
+    "id": "UnusedResources",
+    "file": "app/src/main/res/layout/activity_welcome.xml",
+    "line": "2",
+    "message": "The resource `R.layout.activity_welcome` appears to be unused"
+  },
+  {
+    "id": "StaticFieldLeak",
+    "file": "feature/feature_app/src/main/java/com/wkq/localsignage/feature/app/player/SignagePlaybackController.kt",
+    "line": "66",
+    "message": "Do not place Android context classes in static fields (static reference to `SignagePlaybackViews` which has field `webView` pointing to `WebView`); this is a memory leak"
+  },
+  {
+    "id": "Overdraw",
+    "file": "feature/feature_app/src/main/res/layout/activity_billing.xml",
+    "line": "8",
+    "message": "Possible overdraw: Root element paints background `@color/billing_background` with a theme that also paints a background (inferred theme is `@android:style/Theme.Holo`)"
+  },
+  {
+    "id": "Overdraw",
+    "file": "feature/feature_app/src/main/res/layout/activity_help.xml",
+    "line": "8",
+    "message": "Possible overdraw: Root element paints background `@color/billing_background` with a theme that also paints a background (inferred theme is `@android:style/Theme.Holo`)"
+  },
+  {
+    "id": "Overdraw",
+    "file": "feature/feature_app/src/main/res/layout/activity_legal_center.xml",
+    "line": "8",
+    "message": "Possible overdraw: Root element paints background `@color/billing_background` with a theme that also paints a background (inferred theme is `@android:style/Theme.Holo`)"
+  },
+  {
+    "id": "Overdraw",
+    "file": "feature/feature_app/src/main/res/layout/activity_legal_document.xml",
+    "line": "8",
+    "message": "Possible overdraw: Root element paints background `@color/billing_background` with a theme that also paints a background (inferred theme is `@android:style/Theme.Holo`)"
+  },
+  {
+    "id": "StaticFieldLeak",
+    "file": "core/core_google/src/main/java/com/wkq/google/commercial/GoogleCommercialManager.kt",
+    "line": "16",
+    "message": "Do not place Android context classes in static fields (static reference to `DevHub` which has field `context` pointing to `Context`); this is a memory leak"
+  },
+  {
+    "id": "Overdraw",
+    "file": "core/core_google/src/main/res/layout/fragment_google_billing.xml",
+    "line": "6",
+    "message": "Possible overdraw: Root element paints background `@color/google_page_bg` with a theme that also paints a background (inferred theme is `@android:style/Theme.Holo`)"
+  },
+  {
+    "id": "Overdraw",
+    "file": "core/core_google/src/main/res/layout/fragment_google_billing_redeem.xml",
+    "line": "6",
+    "message": "Possible overdraw: Root element paints background `@color/google_page_bg` with a theme that also paints a background (inferred theme is `@android:style/Theme.Holo`)"
+  }
+]

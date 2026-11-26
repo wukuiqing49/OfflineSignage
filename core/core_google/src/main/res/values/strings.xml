@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="utf-8"?>
-<resources>
+<resources xmlns:tools="http://schemas.android.com/tools" tools:locale="en">
     <string name="rate_dialog_default_title">Enjoying %1$s?</string>
     <string name="rate_dialog_default_desc">Tap a star to rate it on the store or send us your thoughts.</string>
     <string name="rate_dialog_desc_good">We are thrilled to hear that! Please leave us a 5-star review on the store to support our development.</string>

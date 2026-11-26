@@ -1,0 +1,103 @@
+{
+  "commit": "adb14e672364e69c9ff3085fcee2c06ea83c8bc8",
+  "sourceFingerprint": "c1a3803c3b31efe9d3f2258eb4cabe5d6b91b58ab4d2ac7ae84b39b6ae865cdc",
+  "files": 331,
+  "finalDevice": {
+    "screen": [
+      2400,
+      1080
+    ],
+    "geometry": {
+      "pairing_header": [
+        42,
+        42,
+        2358,
+        168
+      ],
+      "pairing_content_card": [
+        0,
+        0,
+        2400,
+        1080
+      ],
+      "pairing_content": [
+        42,
+        189,
+        2358,
+        806
+      ],
+      "open_billing_row": [
+        42,
+        848,
+        2358,
+        1038
+      ]
+    },
+    "pagePaddingDp": 16,
+    "headerAndFooterCutoutPaddingOnlyOnOverlap": true,
+    "fontScale": "1.0",
+    "night": "Night mode: yes",
+    "apkSha256": "c4528c5585b63a74479951ef2077c331a3dc711da9272112bcbb78dcd691bdaf"
+  },
+  "finalConnectionAudit": [
+    {
+      "locale": "zh-CN",
+      "fontScale": "1.0",
+      "night": "yes",
+      "orientation": "LANDSCAPE",
+      "pageStates": 2,
+      "layoutIssues": 0
+    },
+    {
+      "locale": "en-US",
+      "fontScale": "1.3",
+      "night": "no",
+      "orientation": "LANDSCAPE",
+      "pageStates": 2,
+      "layoutIssues": 0
+    }
+  ],
+  "hotspot": {
+    "hotspotStarted": true,
+    "credentialsVisible": true,
+    "hotspotStopped": true
+  },
+  "hotspotPermission": {
+    "permissionBlockedInline": true,
+    "systemSettingsNotOpened": true,
+    "dialogDenialExercised": false,
+    "originalPermissionRestored": true
+  },
+  "orientation": {
+    "coldStartWindow": {
+      "width": 2400,
+      "height": 1080
+    },
+    "connection": {
+      "width": 2400,
+      "height": 1080
+    },
+    "help": {
+      "width": 2400,
+      "height": 1080
+    },
+    "backFromHelp": {
+      "width": 2400,
+      "height": 1080
+    },
+    "plans": {
+      "width": 2400,
+      "height": 1080
+    },
+    "backFromPlans": {
+      "width": 2400,
+      "height": 1080
+    },
+    "networkDialog": {
+      "width": 2400,
+      "height": 1080
+    },
+    "rotationSettingsRestored": true
+  },
+  "scopeNote": "Hotspot/orientation behavior tested before the final spacing-only changes. Final margins verified in 4 connection-page states."
+}

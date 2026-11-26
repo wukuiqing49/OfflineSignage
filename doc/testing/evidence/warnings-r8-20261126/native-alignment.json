@@ -1,0 +1,37 @@
+[
+  {
+    "library": "lib/arm64-v8a/libdatastore_shared_counter.so",
+    "loadAlignments": [
+      16384,
+      16384,
+      16384
+    ],
+    "aligned16k": true
+  },
+  {
+    "library": "lib/arm64-v8a/libmmkv.so",
+    "loadAlignments": [
+      16384,
+      16384,
+      16384
+    ],
+    "aligned16k": true
+  },
+  {
+    "library": "lib/armeabi-v7a/libdatastore_shared_counter.so",
+    "loadAlignments": [
+      16384,
+      16384
+    ],
+    "aligned16k": true
+  },
+  {
+    "library": "lib/armeabi-v7a/libmmkv.so",
+    "loadAlignments": [
+      4096,
+      4096,
+      4096
+    ],
+    "aligned16k": false
+  }
+]

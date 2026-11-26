@@ -21,6 +21,9 @@ class HelpActivity : SignageActivity<ActivityHelpBinding>() {
             openArticle(HelpArticleActivity.ARTICLE_TROUBLESHOOTING)
         }
         binding.purchaseButton.setOnClickListener { openArticle(HelpArticleActivity.ARTICLE_PURCHASE) }
+        binding.enterpriseSupportButton.setOnClickListener {
+            openArticle(HelpArticleActivity.ARTICLE_ENTERPRISE_DEPLOYMENT)
+        }
         binding.legalButton.setOnClickListener {
             startActivity(android.content.Intent(this, LegalCenterActivity::class.java))
         }

@@ -9,6 +9,7 @@ import com.wkq.localsignage.feature.app.databinding.ActivityLegalCenterBinding
 class LegalCenterActivity : SignageActivity<ActivityLegalCenterBinding>() {
     override fun initView() {
         binding.toolbar.wrapTitle()
+        binding.legalGroups.adaptTwoColumns()
         enableEdgeToEdgeSystemBars()
         binding.toolbarContainer.applySystemBarPadding(top = true, horizontal = true)
         binding.legalScroll.applySystemBarPadding(bottom = true, horizontal = true)

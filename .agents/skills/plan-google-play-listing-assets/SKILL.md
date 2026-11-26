@@ -85,6 +85,14 @@ PRODUCTION 调用时增加 `--require-metadata --require-data`，仅当报告为
 
 优先选择与当前项目的 VERIFIED 功能、Android App 和目标搜索意图一致的词。不得内置产品类别、功能词、同义词或卖点；Online/Web/AI/Cloud/Team 等词仅在当前项目没有对应 VERIFIED 证据时标记风险，不能跨项目一律拒绝。
 
+## 制作与视觉验收
+
+实际制作、重做或优化封面与截图时读取 [制作质量规则](references/asset-production-quality.md)。真实素材合成无需强制图片 API；先核验来源与产品表达，再制作样稿、扩展全组并检查联系表。不要把其他项目的风格、素材或文案当作通用模板。
+
+## 制作与视觉验收
+
+实际制作、重做或优化封面与截图时读取 [制作质量规则](references/asset-production-quality.md)。真实素材合成无需强制图片 API；先核验来源与产品表达，再制作样稿、扩展全组并检查联系表。不要把其他项目的风格、素材或文案当作通用模板。
+
 ## 三类素材分工
 
 - Feature Graphic：回答“这个 App 是什么”，承担第一视觉和 Preview Video 封面协同。

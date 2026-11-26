@@ -1,0 +1,31 @@
+{
+  "coldStartWindow": {
+    "width": 2400,
+    "height": 1080
+  },
+  "connection": {
+    "width": 2400,
+    "height": 1080
+  },
+  "help": {
+    "width": 2400,
+    "height": 1080
+  },
+  "backFromHelp": {
+    "width": 2400,
+    "height": 1080
+  },
+  "plans": {
+    "width": 2400,
+    "height": 1080
+  },
+  "backFromPlans": {
+    "width": 2400,
+    "height": 1080
+  },
+  "networkDialog": {
+    "width": 2400,
+    "height": 1080
+  },
+  "rotationSettingsRestored": true
+}

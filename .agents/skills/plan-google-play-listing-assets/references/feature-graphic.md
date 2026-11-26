@@ -44,3 +44,7 @@ CONCEPT 模式没有真实截图时，不使用设备框或屏幕区域。使用
 ## 输出
 
 使用 `assets/FEATURE_GRAPHIC_BRIEF.template.md`。Final Image Prompt 必须引用真实 Asset ID，禁止生成或重绘 App UI，并说明最终位图仍需人工检查文字、变形、遮挡和授权。
+
+## 制作与验收
+
+执行 [制作质量规则](asset-production-quality.md)，分别落实封面主体或逐张 UI 构图、素材来源记录及整套联系表检查。

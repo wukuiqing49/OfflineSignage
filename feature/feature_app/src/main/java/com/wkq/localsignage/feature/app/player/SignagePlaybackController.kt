@@ -1,5 +1,8 @@
 package com.wkq.localsignage.feature.app.player
 
+import androidx.core.view.isVisible
+import androidx.core.graphics.toColorInt
+import androidx.core.net.toUri
 import android.annotation.SuppressLint
 import android.animation.ObjectAnimator
 import android.graphics.Color
@@ -451,7 +454,7 @@ object SignagePlaybackController {
             if (file?.isFile != true) return handleSceneFailure("LOCAL_FILE_MISSING")
             Uri.fromFile(file)
         } else {
-            Uri.parse(resource.sourceUri ?: return handleSceneFailure("STREAM_URI_MISSING"))
+            (resource.sourceUri ?: return handleSceneFailure("STREAM_URI_MISSING")).toUri()
         }
         val item = MediaItem.Builder().setMediaId(scene.id).setUri(uri).apply {
             val source = resource.sourceUri.orEmpty().lowercase()
@@ -696,7 +699,7 @@ object SignagePlaybackController {
                 return true
             }
             @Suppress("DEPRECATION", "OVERRIDE_DEPRECATION")
-            override fun shouldOverrideUrlLoading(view: WebView, url: String): Boolean = !isAllowedWebUri(Uri.parse(url))
+            override fun shouldOverrideUrlLoading(view: WebView, url: String): Boolean = !isAllowedWebUri(url.toUri())
 
             override fun shouldOverrideUrlLoading(view: WebView, request: WebResourceRequest): Boolean {
                 return !isAllowedWebUri(request.url)
@@ -973,7 +976,7 @@ object SignagePlaybackController {
 
     private fun showMode(mode: ContentMode) {
         views?.let {
-            if (mode != ContentMode.WEB && it.webView.visibility == View.VISIBLE) {
+            if (mode != ContentMode.WEB && it.webView.isVisible) {
                 releaseWebView(it.webView, destroy = false)
             }
             it.imageSlideshow.visibility = if (mode == ContentMode.IMAGE) View.VISIBLE else View.GONE
@@ -1082,7 +1085,7 @@ object SignagePlaybackController {
     }
 
     private fun parseColor(value: String?, fallback: Int): Int =
-        value?.takeIf { it.isNotBlank() }?.let { runCatching { Color.parseColor(it) }.getOrNull() } ?: fallback
+        value?.takeIf { it.isNotBlank() }?.let { runCatching { it.toColorInt() }.getOrNull() } ?: fallback
 
     private fun isAllowedWebUri(uri: Uri): Boolean =
         uri.scheme.equals("https", true) || uri.toString().startsWith(LOCAL_HTML_BASE_URL)

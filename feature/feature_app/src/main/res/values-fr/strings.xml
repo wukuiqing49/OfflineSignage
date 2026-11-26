@@ -91,7 +91,6 @@
   <string name="help_visual_autostart_caption">Configurez le démarrage automatique sur écrans d\'affichage et téléphones des grandes marques.</string>
   <string name="help_autostart_body">Local Signage restaure le dernier état de lecture après le démarrage de l’application. Android 15 et versions ultérieures n’autorisent pas une application ordinaire à démarrer directement un service de premier plan de lecture multimédia depuis BOOT_COMPLETED. Sur un matériel d’affichage dédié, configurez le démarrage automatique, le mode kiosque/launcher ou Device Owner du fabricant. Sur un téléphone ou une tablette standard, ouvrez Local Signage une fois après chaque redémarrage.\n\nUtilisez le bouton ci-dessous pour ouvrir les réglages disponibles et choisissez une utilisation de la batterie sans restriction si possible.</string>
   <string name="device_license_status_action">État de la licence : %1$s. Ouvrir les offres et la licence.</string>
-  <string name="billing_status_trial">Essai complet de 7 jours · environ %1$d jours restants</string>
   <string name="billing_monthly_title">Abonnement mensuel</string>
   <string name="billing_monthly_description">Accès Pro mensuel flexible avec renouvellement automatique via Google Play.</string>
   <string name="billing_subscribe_monthly">S’abonner mensuellement</string>
@@ -152,4 +151,24 @@
   <string name="help_publish_group">Publier du contenu</string>
   <string name="help_manage_group">Gérer les écrans</string>
   <string name="billing_retry_catalog">Recharger les offres</string>
+  <string name="billing_details_show">Détails et avantages des offres</string>
+  <string name="billing_details_hide">Masquer les détails</string>
+  <string name="pairing_connection_summary">Connectez le téléphone au même réseau local pour contrôler la lecture.</string>
+  <string name="pairing_connection_help">Aide à la connexion</string>
+  <string name="pairing_network_action">Réglages réseau</string>
+  <string name="pairing_pro_action">Voir Pro</string>
+  <string name="hotspot_starting">Démarrage du point d’accès local…</string>
+  <string name="hotspot_permission_denied">L’autorisation des appareils à proximité a été refusée. Réessayez de l’accorder.</string>
+  <string name="hotspot_unsupported">Cet appareil ne permet pas de créer un point d’accès dans l’application. Ouvrez les réglages système.</string>
+  <string name="hotspot_location_required">Activez la localisation dans les réglages système, puis réessayez.</string>
+  <string name="hotspot_incompatible">Le mode réseau actuel empêche le démarrage du point d’accès. Vérifiez les réglages système.</string>
+  <string name="hotspot_disallowed">Le système limite le point d’accès. Vérifiez les réglages système.</string>
+  <string name="hotspot_start_failed">Impossible de démarrer le point d’accès. Réessayez ou ouvrez les réglages système.</string>
+  <string name="hotspot_no_channel">Aucun canal Wi-Fi disponible. Réessayez plus tard.</string>
+  <string name="hotspot_open_location">Ouvrir les réglages de localisation</string>
+  <string name="hotspot_open_permissions">Autorisations de l’application</string>
+    <string name="help_display_home_title">Démarrage d’un écran dédié</string>
+    <string name="help_display_home_description">Sur un écran dédié, choisissez Local Signage comme application d’accueil par défaut. Le bouton Accueil ouvrira alors Local Signage. Après le démarrage et le déverrouillage, le système peut ouvrir l’application et reprendre la lecture si cette option est activée. Pour retrouver l’accueil précédent, changez l’application d’accueil dans les paramètres système. Les appareils gérés peuvent limiter ce choix.</string>
+    <string name="help_display_home_action">Application d’accueil</string>
+    <string name="help_background_settings_action">Démarrage et arrière-plan</string>
 </resources>

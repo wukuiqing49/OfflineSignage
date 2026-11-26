@@ -2,22 +2,24 @@
   "schemaVersion": 1,
   "cases": {
     "FEATURE-DEBUG-UNIT-SUITE": {
-      "commit": "a7d72f0",
-      "sourceFingerprint": "8a542c15c342d8bede585cd49d87a763ddd49688",
-      "testedAt": "2026-09-24T16:00:37+08:00",
+      "commit": "adb14e672364e69c9ff3085fcee2c06ea83c8bc8",
+      "sourceFingerprint": "7ae9864861171dcf4451816177c28233038d966429c7c3362ffc87e1429e1d81",
+      "files": 329,
+      "testedAt": "2026-11-26T12:46:35.953756+08:00",
       "variant": "debug",
-      "environment": "JDK 17.0.12; Gradle 8.13; AGP 8.13.2; Kotlin 2.3.0; Robolectric",
-      "commandOrSteps": "gradlew.bat :feature:feature_app:testDebugUnitTest --no-parallel",
-      "evidence": "feature/feature_app/build/reports/tests/testDebugUnitTest/index.html; 101 tests, 0 failures"
+      "environment": "JDK17 / Gradle8.13 / Android JVM tests",
+      "commandOrSteps": "testDebugUnitTest; relevant suites executed this optimization round",
+      "evidence": "feature/feature_app/build/test-results/testDebugUnitTest; 126 passed; doc/testing/evidence/warnings-r8-20261126/unit-results.json"
     },
     "APP-DEBUG-UNIT-SUITE": {
-      "commit": "74f241a",
-      "sourceFingerprint": "9a9889b646ff894bb703882c7be7f5f7e141000f",
-      "testedAt": "2026-09-24T11:19:43+08:00",
+      "commit": "adb14e672364e69c9ff3085fcee2c06ea83c8bc8",
+      "sourceFingerprint": "7ae9864861171dcf4451816177c28233038d966429c7c3362ffc87e1429e1d81",
+      "files": 329,
+      "testedAt": "2026-11-26T12:46:35.953756+08:00",
       "variant": "debug",
-      "environment": "JDK 17.0.12; Gradle 8.13; AGP 8.13.2; Kotlin 2.3.0",
-      "commandOrSteps": "gradlew.bat :app:testDebugUnitTest",
-      "evidence": "app/build/reports/tests/testDebugUnitTest/index.html; 3 tests, 0 failures"
+      "environment": "JDK17 / Gradle8.13 / Android JVM tests",
+      "commandOrSteps": "testDebugUnitTest; relevant suites executed this optimization round",
+      "evidence": "app/build/test-results/testDebugUnitTest; 3 passed; doc/testing/evidence/warnings-r8-20261126/unit-results.json"
     },
     "APP-DEBUG-ASSEMBLE": {
       "commit": "a7d72f0",
@@ -164,6 +166,141 @@
       "environment": "Windows; JDK 17.0.12; Gradle 8.13; AGP 8.13.2; Kotlin plugin 2.3.0; browser APIs are fixtures",
       "commandOrSteps": "app:lintDebug feature:feature_app:lintDebug app:assembleDebug app:assembleRelease; verify_apk.ps1",
       "evidence": "doc/testing/evidence/optimization-20261029/verification-summary.json; artifacts.json"
+    },
+    "CORE-GOOGLE-DEBUG-UNIT-SUITE": {
+      "commit": "adb14e672364e69c9ff3085fcee2c06ea83c8bc8",
+      "sourceFingerprint": "7ae9864861171dcf4451816177c28233038d966429c7c3362ffc87e1429e1d81",
+      "files": 329,
+      "testedAt": "2026-11-26T12:46:35.953756+08:00",
+      "variant": "debug",
+      "environment": "JDK17 / Gradle8.13 / Android JVM tests",
+      "commandOrSteps": "testDebugUnitTest; relevant suites executed this optimization round",
+      "evidence": "core/core_google/build/test-results/testDebugUnitTest; 5 passed; doc/testing/evidence/warnings-r8-20261126/unit-results.json"
+    },
+    "UI-PAIRING-REFERENCE": {
+      "commit": "adb14e672364e69c9ff3085fcee2c06ea83c8bc8",
+      "sourceFingerprint": "da07afe785bfea61f46f2e3a76c41ecc40f69286406997cc1ddd7bcb026bb899",
+      "testedAt": "2026-11-26T14:48:51.564669+08:00",
+      "variant": "debug",
+      "environment": "Pixel 8 / Android36",
+      "commandOrSteps": "DeviceUiAudit mode=pairing; zh-CN font1.0 dark and en-US font1.3 light; LANDSCAPE",
+      "evidence": "doc/testing/evidence/reference-hotspot-20261126/pro-entry-font-audit.json; 4 states passed; pro-compact-result.json verifies crown, PRO label and navigation"
+    },
+    "UI-ALL-PAGES-COMPACT": {
+      "commit": "adb14e672364e69c9ff3085fcee2c06ea83c8bc8",
+      "sourceFingerprint": "f3e610869cbc306d6df84ad27514ca633d984f961ae822a881bf19e311261f49",
+      "testedAt": "2026-11-26T15:14:50.418077+08:00",
+      "variant": "debug",
+      "environment": "Pixel 8 API36 / Chromium local fixture console",
+      "commandOrSteps": "DeviceUiAudit compact: zh-CN 1.0 dark / en-US 1.3 light; 28 states; launcher and payment navigation",
+      "evidence": "doc/testing/evidence/all-pages-20261126/summary.json"
+    },
+    "UI-BILLING-PLAN-STATES": {
+      "commit": "adb14e672364e69c9ff3085fcee2c06ea83c8bc8",
+      "sourceFingerprint": "f3e610869cbc306d6df84ad27514ca633d984f961ae822a881bf19e311261f49",
+      "testedAt": "2026-11-26T15:14:50.418077+08:00",
+      "variant": "debug",
+      "environment": "Pixel 8 API36 / Chromium local fixture console",
+      "commandOrSteps": "DeviceUiAudit billing: 12 fixture states; no purchase",
+      "evidence": "doc/testing/evidence/all-pages-20261126/summary.json"
+    },
+    "WEB-COMPACT-LAYOUT": {
+      "commit": "adb14e672364e69c9ff3085fcee2c06ea83c8bc8",
+      "sourceFingerprint": "f3e610869cbc306d6df84ad27514ca633d984f961ae822a881bf19e311261f49",
+      "testedAt": "2026-11-26T15:14:50.418077+08:00",
+      "variant": "debug",
+      "environment": "Pixel 8 API36 / Chromium local fixture console",
+      "commandOrSteps": "Playwright 45 layouts, Pro/TRIAL/FREE_LIMITED entry and dialogs, mocked publish retry; screenshot review",
+      "evidence": "doc/testing/evidence/all-pages-20261126/summary.json"
+    },
+    "WEB-DARK-CONTRAST": {
+      "sourceFingerprint": "6ecd33cd797497ff4eec708c98a42871c5bbf562c12dfaa5eb953d03665cf68c",
+      "fingerprintScope": "web source paths and bytes sorted",
+      "testedAt": "2026-11-26T15:25:45.545895+08:00",
+      "variant": "debug",
+      "environment": "Chromium local standalone preview with example data",
+      "commandOrSteps": "30 layout cases, 7 computed contrast checks and media source toggle; screenshot review; app assembleDebug",
+      "evidence": "doc/testing/evidence/console-dark-20261126/summary.json"
+    },
+    "FULL-152-VERIFIED-SUBSET": {
+      "sourceFingerprint": "0dde94cabbc4918410fa7da1552d449ff62634f0ed02ba37f199e8a9e812ca4c",
+      "testedAt": "2026-11-26T16:04:51.978666+08:00",
+      "variant": "debug/release",
+      "environment": "Pixel 8 API36 and Chromium",
+      "commandOrSteps": "Only the verified subset enumerated in summary; not all product features",
+      "evidence": "doc/testing/evidence/full-1.5.2/summary.json"
+    },
+    "VIDEO-H264-PX8": {
+      "sourceFingerprint": "0dde94cabbc4918410fa7da1552d449ff62634f0ed02ba37f199e8a9e812ca4c",
+      "testedAt": "2026-11-26T16:26:38.022041+08:00",
+      "variant": "Release on Pixel / test ABI Debug on emulator",
+      "environment": "Pixel 8 API36 and isolated Android36 emulator; private LAN bridge; RTSP local source",
+      "commandOrSteps": "VIDEO-H264-PX8; exact scope and conditional behavior in evidence summary",
+      "evidence": "doc/testing/evidence/extended-1.5.2/summary.json"
+    },
+    "LIVE-RTSP-PX8": {
+      "sourceFingerprint": "0dde94cabbc4918410fa7da1552d449ff62634f0ed02ba37f199e8a9e812ca4c",
+      "testedAt": "2026-11-26T16:26:38.022041+08:00",
+      "variant": "Release on Pixel / test ABI Debug on emulator",
+      "environment": "Pixel 8 API36 and isolated Android36 emulator; private LAN bridge; RTSP local source",
+      "commandOrSteps": "LIVE-RTSP-PX8; exact scope and conditional behavior in evidence summary",
+      "evidence": "doc/testing/evidence/extended-1.5.2/summary.json"
+    },
+    "SCHEDULE-BOUNDARY-PX8": {
+      "sourceFingerprint": "0dde94cabbc4918410fa7da1552d449ff62634f0ed02ba37f199e8a9e812ca4c",
+      "testedAt": "2026-11-26T16:26:38.022041+08:00",
+      "variant": "Release on Pixel / test ABI Debug on emulator",
+      "environment": "Pixel 8 API36 and isolated Android36 emulator; private LAN bridge; RTSP local source",
+      "commandOrSteps": "SCHEDULE-BOUNDARY-PX8; exact scope and conditional behavior in evidence summary",
+      "evidence": "doc/testing/evidence/extended-1.5.2/summary.json"
+    },
+    "BACKUP-ROUNDTRIP-PX8": {
+      "sourceFingerprint": "0dde94cabbc4918410fa7da1552d449ff62634f0ed02ba37f199e8a9e812ca4c",
+      "testedAt": "2026-11-26T16:26:38.022041+08:00",
+      "variant": "Release on Pixel / test ABI Debug on emulator",
+      "environment": "Pixel 8 API36 and isolated Android36 emulator; private LAN bridge; RTSP local source",
+      "commandOrSteps": "BACKUP-ROUNDTRIP-PX8; exact scope and conditional behavior in evidence summary",
+      "evidence": "doc/testing/evidence/extended-1.5.2/summary.json"
+    },
+    "DUAL-PX8-EMU": {
+      "sourceFingerprint": "0dde94cabbc4918410fa7da1552d449ff62634f0ed02ba37f199e8a9e812ca4c",
+      "testedAt": "2026-11-26T16:26:38.022041+08:00",
+      "variant": "Release on Pixel / test ABI Debug on emulator",
+      "environment": "Pixel 8 API36 and isolated Android36 emulator; private LAN bridge; RTSP local source",
+      "commandOrSteps": "DUAL-PX8-EMU; exact scope and conditional behavior in evidence summary",
+      "evidence": "doc/testing/evidence/extended-1.5.2/summary.json"
+    },
+    "POWERLOSS-EMU-AFTER-OPEN": {
+      "sourceFingerprint": "0dde94cabbc4918410fa7da1552d449ff62634f0ed02ba37f199e8a9e812ca4c",
+      "testedAt": "2026-11-26T16:26:38.022041+08:00",
+      "variant": "Release on Pixel / test ABI Debug on emulator",
+      "environment": "Pixel 8 API36 and isolated Android36 emulator; private LAN bridge; RTSP local source",
+      "commandOrSteps": "POWERLOSS-EMU-AFTER-OPEN; exact scope and conditional behavior in evidence summary",
+      "evidence": "doc/testing/evidence/extended-1.5.2/summary.json"
+    },
+    "HOME-ROLE-UI": {
+      "sourceFingerprint": "46f0aea99a39e2dd9508173ce6075715bfb4ad1f644aad2e43e34dba81b19aa7",
+      "testedAt": "2026-11-26T16:58:38.552047+08:00",
+      "variant": "Release Pixel / x86_64 Debug emulator",
+      "environment": "Android36, optional user-selected Home; exact conditions in summary",
+      "commandOrSteps": "HOME-ROLE-UI",
+      "evidence": "doc/testing/evidence/home-restore-1.5.2/summary.json"
+    },
+    "HOME-COLDBOOT-AUTO": {
+      "sourceFingerprint": "46f0aea99a39e2dd9508173ce6075715bfb4ad1f644aad2e43e34dba81b19aa7",
+      "testedAt": "2026-11-26T16:58:38.552047+08:00",
+      "variant": "Release Pixel / x86_64 Debug emulator",
+      "environment": "Android36, optional user-selected Home; exact conditions in summary",
+      "commandOrSteps": "HOME-COLDBOOT-AUTO",
+      "evidence": "doc/testing/evidence/home-restore-1.5.2/summary.json"
+    },
+    "HOME-PX8-SAFE": {
+      "sourceFingerprint": "46f0aea99a39e2dd9508173ce6075715bfb4ad1f644aad2e43e34dba81b19aa7",
+      "testedAt": "2026-11-26T16:58:38.552047+08:00",
+      "variant": "Release Pixel / x86_64 Debug emulator",
+      "environment": "Android36, optional user-selected Home; exact conditions in summary",
+      "commandOrSteps": "HOME-PX8-SAFE",
+      "evidence": "doc/testing/evidence/home-restore-1.5.2/summary.json"
     }
   }
 }

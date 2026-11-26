@@ -1,33 +1,40 @@
+<?xml version='1.0' encoding='utf-8'?>
 <resources>
     <style name="TextAppearance.AndroidSkill.Title" parent="TextAppearance.Material3.TitleLarge" />
-
     <style name="TextAppearance.LocalSignage.WelcomeStep" parent="TextAppearance.Material3.BodyLarge">
         <item name="android:layout_width">match_parent</item>
         <item name="android:layout_height">wrap_content</item>
         <item name="android:gravity">center_vertical</item>
-        <item name="android:minHeight">64dp</item>
+        <item name="android:minHeight">48dp</item>
         <item name="android:paddingStart">16dp</item>
-        <item name="android:paddingTop">12dp</item>
+        <item name="android:paddingTop">8dp</item>
         <item name="android:paddingEnd">16dp</item>
-        <item name="android:paddingBottom">12dp</item>
+        <item name="android:paddingBottom">8dp</item>
         <item name="android:textColor">@color/welcome_text_primary</item>
-        <item name="android:textSize">15sp</item>
+        <item name="android:textSize">@dimen/ui_text_body</item>
     </style>
     <style name="Widget.LocalSignage.Button" parent="Widget.Material3.Button">
         <item name="cornerRadius">@dimen/ui_corner_radius</item>
         <item name="android:minHeight">48dp</item>
         <item name="android:textAllCaps">false</item>
+        <item name="android:fontFamily">sans</item>
+        <item name="android:letterSpacing">0</item>
     </style>
-    <style name="Widget.LocalSignage.TopicButton" parent="Widget.Material3.Button.OutlinedButton">
+    <style name="Widget.LocalSignage.TopicButton" parent="Widget.Material3.Button.TextButton">
         <item name="cornerRadius">@dimen/ui_corner_radius</item>
-        <item name="strokeColor">@color/billing_stroke</item>
+        <item name="strokeWidth">0dp</item>
+        <item name="android:gravity">start|center_vertical</item>
+        <item name="android:paddingStart">16dp</item>
+        <item name="android:paddingEnd">16dp</item>
         <item name="android:textColor">@color/billing_text_primary</item>
         <item name="iconTint">@color/billing_accent</item>
-        <item name="android:minHeight">64dp</item>
-        <item name="android:textSize">14sp</item>
-        <item name="android:paddingTop">12dp</item>
-        <item name="android:paddingBottom">12dp</item>
+        <item name="android:minHeight">48dp</item>
+        <item name="android:textSize">@dimen/ui_text_body</item>
+        <item name="android:paddingTop">8dp</item>
+        <item name="android:paddingBottom">8dp</item>
         <item name="android:textAllCaps">false</item>
+        <item name="android:fontFamily">sans</item>
+        <item name="android:letterSpacing">0</item>
     </style>
     <style name="TextAppearance.LocalSignage.Section" parent="TextAppearance.Material3.TitleMedium">
         <item name="android:textColor">@color/billing_text_primary</item>

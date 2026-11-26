@@ -1,0 +1,42 @@
+<!doctype html>
+<html lang="zh-CN">
+<head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"><title>Local Signage · 新版连接页</title>
+<style>
+:root{color-scheme:dark;--blue:#2563eb;--ink:#f4f7f5;--muted:#c3cddd;--line:#405571}
+*{box-sizing:border-box}body{margin:0;background:#101d32;color:var(--ink);font:16px/1.5 system-ui,-apple-system,"Segoe UI","Noto Sans","Microsoft YaHei",sans-serif}
+button,a{font:inherit}button{cursor:pointer;border:0;min-height:44px;padding:10px 16px;border-radius:10px;background:transparent;color:var(--ink)}button:focus-visible,a:focus-visible{outline:3px solid var(--blue);outline-offset:4px}
+button:hover{background:#1a2b45}.app{min-height:100svh;max-width:1320px;margin:auto;display:flex;flex-direction:column;padding:24px 48px;gap:24px}
+header{display:flex;align-items:center;justify-content:space-between;gap:16px}.brand{display:flex;align-items:center;gap:12px;font-weight:650}.brand img{width:36px;height:36px;border-radius:9px}.tools{display:flex;gap:6px}.tools button{color:var(--muted);font-size:14px}
+main{flex:1;display:grid;grid-template-columns:360px minmax(0,1fr);gap:72px;align-items:center;padding:20px 44px}
+.scan{display:grid;justify-items:center;gap:14px}.scan img{width:248px;height:248px;background:white;border-radius:14px;box-shadow:0 8px 30px #1c3b7610}.scan span{font-size:14px;color:var(--muted)}
+.copy{max-width:600px}.copy h1{font-size:42px;line-height:1.15;letter-spacing:-.025em;font-weight:650;margin:0 0 14px}
+.copy>p{color:var(--muted);margin:0 0 28px}.fields{display:grid;grid-template-columns:1fr;gap:20px}.label{font-size:13px;color:var(--muted);display:block;margin-bottom:5px}
+.address{font-size:23px;font-weight:550;overflow-wrap:anywhere}.code{font-size:36px;line-height:1.25;letter-spacing:5px;font-weight:600;font-variant-numeric:tabular-nums}
+.network{display:flex;align-items:center;gap:8px;color:var(--muted);font-size:13px;margin-top:22px}.dot{width:7px;height:7px;border-radius:50%;background:#228345}.network button{min-height:36px;padding:4px 8px;color:#91b8ff;font-size:13px}
+footer{display:grid;gap:14px}.upgrade{background:var(--blue);border-radius:16px;color:white;display:flex;align-items:center;justify-content:space-between;gap:24px;padding:22px 28px}
+.upgrade strong{display:block;font-size:19px;font-weight:650}.upgrade p{margin:4px 0 0;color:#e6eeff;font-size:14px}
+.upgrade button{background:white;color:#1948b4;font-weight:650;min-width:154px;flex-shrink:0}.upgrade button:hover{background:#eaf1ff}
+.footnote{display:flex;justify-content:space-between;align-items:center;gap:12px;font-size:12px;color:var(--muted)}a{color:var(--muted);text-decoration:none}a:hover{text-decoration:underline}
+dialog{border:1px solid var(--line);border-radius:18px;max-width:min(460px,90vw);padding:28px;background:#1a2b45;color:var(--ink);font:inherit}dialog::backdrop{background:#15223855}dialog button{background:var(--blue);color:white}dialog h2{margin-top:0}
+@media(max-height:600px) and (min-width:650px){
+.app{padding:12px 28px;gap:10px}header{min-height:40px}.brand img{width:28px;height:28px}main{padding:2px 24px;grid-template-columns:230px minmax(0,1fr);gap:36px}.scan{gap:4px}.scan img{width:160px;height:160px}.scan span{font-size:12px}.copy h1{font-size:28px;margin-bottom:6px}.copy>p{font-size:13px;margin-bottom:12px}.fields{grid-template-columns:minmax(0,1fr) auto;gap:20px}.address{font-size:17px}.code{font-size:25px;letter-spacing:3px}.label{font-size:12px}.network{margin-top:8px}.upgrade{padding:12px 20px;border-radius:12px}.upgrade strong{font-size:16px}.upgrade p{font-size:12px}.upgrade button{min-width:130px;padding:8px 14px}.footnote{display:none}footer{gap:0}
+}
+@media(max-width:649px){
+.app{padding:18px 22px;gap:24px}header{gap:8px}.tools button{padding:8px;font-size:13px}.brand{font-size:14px;gap:8px}.brand img{width:28px;height:28px}main{grid-template-columns:1fr;gap:22px;padding:10px 0}.scan{order:1}.scan img{width:196px;height:196px}.copy{order:0;text-align:center}.copy h1{font-size:30px}.copy>p{font-size:14px;margin-bottom:18px}.fields{gap:12px}.address{font-size:19px}.code{font-size:28px}.network{justify-content:center;margin-top:12px}.upgrade{padding:18px;flex-wrap:wrap;gap:14px}.upgrade strong{font-size:18px}.upgrade p{font-size:13px}.upgrade button{width:100%}.footnote{flex-wrap:wrap}
+}
+</style></head>
+<body><div class="app">
+<header><div class="brand"><img src="app-icon.webp" alt=""><span>Local Signage</span></div><div class="tools"><button onclick="document.getElementById('help').showModal()">连接帮助</button><button onclick="notify('退出操作示意')">退出</button></div></header>
+<main>
+<div class="scan"><img src="demo-connection-qr.png" alt="示例控制台地址二维码"><span>使用手机扫码打开控制台</span></div>
+<div class="copy"><h1>连接这块屏幕</h1><p>手机或电脑连接同一网络，即可发送内容。</p>
+<div class="fields"><div><span class="label">控制台地址</span><div class="address">192.168.1.100:8080</div></div><div><span class="label">电脑配对码</span><div class="code">123 456</div></div></div>
+<div class="network"><span class="dot"></span>局域网已连接 <button onclick="notify('网络与热点设置示意')">网络设置</button></div>
+</div>
+</main>
+<footer><div class="upgrade"><div><strong>让更多屏幕，一起播放。</strong><p>专业版 · 更多内容类型与多屏管理</p></div><button onclick="location.href='index.html?screen='+encodeURIComponent('授权')">查看专业版</button></div><div class="footnote"><span>设计样稿 · 示例连接信息</span><a href="#" onclick="event.preventDefault();notify('企业部署联系入口示意')">企业部署与定制支持 ↗</a></div></footer>
+</div>
+<dialog id="help"><h2>连接屏幕</h2><p>让手机或电脑与屏幕连接同一局域网，然后扫码或输入控制台地址。</p><button onclick="this.closest('dialog').close()">知道了</button></dialog>
+<dialog id="notice"><p id="message"></p><button onclick="this.closest('dialog').close()">关闭</button></dialog>
+<script>function notify(message){document.getElementById('message').textContent=message;document.getElementById('notice').showModal()}</script>
+</body></html>

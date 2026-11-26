@@ -1,6 +1,253 @@
+## 提交前证据复核补充（2026-11-26）
+
+复核home-restore-1.5.2的自动冷启动截图发现仍有“System UI is not responding”系统弹窗。素材/播放状态与底层视频变化的断言成立，但不能据此认定模拟器开机后的系统界面稳定、无遮挡或无人值守整机验收通过。保留原始截图证据，并在该轮摘要明确标记系统UI响应性未通过。实体广告机断电与长期稳定性仍待验收。
+
+# 1.5.3 完整正式AAB打包（2026-11-26）
+
+当前全部已实现功能打入Release AAB，版本1.5.3 / 1005003；Pro入口和功能保留既有授权规则，DevHub正式版开关开启。bundleRelease成功，bundletool API导出实际包Manifest确认包名/版本/非debuggable及SignageHome入口；jarsigner验证通过，ZIP完整性、网页资源存在、仅ARM32/ARM64 ABI、两个ARM64库全部LOAD段至少16KB对齐通过。大小约21.2MiB。产物[LocalSignage-1.5.3-1005003.aab](../../app/build/outputs/bundle/release/LocalSignage-1.5.3-1005003.aab)，[SHA256与检查结果](evidence/aab-1.5.3/result.json)。
+
+本轮仅打包及产物检查；完整功能、实际冷启动恢复与真机测试沿用下方1.5.2已记录结果，不冒充1.5.3重新全测。没有上架、提交或push。Manifest辅助检查脚本先前调用错误已修正，实际bundleRelease构建和最终产物验证均成功。
+
+---
+
+# 可选展示启动器与自动恢复优化（2026-11-26）
+
+已在现有启动路径增加用户主动选择的默认主屏幕入口，并在帮助文章提供说明、系统角色选择和后台设置。使用Activity Result调用系统角色选择；已为主屏幕时进入系统Home设置，可切回原桌面。新增4条文案覆盖默认及8种语言，保留蓝色主题。去掉Main每次权益刷新时重复加载相同升级背景的调用，背景仍来自XML。未降低targetSdk、未新增悬浮窗权限、未从开机广播违规启动媒体服务，不自动更改用户主屏幕。
+
+本次通过：模拟器真实系统角色选择、说明取消不改桌面、Home键进入播放器；隔离QEMU强制终止、无快照冷启动后系统自动进入应用并恢复原视频，进度与画面变化，无手动am start；从同一入口打开Home设置并在系统UI选回Pixel Launcher。模拟器素材/设置与原桌面已还原。Pixel 8正式包覆盖安装，说明及取消通过，PackageManager安装收敛后原主屏幕组件与安装前一致，未将Pixel设为本应用Home。正式包22项配对/上传/播放/轮播/清理回归通过；129项App/feature单测0失败，Debug/Release APK/AAB、签名与16KB ZIP对齐、UI/构建/严格8语言门禁通过。既有门禁警告保留，不等于所有native及设备兼容通过。
+
+前期模拟器启动记录有一次应用ANR，主线程在重复背景资源解析；删去冗余调用后冷启动自动恢复与画面测试通过，不保证所有ANR已解决。测试滑动曾误触系统Home手势区；现已修正。系统Role请求曾因普通startActivity无调用者返回关系立即取消，已修正并用真实系统选择界面重测通过。安装后短暂ResolverActivity解析不作为最终桌面改变，已等系统收敛后复核原组件。
+
+[实际说明弹窗](evidence/home-restore-1.5.2/pixel-options.png) · [冷启动及系统选择证据](evidence/home-restore-1.5.2/summary.json) · [启用与退出说明](../../docs/LOCAL_SIGNAGE_STARTUP_RECOVERY_CN.md)。最终1.5.2正式包已安装Pixel 8，保留数据和统计配置，未提交/push。
+
+适用条件：用户在专用设备选择默认Home、解锁后存储可访问、开启启动恢复且上次处于播放中、系统允许Home选择。实体广告机真正断电、密码锁无人值守、其他厂商及受管理设备仍未验证；未启用此模式的普通Android15+应用仍需前台入口，不能宣称无条件开机自启。
+
+---
+
+# 1.5.2 双端、视频直播、定时与恢复补测（2026-11-26）
+
+本轮是用户对上一轮未验证项目的补测。最终18项断言通过、0项最终失败，另1项系统开机行为观察；不是全部平台/协议/无人值守条件均已通过。[结果、环境及限制](evidence/extended-1.5.2/summary.json)。未修改生产业务逻辑。
+
+| 项目 | 本次结果 | 实际证据与边界 |
+|---|---|---|
+| 视频 | 通过 | Pixel 8正式包上传本地H.264 MP4，播放进度推进、间隔截图像素变化；导入恢复的视频再次验证 |
+| 直播 | RTSP通过 | 本机持续实时发布H.264，经RTSP/TCP给Pixel 8，播放进度与实际画面变化。HTTP源按现有协议限制被拒绝；未降低限制，HLS/DASH未执行 |
+| 定时任务 | 通过 | 创建下一分钟开始的播放列表任务，不修改系统时间，等待实际分钟边界后自动切换到目标列表/文字素材 |
+| 导出/导入 | 通过 | 导出检查，删除仅本轮素材/场景/测试列表，再导入恢复2个素材、2个场景及导出的2个列表（含空Default）；视频真实播放，原有Default保留 |
+| 双设备同步 | Pixel 8→模拟器通过 | 两个真实Android实例，经电脑私网TCP桥接及应用UDP发现，真实配对、视频字节传输/哈希一致、重复同步无重复素材、列表/场景/资源映射及远端视频画面变化通过。不是双实体机或逐帧同步证明 |
+| 进程恢复 | 通过 | Pixel 8强制停止应用后手动打开，恢复同一素材和播放状态 |
+| 异常掉电恢复 | 模拟器有条件通过 | 强制终止仅本轮隔离QEMU进程，禁用快照冷启动；素材及播放记录保留，打开App后视频恢复且画面变化。未给Pixel 8断电 |
+| 开机自动播放 | 观察：未自动播放 | Android36开机后未自动播放；符合现有Android15+延迟到用户打开App的实现，不能当作断电后无人值守自启通过 |
+
+全部临时素材、场景、导入列表、定时任务及配对已清理，设置还原，未清库/卸载，未访问PCAM00。临时直播工具仅监听本机，双端桥接仅绑定私网接口且测试后关闭；凭据仅在内存，原始可能含配对信息的日志/截图留build/extended-1.5.2，公开图片仅截取画面中央测试图。
+
+测试脚本前期对HTTP流、Default列表数及模拟器首次引导的假设修正后重跑通过，不把脚本中断记成应用缺陷。隔离模拟器System UI ANR明确记录并关闭系统弹窗；没有应用崩溃证据。素材、定时、导入和直播使用原正式APK；模拟器额外x86_64仅通过本地Gradle测试覆盖配置生成，不修改公开构建配置。
+
+尚未验证：实体机真正断电/开机无人值守恢复、双实体设备、HLS/DASH和音频输出、长时间稳定性及直播断网重连。真实支付及DevHub后台收数仍未执行。
+
+---
+
+# 1.5.2 全功能回归（2026-11-26）
+
+范围为当前未提交工作区，版本1.5.2 / 1005002。结果与产物SHA见[本轮摘要](evidence/full-1.5.2/summary.json)。测试只针对Pixel 8/API36及本机Chromium，不代表全部功能、平台和发布条件均已通过。
+
+本次通过：129项App/feature JVM测试（core_google 5项复用Gradle有效缓存，不计本次执行）；9项Node发布流程测试；R8审计工具5项及国际化工具12项测试。Debug APK/测试APK/Release APK/AAB构建通过，正式APK签名与zipalign 16KB打包对齐检查通过，不将ZIP对齐等同所有native运行兼容。App Lint 0错误/47警告；构建/UI/8语言/HTML一致性检查通过，保留现有提示。
+
+本次通过：原生中英横屏68状态、套餐完整/部分/不可用12状态、欢迎及竖屏大字体32状态，共112状态，无文字省略或垂直裁切。字体、夜间、方向和息屏超时恢复。系统锁竖屏时启动/连接/帮助/支付/返回/网络弹窗7次观察仍横屏。热点真实启动、凭据显示、关闭通过。一次方向测试读取与其他设备操作争用后中断，串行重跑通过。
+
+本次通过：网页5页×中英×明暗×3尺寸60布局无横向溢出；模拟发布部分失败、只重试失败设备、避免重复创建、目标丢失不回退本机。Debug真实配对/拒绝无授权读取/13个只读接口/导出ZIP/图片上传/文字与HTML播放/暂停恢复/三素材轮播/清理22项通过；Release同组API检查22项通过。仅清理本轮新增素材，原有用户数据未清除。
+
+正式包已保留数据覆盖安装Pixel 8；冷启动、完成欢迎引导、进入支付、说明展开、返回连接通过。首次导航脚本错误假定直接到Main而停在Welcome，调整测试前置步骤后通过，无应用启动崩溃结论。设备最后状态以本轮API清理后的应用为准。
+
+未执行：真实收费/续费/退款、Play生产价格与DevHub后台收数、真实双设备同步、视频/直播解码、定时写入触发、备份导入恢复、断电恢复、其他设备系统；以上不能算通过。没有自动修改业务代码、提交或push。
+
+---
+
+# HTML深色背景与可读性修正（2026-11-26）
+
+用户截图标出的发送目标白色容器、本地/网络来源浅色底、上传区浅色底来自遗漏的硬编码颜色。实际console.css统一改用surface、surface-subtle、sidebar等明暗主题变量；选中来源增加蓝色底与下划线，输入提示改用可读的次级文字色。同步修正资源页Tab、记录表头、文件摘要、场景布局选项及计划状态的相同背景问题，不更改素材画面自身的颜色。
+
+真实打包HTML与电脑示例预览已重新生成。5页面×2主题×3窗口共30布局检查无横向溢出；用户标出区域及占位提示共7项计算对比度6.17–14.58:1；本地/网络切换通过，实际深色截图复核通过。Debug构建及HTML一致性通过。本轮仅Web视觉修正，未重复Android业务测试或安装Pixel 8，不宣称真机/真实上传/全部弹窗已覆盖。见[修正画面](evidence/console-dark-20261126/send-dark.png)及[结果](evidence/console-dark-20261126/summary.json)。
+
+---
+
+# 支付与其他页面紧凑化（2026-11-26）
+
+本轮将真实支付页重排为皇冠PRO与当前授权、首屏权益、对齐的月/年/永久三档套餐、集中工具操作区。年度保留推荐态，缺货显示次级提示且禁止购买；真实价格仍只来自Google Play。帮助目录去掉重复说明和层层卡片，10个入口在普通字体横屏一屏展示；法律中心改为文档/统计偏好双栏，窄屏自动堆叠；文章阅读限制720dp行宽。欢迎页收紧边距、步骤和标题。保留所有原有入口、返回和隐私开关行为。
+
+HTML五主页面与弹窗统一紧凑间距，手机横屏增加96px侧边导航与播放双栏；触控目标保留48px，主色保持蓝色。试用/免费版有皇冠升级入口，Pro不重复促销；支持暗色与长文案自然换行。
+
+- Pixel 8最终原生中文1.0深色/英文1.3浅色：28页面状态，无文字省略或高度裁切。放大字体允许堆叠滚动，不强制一屏压缩。套餐完整/部分/不可用的测试注入状态12个通过，购买按钮可用性正确，无真实购买。冷启动、连接页进入支付、展开说明、返回连接再进支付通过。
+- 改造中中文全文章/法律34状态通过；英文全巡检曾因另一个应用抢占前台中断，最终定向28状态重新通过。未将中断结果计为通过。
+- 浏览器5页×3尺寸×中/英/德共45布局检查无横向溢出；试用/免费/Pro入口显示及弹窗通过；发布部分失败后仅重试失败设备，内容只创建一次，失效目标不回退本机。使用虚拟API，不代表真实双设备链路。
+- 本轮129项Android单测、9项Node测试通过；最后的支付视觉微调后补跑构建、设备巡检与状态检查。feature_app Lint 0错误/16警告；UI、严格8语言与HTML生成一致性检查通过，保留现有ViewPager2/空app资源提示。
+
+[Pixel 8支付页](evidence/all-pages-20261126/payment-px8.png) · [帮助目录](evidence/all-pages-20261126/help-px8.png) · [法律中心](evidence/all-pages-20261126/legal-px8.png) · [本轮摘要与产物指纹](evidence/all-pages-20261126/summary.json)。原始含配对信息的截图和日志仅存build/all-pages-20261126。最终Debug保留数据覆盖安装，停在支付页；字体、夜间和息屏超时均恢复。
+
+未验证：真实购买与生产价格（当前设备Google Play目录不可用）、本轮Release、其他厂商/系统及欢迎页本轮实机画面。没有清库、变更统计同意或发起支付。
+
+---
+
+# Pro入口收窄与品牌标识（2026-11-26）
+
+按最新反馈将底部全宽横幅改为居中紧凑入口，最大420dp。Pixel 8实测宽1102px，占屏宽45.9%，保留16dp底部边距和真实授权状态；新增金色皇冠矢量图标与不翻译的PRO品牌字样。白色按钮仍直达真实授权页，点击及返回通过，无购买操作。
+
+Debug与测试APK构建、App Lint（0错误）、严格8语言校验和git diff --check通过。中文1.0深色/英文1.3浅色横屏共4个连接页状态通过，无文字裁切；原字体/夜间设置已恢复。当前版本已安装Pixel 8并停在连接页。只是视觉调整，未重复业务单测或Release验证。
+
+[实机截图（配对信息已遮挡）](evidence/reference-hotspot-20261126/connection-pro-compact-redacted.png) · [尺寸、皇冠及跳转断言](evidence/reference-hotspot-20261126/pro-compact-result.json) · [字体检查](evidence/reference-hotspot-20261126/pro-entry-font-audit.json)。本节取代下方历史“全宽升级栏”的设计结论。
+
+---
+
+# 连接首页按参考图落地、热点与边距修正（2026-11-26）
+
+按用户提供的图片重构实际Android连接首页，保留品牌蓝色。截图外的黑色区域不属于App，最终页面为全屏深蓝，无模拟窗口边框。单一16dp页面内边距；页头靠上、升级栏靠下；刘海仅由实际相交的行避让，避免对称安全区、居中容器margin和padding累加。Pixel 8最终页头bounds为[42,42,2358,168]，底部升级栏为[42,848,2358,1038]，屏幕2400×1080。见[最终实机图（配对信息遮挡）](evidence/reference-hotspot-20261126/connection-final-redacted.png)与[摘要](evidence/reference-hotspot-20261126/summary.json)。
+
+- 连接：二维码左置、标题和说明右置、地址与配对码并列、网络状态旁提供网络设置。底部整条蓝色权益栏配白色专业版入口；当前授权状态仍来自真实权益。企业支持入口移到帮助页，功能保留。
+- 热点：IDLE/STARTING/ACTIVE/FAILED状态、防重复请求、迟到回调失效和reservation释放。回调不持有Activity；按生命周期订阅状态。启动、名称/密码、失败原因均在本页显示。权限拒绝/失败不再自动跳系统设置；系统设置、定位或应用权限只在用户主动选择后打开。使用[Android本地热点API](https://developer.android.com/develop/connectivity/wifi/localonlyhotspot)，不共享公网。
+- 方向：启动窗口预设横屏，后续页继承前页；手机显式横/竖方向改为固定方向，保留AUTO与大屏/多窗口系统策略。Pixel 8当前LANDSCAPE设置下，系统锁竖屏时的启动窗口、连接、帮助、授权、返回与网络弹窗7次观察均2400×1080。
+- 本次通过：Pixel 8真实热点启动、显示凭据、关闭；临时模拟永久权限拒绝时原位反馈且不跳设置；恢复授权后重试启动/关闭成功。权限及临时标记均还原，最终热点关闭。未使用第二台设备连接热点，不声称双机链路已验证。
+- 本次通过：重排阶段中文标准字体/深色与英文1.3字体/浅色共28页面状态；最终边距修正后定向复测连接页4状态，0 ellipsis/verticalOverflow。早期英文配对码标签裁切已通过列宽随字体调整修正；一次系统面板遮挡重跑后通过。
+- 本次通过：本轮app3项及feature_app126项单测、严格8语言资源校验、Debug/测试APK与受影响Lint、UI门禁。最终边距仅补测设备页面和构建/Lint，不重复无关业务单测。保留方向锁定与滚动容器等Lint提示，无error/fatal。本轮未重新验证Release、真实购买、旧Android热点与其它厂商设备。
+
+原始日志/敏感截图留在忽略目录build/px8-direction-fix。最终Debug已安装Pixel 8并停在连接首页；字体1.0、夜间yes、系统方向/息屏超时、附近设备权限均恢复。未清库、上传用户素材或发起支付。没有提交或push。
+
+---
+
+# Pixel 8 安装与冷启动复核（2026-11-26）
+
+本次通过：当前Debug应用完整重编译后，以保留数据的完整APK覆盖安装Pixel 8，冷启动由Splash进入MainActivity，连续3次确认进程和前台主页面正常。证据见[启动记录](evidence/px8-launch-20261126/result.json)。没有修改业务源码、清库或购买。
+
+第一次复用增量产物时实际启动失败：SplashActivity仍调用FrameLayout返回类型的ActivitySplashBinding.getRoot，而新布局根节点已经是LinearLayout，触发NoSuchMethodError。清理app模块生成缓存并完整重编译后解决，采用非增量APK安装。此前页面巡检直接进入目标页面，没有覆盖这个Debug启动入口；不能把这些巡检结果当作Debug冷启动通过。上轮恢复Debug后的前台退出也需结合此问题理解，不能仅归因于桌面切换。
+
+复核命令：gradlew.bat :app:clean :app:assembleDebug :app:assembleDebugAndroidTest；adb -s <Pixel8> install --no-incremental -r <Debug APK>；force-stop后am start -W启动Splash，再检查进程与ResumedActivity。app:clean清除了旧app构建产物，本次重建Debug与测试APK，未重新打包Release。
+
+---
+
+# Lint 与 R8 优化结果（2026-11-26）
+
+本轮将三模块 Lint 从 **113 条降到44条（减少69条，约61%）**，0 error/fatal；没有新增生产代码Lint屏蔽、关闭检查或生成告警baseline。当前工作区包含此前页面改动，本轮未提交或push。版本仍为1.5.1 / 1005001，源码指纹与产物见[本轮摘要](evidence/warnings-r8-20261126/summary.json)。
+
+| 模块 | 优化前 | 优化后 |
+| --- | ---: | ---: |
+| app | 43 | 36 |
+| feature_app | 43 | 5 |
+| core_google | 27 | 3 |
+| 合计 | 113 | 44 |
+
+已实施：KTX等价替换保留SharedPreferences异步编辑边界；复数按中日韩实际数量类别精简；删除已无调用的旧试用文案；修正西葡文拼写；二维码512px采样量改整数资源；兼容层设置无障碍标题；矢量默认缓存尺寸缩小且显示比例保持；图片列表使用同步DiffUtil差分通知；连接头与授权入口移除嵌套权重；合并启动/授权冗余容器；普通窗口取消底层重复背景；圆形图标接入已有圆形资源；移除minSdk已覆盖的旧版本分支，明确共享模块RTL与默认英文资源。
+
+## 剩余44条的保留原因
+
+- **32条SDK/依赖升级提示**：OldTargetApi 1、AndroidGradlePluginVersion 3、GradleDependency 19、NewerVersionAvailable 9。本轮保留compile/target 36及现有依赖，未为清告警执行整套SDK/框架迁移。
+- **Overdraw 8条**：页面与共享Fragment保留自身背景。普通应用主题已取消窗口底层背景；库Lint仍按推断主题报告。Fragment还需适用于其它宿主，不能直接删除背景；未屏蔽这些提示。
+- **StaticFieldLeak 2条**：播放视图由attach/detach管理，MainActivity.onDestroy调用detach并清空视图/监听器，相关detach幂等测试通过；DevHub初始化只传Application Context。保留静态审查提示，不据此声称完成长期内存压力测试。
+- **CustomSplashScreen 1条**：保留用户已有自定义启动页及存储初始化失败重试流程；本轮合并容器与重复背景，不改写启动产品流程。
+- **UnusedResources 1条**：Welcome布局由基础框架泛型ViewBinding加载；正式包欢迎页实测正常，未删除资源。
+
+逐条位置见[剩余告警](evidence/warnings-r8-20261126/lint-remaining.json)。构建门禁既有4条网络/系统栏提示与UI门禁1条非Tab ViewPager提示单独保留，不计入上述Lint总数。
+
+## R8配置及检查能力
+
+- 删除GoogleKitConfig、GoogleReward的整类/字段硬保留：源码为普通直接调用，无对应反射/序列化入口。
+- 两个Fragment参数配置仍使用Java Serializable，保留类名与成员以维持默认serialVersionUID，增加allowshrinking让未使用类可整体裁剪。保留Gson登录声明模型的注解字段与默认构造函数保护。
+- 保持Release minifyEnabled、shrinkResources和完整混淆，按[Android官方AGP8.12/8.13说明](https://developer.android.com/topic/performance/app-optimization/enable-app-optimization)开启android.r8.optimizedResourceShrinking。AGP8.13构建仍将此开关标记为experimental；该提示未隐藏。
+- 本仓库R8 Skill增加正式合并configuration.txt审计、精确类全成员硬保留提示、部分allow修饰符识别；避免误报注解/继承/特定成员限定及完全软保留规则。5项脚本回归通过。
+- 源码规则审计CRITICAL/HIGH/INFO均为0；**最终合并配置为CRITICAL 0、HIGH 3、INFO 9**。HIGH来自AndroidCoreUtils的MMKV整包规则，以及Billing SDK的两个AIDL包规则；INFO主要为上游基础库门面和三方精确类保护。保留其JNI/AIDL兼容性，未修改依赖缓存或假装可由宿主软规则抵消。后续需要上游按真实入口发布更窄consumer rules。
+
+| 正式产物 | 本轮优化前 | 优化后 | 减少 |
+| --- | ---: | ---: | ---: |
+| APK | 16,716,172 B | 16,281,502 B | 434,670 B（约425 KiB） |
+| AAB | 22,868,666 B | 22,218,813 B | 649,853 B（约635 KiB） |
+| 未压缩DEX | 10,153,920 B | 9,831,808 B | 322,112 B（约315 KiB，3.17%） |
+
+比较包含本轮代码、资源和规则的合并效果，不把差异单独归因于某一条keep规则，也不等同于Play Console三项优化百分比。mapping.txt生成，AAB签名验证通过（自签名链/时间戳提示保留），APK ZIP 16KB对齐检查通过。两个arm64库ELF LOAD均16KB对齐；armv7 MMKV仍为4KB，本轮未改native依赖，未做16KB系统运行测试。
+
+## 本次验证
+
+- **通过**：全模块现有134项JVM测试（app3/core_google5/feature_app126，0失败/错误/跳过）。最终资源/布局变更后app及feature测试再次执行；core用例同轮已执行，后续为UP-TO-DATE，不重复计数。
+- **通过**：R8审计器5项测试；严格国际化覆盖app/feature_app/core_google/feature_res及8种语言；Debug、测试APK、Release APK/AAB与三模块Lint；构建/UI门禁及git diff --check。
+- **通过**：Pixel 8 / Android36，Debug中文1.0深色横屏14状态、英文1.3浅色竖屏14状态，无ellipsis/verticalOverflow；人工复核授权页截图。
+- **通过**：同一签名的R8 Release覆盖安装保留数据，22项真实接口与媒体检查，包括配对、权限拒绝、备份ZIP、图片/文字/HTML播放、暂停恢复、三素材轮播与清理。
+- **通过**：独立平台API测试入口ReleaseUiSmoke在Release包检查欢迎、连接、授权、帮助、法律中心5页和套餐说明展开/收起，INSTRUMENTATION_CODE=-1。测试APK通过signageUiAuditRunner属性选择入口，不静态链接已被R8改名的业务类型；主应用不包含该测试类。
+- **受阻**：原生触控滚动脚本已进入授权页，随后可见窗口变为桌面，未验证连续触控滚动到说明/法律入口；不把此结果作为产品崩溃。程序点击展开逻辑的通过不替代触控可达性。
+- **未执行**：真实收费/恢复交易、生产统计后台收数、双真机同步、视频硬件解码、24小时连续播放及平台优化百分比。商品仍显示不可用。没有运行这些场景的结论。
+
+## 执行记录与恢复
+
+第一次构建因等价URI替换漏导入类型而失败，修正后通过；布局Lint抓到漏补的箭头约束，修复后0错误。第一轮设备巡检失焦后重跑通过。新Release巡检的法律中心根ID误写导致测试断言使主线程退出，已修正ID并把断言回传测试线程以确保teardown；最终5页通过。这是测试脚本问题，不是已证明的Release业务崩溃。
+
+正式包媒体测试确认空资源库后才创建数据，均已清理。结束后恢复Debug与默认DeviceUiAudit测试APK、字体1.0、夜间模式yes、已完成引导标记；一次测试断言中断后曾未恢复引导标记，最终已核实恢复。未清库、卸载、重启设备或发起购买。含配对信息的截图和原始日志只保留在忽略目录build/warning-optimization，分享证据只有脱敏摘要。
+
+主构建日志gradle-final-retry.log为BUILD SUCCESSFUL（3m6s）；追加final-check.log确认新测试入口配置不改变正式产物，所有Release产物任务UP-TO-DATE。运行入口：gradlew.bat :app:assembleDebugAndroidTest '-PsignageUiAuditRunner=com.wkq.localsignage.ReleaseUiSmoke'，安装同签名Release及测试APK后执行am instrument -w -e welcome true com.wkq.localsignage.test/com.wkq.localsignage.ReleaseUiSmoke；welcome参数仅适用于先确认空素材库的设备。详细机器摘要见本节链接，历史全功能回归保留如下。
+
+---
+
+# 全功能回归结果（2026-11-26）
+
+版本1.5.1 / 1005001，当前工作区含未提交UI改动。对应commit与源码SHA-256指纹见 [本轮摘要](evidence/full-20261126/summary.json)。本轮有检查失败与未验证项，不能判为全部功能验收通过。
+
+| 测试组 | 结果 | 本轮证据与范围 |
+| --- | --- | --- |
+| 全模块现有Debug JVM测试 | 本次通过 | 强制Test任务重跑，app 3、core_google 5、feature_app 126，共134项，0 failures/errors/skipped。涵盖存储与迁移、HTTP契约、配对安全、播放状态、场景/列表/排期、授权策略、价格及统计开关。见 unit-results.json |
+| 发布流程Node测试 | 本次通过 | 9项，部分失败、网络错误、目标保持及失败设备重试 |
+| Python门禁自身测试 | 本次通过 | 12项 |
+| Pixel 8页面巡检 | 本次通过 | Android36。中文标准字体深色横屏34状态、英文1.3字体浅色竖屏34状态、中文欢迎路径16状态、英文套餐注入6状态，共90状态。布局JSON未见ellipsis/verticalOverflow |
+| Pixel 8真实API与媒体 | 本次通过 | 22项。配对、无授权拒绝、状态/资源/场景/列表/排期/配置/诊断等读取、备份ZIP、图片/文字/HTML创建和播放状态、暂停恢复、三素材列表轮播、测试数据清理。状态断言不代表视频硬件解码或全天候运行 |
+| 浏览器发布闭环 | 本次通过 | 虚拟API部分失败后只重试失败设备、只创建一次资源、目标消失不转本机、中英文切换，无pageerror |
+| 浏览器布局及弹窗 | 本次通过 | 亮暗×4语言选择×3窗口×5页面=120组，320竖屏/844低高横屏/1440桌面无横向溢出；8个现有弹窗可打开及Esc关闭。de/ja-JP仍按产品现状英文回退 |
+| 严格国际化资源 | 本次通过 | en、zh-CN、de、es、fr、ja、ko、pt。app壳无自身文案资源的提示保留 |
+| 构建/UI/架构静态检查 | 本次通过 | 保留HTTP、系统栏主题、非Tab ViewPager、静态模块图不完整等警告 |
+| 技能结构校验 | 失败 | 13项。Figma默认提示与校验器规则冲突；两个旧技能frontmatter格式不符；缺失ui-baseline、ui-style、library-organization与architecture测试脚本等引用。测试任务只记录，不修改业务与技能 |
+| Debug、Release APK与AAB | 本次通过 | 首次组合进程提前退出，日志无明确原因；独立重跑Release/Lint后BUILD SUCCESSFUL。正式包开启R8；三个产物的HTML与当前源码一致，AAB签名校验通过（自签名链警告） |
+| Lint | 本次通过（有警告） | app43、feature_app43、core_google27，共113 warnings，0 error/fatal。含依赖升级、KTX、复数候选、绘制、资源、静态字段等提示 |
+| 原生单击授权/展开收起 | 受阻 | 第一次已进入套餐页，随后前台被桌面切换；重试时连接控件未出现在当前窗口。未取得完整连续操作证据，不作为产品缺陷或通过 |
+| 真实购买、恢复交易与统计收数 | 未执行 | Play商品不可用，无真实扣款和生产统计后台验证 |
+| 真双机同步、视频/native解码、24小时播放、Release实机运行 | 未执行 | 本轮无相应隔离现场环境或测试素材。现有相关单测及模拟多设备不替代这些结果 |
+
+## 设备及恢复
+
+Pixel 8中途离线，用户重新连接后完成真实API与媒体冒烟。字体已恢复为原值1.0，系统夜间模式恢复yes；页面巡检恢复应用语言与方向设置。媒体测试只在空资源库创建测试数据，全部清理完成。手动验证欢迎流程时点击了开始设置。配对截图、Token及原始日志仅保留在忽略的build目录；提交证据仅包含统计和产物摘要。未进行清数据、设备重启、支付或其他设备操作。
+
+## 执行与可复核入口
+
+- 本机完整日志、设备原始截图与脚本在 build/functional-test/full-20261126/。gradle.log为首次组合任务，gradle-retry.log为完成的独立重跑。
+- Gradle执行 testDebugUnitTest（Test任务禁用up-to-date）、assembleDebug、assembleDebugAndroidTest、assembleRelease、bundleRelease、app/feature_app/core_google lintDebug。未通过调整构建配置消除错误。
+- 设备入口为DeviceUiAudit，分别使用全量默认模式、welcome true与billing模拟模式。真实接口使用ADB loopback转发，结束后释放控制会话与端口。
+- 基线只更新本轮明确执行通过且可关联源码指纹的测试组；未执行、技能失败与受阻动作不推进。
+
+---
+
+## 全页面简洁布局与蓝色视觉统一（2026-11-26）
+
+当前工作区Debug构建成功，app 3项与feature_app 126项单元测试通过。严格国际化8语言检查通过。控制台9项发布测试通过，Playwright发布部分失败及重试、目标保持通过，深色下5主页面×4语言选择×3窗口尺寸共60组无横向溢出。非中英文选项使用已有英文回退。设计总览14页横屏布局检查通过。
+
+修改涵盖实际原生连接页开放布局、蓝色授权入口、触控与电视焦点行为、帮助分组，以及控制台深色表面/表单/弹窗和设计总览。品牌蓝色保留#2563EB，Android夜间强调色为#91B8FF。
+
+Pixel 8本轮设备巡检受阻。首次由NotificationShade遮挡，收起通知层并重跑后被另一应用com.wkq.nas切到前台遮挡，两次均返回code=0，不能计为通过。最新实机画面、大字与遥控焦点仍未完成验收。之前的设备结果不替代本轮结果。未发起真实购买，未推进基线。
+
+## Pixel 8 设计落地差异修正（2026-11-26）
+
+收紧授权状态区域，将错误、重试与账号说明移到套餐后，真实价格与价格不可用提示分别使用价格/正文字号。帮助页减少顶部留白、降低双栏阈值至640dp（仍按字体缩放计算）。Debug构建成功，重新安装Pixel 8后compact中文1.0横屏14状态通过，未发现ellipsis/verticalOverflow。原始截图位于build/functional-test/px8-20261126/zh-CN-1.0-px8-corrected-final。脱敏页面授权/帮助截图复制到设计总览，配对信息未复制。商品不可用，真实购买未验证。此前大字体结果不替代修正后的大字体验收。
+
+## Pixel 8 页面实机复测（2026-11-26）
+
+- 本次通过。当前工作区 Debug 与 AndroidTest APK 安装成功。Pixel 8 启动正常。
+- 两轮 DeviceUiAudit compact 均返回 Audited 14 page states / code=-1。中文字体1.0横屏、英文字体1.3横屏，共28状态，report.json未出现ellipsis或verticalOverflow。覆盖连接、帮助、两篇文章、授权、法律中心及隐私正文和相应滚动状态。复核授权与帮助截图。
+- 系统字体恢复为原值1.0。应用方向和语言由巡检恢复。设备未清数据，未发起购买。
+- 授权页显示Google Play商品不可用，真实价格、交易与恢复交易未验证。欢迎页和纯播放画面未纳入本轮compact巡检，不能以本次结果声称全页面视觉验收完成。
+- 原始截图含配对信息，只保留在忽略路径 build/functional-test/px8-20261126，不加入分享证据或Git。未更新设备测试基线。
+
+## 全局蓝色 UI / 字体与横竖屏调整（2026-11-26）
+
+- 本次通过：Android Debug assemble、app 与 feature_app 现有 Debug 单元测试；UI 静态检查。
+- 本次通过：资源严格国际化检查覆盖 en、zh-CN、de、es、fr、ja、ko、pt；默认 app 资源不含本地文案的提示保留。Windows HTML 脚本检查遇命令长度限制，改为 stdin 传入后通过；门禁自身12项测试通过。
+- 本次通过：控制台虚拟 API 发布失败重试及目标保持；5主页面 × 4语言选择 × 3窗口尺寸共60组无横向溢出。四个语言选项为 en、zh-CN、de、ja-JP；后两者按既有策略显示英文回退，不声称完整翻译。窗口为390×844、844×390、1280×800。截图在 evidence/redesign-20261126。
+- 行为：手机保留既有默认横屏及显式竖屏/AUTO设置；大屏与多窗口按现有策略尊重系统。连接布局宽屏说明在左/二维码在右，窄屏二维码优先；普通正文字号统一，按钮允许长翻译换行，网页低高度横屏导航回归文档流。
+- 未执行：Android 设备安装/实际画面、TV遥控、最大字体、Release构建与运行、真实计费、多设备现场。物理设备未操作；当前无可用AVD，不推进设备测试基线。
+
 # 功能回归测试报告（最新一轮）
 
-最新结果见下方“发布确定性与职责拆分（2026-10-29）”；其余区块保留各自测试时的历史状态。
+最新结果见本文件顶部的本轮完整回归；下方历史区块保留原始测试范围。
 
 
 
@@ -290,3 +537,7 @@ Android WebView 内的窗口/字体/滚动、播放器实际双区播放、项�
 | Feature lint 与 Debug APK | 本次通过 | `:feature:feature_app:lintDebug` 及 `:app:assembleDebug --no-parallel` 成功；新 APK SHA-256 `9BB63E34D20911B9A1577DE6B93FD2E9D1D730B4FA3EAC61502422C556B564AC` |
 
 代码修正让 `MonetizationUiState` 在错误终态结束目录等待，从而让页面显示不可用状态和重试入口；没有改购买校验、真实权益或发起购买的逻辑。模拟器在新 APK 覆盖安装前已退出。按用户要求停止测试，修正后的计费页尚未在 AVD 复核；Google Play 真实购买/恢复也未执行。修复前计费页截图与层级证据位于 Git 忽略目录 `build/functional-test/billing-vm-20260924/`；同目录另有主界面临时截图/层级文件，含一次性配对信息，不会纳入提交或分享。
+
+## Pixel 8 紧凑套餐首屏（2026-11-26）
+
+三档套餐描述及专业版权益改为展开区域，八种语言提供展开/收起标签，状态区进一步收紧。Debug构建、八语言严格资源检查通过。安装Pixel 8后compact中文标准字体横屏14状态巡检通过。首屏可见月度、年度、永久三个购买按钮，布局报告坐标均在屏幕范围内。原始截图在build/functional-test/px8-20261126/zh-CN-1.0-px8-compact-plans。Google Play商品不可用，真实购买未验证；大字体修正后未复测。

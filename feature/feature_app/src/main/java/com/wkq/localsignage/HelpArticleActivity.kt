@@ -1,8 +1,13 @@
 package com.wkq.localsignage
 
+import androidx.core.view.isVisible
+import androidx.core.net.toUri
 import android.content.ComponentName
 import android.content.Context
 import android.content.Intent
+import android.content.ActivityNotFoundException
+import android.app.role.RoleManager
+import android.os.Build
 import android.content.res.Configuration
 import android.net.Uri
 import android.provider.Settings
@@ -10,8 +15,14 @@ import android.view.View
 import android.widget.Toast
 import com.wkq.localsignage.feature.app.R
 import com.wkq.localsignage.feature.app.databinding.ActivityLegalDocumentBinding
+import com.google.android.material.dialog.MaterialAlertDialogBuilder
+import androidx.activity.result.contract.ActivityResultContracts
 
 class HelpArticleActivity : SignageActivity<ActivityLegalDocumentBinding>() {
+    private val homeRoleRequest = registerForActivityResult(
+        ActivityResultContracts.StartActivityForResult()
+    ) { /* 系统选择完成或取消后留在说明页，不主动启动播放。 */ }
+
     override fun initView() {
         enableEdgeToEdgeSystemBars()
         binding.toolbarContainer.applySystemBarPadding(top = true, horizontal = true)
@@ -22,7 +33,7 @@ class HelpArticleActivity : SignageActivity<ActivityLegalDocumentBinding>() {
         binding.toolbar.setTitle(article.title)
         binding.toolbar.wrapTitle()
         binding.documentBody.setText(article.body)
-        binding.documentVisualCard.visibility = View.VISIBLE
+        binding.documentVisualCard.isVisible = true
         binding.documentVisual.setImageResource(article.visual)
         binding.documentVisualCaption.setText(article.visualCaption)
 
@@ -30,7 +41,7 @@ class HelpArticleActivity : SignageActivity<ActivityLegalDocumentBinding>() {
             ARTICLE_AUTOSTART -> {
                 binding.documentActionButton.visibility = View.VISIBLE
                 binding.documentActionButton.setText(R.string.help_open_autostart_settings)
-                binding.documentActionButton.setOnClickListener { openSystemAutoStartSettings() }
+                binding.documentActionButton.setOnClickListener { showStartupOptions() }
             }
             ARTICLE_ENTERPRISE_DEPLOYMENT -> {
                 binding.documentActionButton.visibility = View.VISIBLE
@@ -47,7 +58,7 @@ class HelpArticleActivity : SignageActivity<ActivityLegalDocumentBinding>() {
             binding.documentScroll.isFocusable = true
             binding.documentScroll.isFocusableInTouchMode = true
             binding.documentActionButton.post {
-                if (binding.documentActionButton.visibility == View.VISIBLE) {
+                if (binding.documentActionButton.isVisible) {
                     binding.documentActionButton.requestFocus()
                 } else {
                     binding.documentScroll.requestFocus()
@@ -57,6 +68,33 @@ class HelpArticleActivity : SignageActivity<ActivityLegalDocumentBinding>() {
     }
 
     override fun initData() = Unit
+
+    private fun showStartupOptions() {
+        MaterialAlertDialogBuilder(this)
+            .setTitle(R.string.help_display_home_title)
+            .setMessage(R.string.help_display_home_description)
+            .setPositiveButton(R.string.help_display_home_action) { _, _ -> openHomeSettings() }
+            .setNeutralButton(R.string.help_background_settings_action) { _, _ -> openSystemAutoStartSettings() }
+            .setNegativeButton(android.R.string.cancel, null)
+            .show()
+    }
+
+    private fun openHomeSettings() {
+        val homeSettings = Intent(Settings.ACTION_HOME_SETTINGS)
+        val request = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+            val roles = getSystemService(RoleManager::class.java)
+            if (roles != null && roles.isRoleAvailable(RoleManager.ROLE_HOME) &&
+                !roles.isRoleHeld(RoleManager.ROLE_HOME)
+            ) roles.createRequestRoleIntent(RoleManager.ROLE_HOME) else null
+        } else null
+        try {
+            if (request != null) homeRoleRequest.launch(request) else startActivity(homeSettings)
+        } catch (_: ActivityNotFoundException) {
+            openSystemAutoStartSettings()
+        } catch (_: SecurityException) {
+            openSystemAutoStartSettings()
+        }
+    }
 
     private fun openSystemAutoStartSettings() {
         val pkg = packageName
@@ -89,7 +127,7 @@ class HelpArticleActivity : SignageActivity<ActivityLegalDocumentBinding>() {
     private fun contactDeveloper() {
         val email = getString(R.string.enterprise_contact_email)
         val contactIntent = Intent(Intent.ACTION_SENDTO).apply {
-            data = Uri.parse("mailto:$email")
+            data = "mailto:$email".toUri()
             putExtra(Intent.EXTRA_SUBJECT, getString(R.string.enterprise_contact_subject))
         }
         if (contactIntent.resolveActivity(packageManager) == null) {

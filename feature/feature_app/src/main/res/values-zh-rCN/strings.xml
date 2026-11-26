@@ -13,7 +13,7 @@
   <string name="next">下一项</string>
   <string name="control_address">控制地址</string>
   <string name="control_hint">浏览器访问 http://设备IP:8080 上传资源和控制播放</string>
-  <string name="pairing_connect_title">连接此设备</string>
+  <string name="pairing_connect_title">连接这块屏幕</string>
   <string name="pairing_scan_phone">使用手机扫码控制</string>
   <string name="pairing_scan_hint">在电脑浏览器中输入此配对码</string>
   <string name="pairing_network_hint">连接 Wi-Fi、网线，或启动本机热点</string>
@@ -46,7 +46,6 @@
   <string name="open_billing">版本与购买</string>
   <string name="device_license_label">授权状态</string>
   <plurals name="entitlement_trial_entry">
-    <item quantity="one">试用剩余约 %1$d 天 · 查看版本</item>
     <item quantity="other">试用剩余约 %1$d 天 · 查看版本</item>
   </plurals>
   <string name="entitlement_trial_ended_entry">试用已结束 · 选择版本</string>
@@ -54,11 +53,9 @@
   <string name="entitlement_subscription_grace_entry">等待联网验证 · 管理授权</string>
   <string name="entitlement_lifetime_entry">永久版本已生效 · 查看授权</string>
   <plurals name="entitlement_trial_status">
-    <item quantity="one">完整试用 · 剩余约 %1$d 天</item>
     <item quantity="other">完整试用 · 剩余约 %1$d 天</item>
   </plurals>
   <plurals name="entitlement_trial_compact">
-    <item quantity="one">试用 · 剩余 %1$d 天</item>
     <item quantity="other">试用 · 剩余 %1$d 天</item>
   </plurals>
   <string name="entitlement_trial_ended_compact">试用已结束</string>
@@ -73,10 +70,8 @@
   <string name="billing_title">版本与授权</string>
   <string name="billing_current_version">当前授权</string>
   <plurals name="billing_trial_days">
-    <item quantity="one">7 天完整试用 · 剩余约 %1$d 天</item>
     <item quantity="other">7 天完整试用 · 剩余约 %1$d 天</item>
   </plurals>
-  <string name="billing_status_trial">7 天完整试用 · 剩余约 %1$d 天</string>
   <string name="billing_status_trial_ended">已进入免费模式，现有内容继续播放</string>
   <string name="billing_pro_benefits">专业版包含：不限资源与播放列表、文字/直播/网页/HTML 内容、图片切换效果、播放速度以及多屏设备管理。</string>
   <string name="billing_status_subscription">订阅已生效</string>
@@ -152,4 +147,24 @@
   <string name="help_publish_group">发布内容</string>
   <string name="help_manage_group">管理屏幕</string>
   <string name="billing_retry_catalog">重新加载方案</string>
+  <string name="billing_details_show">方案说明与专业版权益</string>
+  <string name="billing_details_hide">收起方案说明</string>
+  <string name="pairing_connection_summary">手机连接同一局域网，即可控制与播放。</string>
+  <string name="pairing_connection_help">连接帮助</string>
+  <string name="pairing_network_action">网络设置</string>
+  <string name="pairing_pro_action">查看专业版</string>
+  <string name="hotspot_starting">正在启动本机热点…</string>
+  <string name="hotspot_permission_denied">未获得附近设备权限，热点未启动。请重试授权。</string>
+  <string name="hotspot_unsupported">此设备不支持应用内热点，请打开系统热点设置。</string>
+  <string name="hotspot_location_required">请在系统设置中开启定位，然后重试启动热点。</string>
+  <string name="hotspot_incompatible">当前网络模式不支持启动热点，请检查系统热点设置后重试。</string>
+  <string name="hotspot_disallowed">系统限制了热点功能，请在系统设置中检查。</string>
+  <string name="hotspot_start_failed">热点启动失败，请重试或打开系统热点设置。</string>
+  <string name="hotspot_no_channel">暂无可用的无线信道，请稍后重试。</string>
+  <string name="hotspot_open_location">打开定位设置</string>
+  <string name="hotspot_open_permissions">应用权限设置</string>
+    <string name="help_display_home_title">专用展示设备启动</string>
+    <string name="help_display_home_description">专用展示设备可将 Local Signage 设为默认主屏幕，之后按主屏幕键会进入本应用。开机并解锁后，系统可进入应用；开启“启动后恢复播放”时会恢复展示。需要返回原桌面时，可在系统的默认主屏幕设置中切换。受管理设备可能限制此选项。</string>
+    <string name="help_display_home_action">主屏幕应用设置</string>
+    <string name="help_background_settings_action">自启动与后台设置</string>
 </resources>

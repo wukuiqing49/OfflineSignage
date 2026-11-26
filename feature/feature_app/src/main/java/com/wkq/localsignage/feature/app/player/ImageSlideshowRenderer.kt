@@ -1,5 +1,7 @@
 package com.wkq.localsignage.feature.app.player
 
+import androidx.recyclerview.widget.DiffUtil
+import androidx.core.graphics.toColorInt
 import android.graphics.Color
 import android.graphics.Matrix
 import android.view.ViewGroup
@@ -149,8 +151,18 @@ internal class ImageSlideshowRenderer(private val pager: ViewPager2) {
         private var slides: List<ImageSlide> = emptyList()
 
         fun submit(value: List<ImageSlide>) {
-            slides = value
-            notifyDataSetChanged()
+            val previous = slides
+            val next = value.toList()
+            val changes = DiffUtil.calculateDiff(object : DiffUtil.Callback() {
+                override fun getOldListSize(): Int = previous.size
+                override fun getNewListSize(): Int = next.size
+                override fun areItemsTheSame(oldItemPosition: Int, newItemPosition: Int): Boolean =
+                    previous[oldItemPosition].scene.id == next[newItemPosition].scene.id
+                override fun areContentsTheSame(oldItemPosition: Int, newItemPosition: Int): Boolean =
+                    previous[oldItemPosition] == next[newItemPosition]
+            })
+            slides = next
+            changes.dispatchUpdatesTo(this)
         }
 
         override fun getItemCount(): Int = slides.size
@@ -229,7 +241,7 @@ internal class ImageSlideshowRenderer(private val pager: ViewPager2) {
         }
 
         private fun parseColor(value: String?, fallback: Int): Int =
-            value?.let { runCatching { Color.parseColor(it) }.getOrNull() } ?: fallback
+            value?.let { runCatching { it.toColorInt() }.getOrNull() } ?: fallback
     }
 
     private data class SlideKey(

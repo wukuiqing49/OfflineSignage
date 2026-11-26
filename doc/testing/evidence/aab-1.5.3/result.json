@@ -1,0 +1,36 @@
+{
+  "versionName": "1.5.3",
+  "versionCode": 1005003,
+  "package": "com.wkq.localsignage",
+  "variant": "release",
+  "signedJarVerified": true,
+  "debuggable": false,
+  "devHubEnabled": true,
+  "includesCurrentWebConsoleAndHomeEntry": true,
+  "abis": [
+    "arm64-v8a",
+    "armeabi-v7a"
+  ],
+  "arm64Elf16Kb": [
+    {
+      "library": "base/lib/arm64-v8a/libdatastore_shared_counter.so",
+      "loadSegmentAlignment": [
+        16384,
+        16384,
+        16384
+      ]
+    },
+    {
+      "library": "base/lib/arm64-v8a/libmmkv.so",
+      "loadSegmentAlignment": [
+        16384,
+        16384,
+        16384
+      ]
+    }
+  ],
+  "sha256": "086ec9a920bb999697f88c9e2b6d59406c5d1bc45a616e95aacfcb324c1d4e82",
+  "bytes": 22232561,
+  "functionalScope": "All current implementation included, Pro features retain existing billing entitlement rules. Prior functional tests recorded separately; no new full functional run for metadata-only version bump.",
+  "deliveryPath": "app/build/outputs/bundle/release/LocalSignage-1.5.3-1005003.aab"
+}

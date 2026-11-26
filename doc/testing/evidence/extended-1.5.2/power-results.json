@@ -1,0 +1,29 @@
+[
+  {
+    "case": "pre-power-loss-video-playing",
+    "status": "PASS"
+  },
+  {
+    "case": "isolated-emulator-abrupt-power-off",
+    "status": "PASS"
+  },
+  {
+    "case": "android36-boot-policy",
+    "status": "OBSERVED",
+    "automaticallyPlaying": false,
+    "expectedPolicy": "Android15+ defers media restore until user opens app"
+  },
+  {
+    "case": "coldboot-assets-and-playback-restored-after-open",
+    "status": "PASS"
+  },
+  {
+    "case": "coldboot-video-frames-changing",
+    "status": "PASS",
+    "frameDifference": 29.31
+  },
+  {
+    "case": "emulator-power-test-cleanup",
+    "status": "PASS"
+  }
+]

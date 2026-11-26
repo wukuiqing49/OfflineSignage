@@ -1,0 +1,45 @@
+{
+  "date": "2026-11-26",
+  "sourceFingerprint": "f3e610869cbc306d6df84ad27514ca633d984f961ae822a881bf19e311261f49",
+  "fingerprintScope": "tracked app/src/main and feature/feature_app/src/main file names and bytes, sorted",
+  "apkSha256": "11a1e83669b0dc16a32c57b505eb5c3c81e4a35be89d50c1e43827a195e3dbfc",
+  "nativeFinalStates": 28,
+  "billingFixtureStates": 12,
+  "nativeTextClippingIssues": 0,
+  "webLayoutCases": 45,
+  "webLayoutSizes": [
+    "1440x900",
+    "390x844",
+    "852x393"
+  ],
+  "webLanguages": [
+    "zh-CN",
+    "en",
+    "de"
+  ],
+  "webOverflow": 0,
+  "upgradeStates": {
+    "PRO": false,
+    "TRIAL": true,
+    "FREE_LIMITED": true
+  },
+  "webPublishRetry": "partial failure retried only failed target; content created once; missing target did not fall back to local",
+  "unitTestsThisRound": 129,
+  "nodeTests": 9,
+  "featureLint": {
+    "errors": 0,
+    "warnings": 16
+  },
+  "uiGate": "passed, pre-existing ViewPager2/FragmentStateAdapter warning",
+  "i18n": "8 required locales passed; existing app values empty warning",
+  "device": "Pixel 8 API 36",
+  "deviceDataPreserved": true,
+  "finalPage": "BillingActivity",
+  "unverified": [
+    "real Google Play purchase and live catalog prices",
+    "Release variant this round",
+    "welcome screen on physical device after spacing changes",
+    "other OEMs and Android versions"
+  ],
+  "note": "34 Chinese full states passed before final payment refinements. One English full audit lost foreground to another app; final focused 28 native states reran and passed. Billing fixture prices are test data only; no purchase initiated."
+}

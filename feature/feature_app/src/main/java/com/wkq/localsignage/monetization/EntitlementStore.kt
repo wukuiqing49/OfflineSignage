@@ -1,5 +1,6 @@
 package com.wkq.localsignage.monetization
 
+import androidx.core.content.edit
 import android.content.Context
 import kotlin.math.max
 
@@ -17,12 +18,12 @@ internal class EntitlementStore(
         val wallClockNow = clock.nowEpochMillis()
         val firstLaunchAt = preferences.getLong(KEY_TRIAL_STARTED_AT, 0L).takeIf { it > 0L }
             ?: wallClockNow.also {
-                preferences.edit().putLong(KEY_TRIAL_STARTED_AT, it).apply()
+                preferences.edit { putLong(KEY_TRIAL_STARTED_AT, it) }
             }
         val lastObservedAt = preferences.getLong(KEY_LAST_OBSERVED_AT, firstLaunchAt)
         val rollbackDetected = wallClockNow + CLOCK_ROLLBACK_TOLERANCE_MS < lastObservedAt
         val effectiveNow = max(wallClockNow, lastObservedAt)
-        preferences.edit().putLong(KEY_LAST_OBSERVED_AT, effectiveNow).apply()
+        preferences.edit { putLong(KEY_LAST_OBSERVED_AT, effectiveNow) }
         return EntitlementSnapshot(
             trialStartedAtEpochMillis = firstLaunchAt,
             effectiveNowEpochMillis = effectiveNow,
@@ -37,42 +38,41 @@ internal class EntitlementStore(
     @Synchronized
     fun saveVerifiedPurchases(hasLifetime: Boolean? = null, hasSubscription: Boolean? = null) {
         val now = clock.nowEpochMillis()
-        preferences.edit().apply {
+        preferences.edit {
             hasLifetime?.let { putBoolean(KEY_LIFETIME_VERIFIED, it) }
             hasSubscription?.let {
                 putLong(KEY_SUBSCRIPTION_VERIFIED_AT, if (it) now else 0L)
             }
             putLong(KEY_LAST_OBSERVED_AT, max(now, preferences.getLong(KEY_LAST_OBSERVED_AT, now)))
-            apply()
         }
     }
 
     @Synchronized
     fun recordPendingAcknowledgement(purchaseToken: String) {
         if (purchaseToken.isBlank()) return
-        preferences.edit()
-            .putStringSet(
+        preferences.edit {
+            putStringSet(
                 KEY_PENDING_ACKNOWLEDGEMENT_TOKENS,
                 pendingAcknowledgementTokens() + purchaseToken
             )
-            .apply()
+        }
     }
 
     @Synchronized
     fun clearPendingAcknowledgement(purchaseToken: String) {
-        preferences.edit()
-            .putStringSet(
+        preferences.edit {
+            putStringSet(
                 KEY_PENDING_ACKNOWLEDGEMENT_TOKENS,
                 pendingAcknowledgementTokens() - purchaseToken
             )
-            .apply()
+        }
     }
 
     @Synchronized
     fun reconcilePendingAcknowledgements(unacknowledgedPurchaseTokens: Set<String>) {
-        preferences.edit()
-            .putStringSet(KEY_PENDING_ACKNOWLEDGEMENT_TOKENS, unacknowledgedPurchaseTokens)
-            .apply()
+        preferences.edit {
+            putStringSet(KEY_PENDING_ACKNOWLEDGEMENT_TOKENS, unacknowledgedPurchaseTokens)
+        }
     }
 
     @Synchronized

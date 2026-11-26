@@ -1,0 +1,9 @@
+{
+  "date": "2026-11-26T13:41:27.894529+08:00",
+  "variant": "debug",
+  "install": "passed; full APK; preserved data",
+  "coldLaunch": "passed",
+  "foregroundChecks": 3,
+  "apkSha256": "b183773e28856edb412c5e8d2351974870f72095db09b2cf52547151d8487019",
+  "activity": "MainActivity"
+}

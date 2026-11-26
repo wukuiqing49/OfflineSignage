@@ -1,0 +1,74 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Local Signage · 页面总览</title>
+<style>
+*{box-sizing:border-box}body{margin:0;background:#101d32;color:#f4f6fa;font:16px/1.5 system-ui,sans-serif}
+main{max-width:1560px;margin:auto;padding:clamp(16px,4vw,54px)}
+header{padding-bottom:24px;border-bottom:1px solid #dce3ee}h1{margin:6px 0 16px;font-size:clamp(28px,4vw,46px)}header strong{color:#91b8ff}
+nav{display:flex;flex-wrap:wrap;gap:12px}a{color:#91b8ff;text-decoration:none}a:hover{text-decoration:underline}a:focus-visible{outline:3px solid #2563eb;outline-offset:4px}
+section{margin-top:30px}h2{font-size:23px}.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,390px),1fr));gap:20px}
+.card{display:block;min-width:0;background:#1a2b45;border:1px solid #405571;border-radius:16px;overflow:hidden}
+.label{display:flex;justify-content:space-between;gap:12px;padding:12px 16px;color:#f4f6fa}.label span{color:#91b8ff}
+.crop{aspect-ratio:16/10;position:relative;overflow:hidden;background:#13233b}
+iframe{position:absolute;inset:0;width:1280px;height:800px;border:0;transform-origin:0 0;pointer-events:none}
+.settings{display:flex;align-items:center;gap:12px;flex-wrap:wrap;margin-top:20px}select{font:inherit;min-height:44px;padding:8px 12px;border:1px solid #b8c5d8;border-radius:10px;background:#1a2b45;color:#f4f6fa}.settings label{font-weight:600}header p{color:#c3cddd}section{scroll-margin-top:20px}select:focus-visible{outline:3px solid #2563eb;outline-offset:3px}
+</style>
+</head>
+<body><main>
+<header><strong>Local Signage</strong><h1>页面设计总览</h1><p>设计样稿 · 播放内容与授权状态为示例</p><nav aria-label="跳转到页面分组"><a href="#android">Android 展示端</a><a href="#console">HTML 控制台</a></nav><div class="settings"><label for="previewSize">预览尺寸</label><select id="previewSize"><option value="1280,800">平板横屏 · 1280 × 800</option><option value="844,390">手机横屏 · 844 × 390</option><option value="390,844">手机竖屏 · 390 × 844</option></select></div></header>
+<section id="new-direction"><h2>新版方向 · 原有蓝色与深色背景</h2><a class="card" href="connection-v2.html" target="_blank" rel="noopener"><strong class="label">手机横屏 · 一屏展示<span>打开新版 ↗</span></strong><img src="connection-v2-phone.png" style="display:block;width:100%;max-width:1100px;margin:auto" alt="新版连接页，深色背景与蓝色专业版入口"></a></section><section id="px8"><h2>Pixel 8 实际效果 · 中文横屏</h2><div class="grid"><a class="card" href="px8-billing.png" target="_blank"><strong class="label">授权页 · 实机截图</strong><img src="px8-billing.png" style="width:100%;display:block" alt="Pixel 8 授权页"></a><a class="card" href="px8-help.png" target="_blank"><strong class="label">帮助页 · 实机截图</strong><img src="px8-help.png" style="width:100%;display:block" alt="Pixel 8 帮助页"></a></div></section><section id="android"><h2>Android 展示端</h2><div class="grid"></div></section>
+<section id="console"><h2>HTML 控制台</h2><div class="grid"></div></section>
+</main>
+<script>
+const groups = [
+  ['android', 'screen', ['启动页', '欢迎', '连接屏幕', '播放控制页', '全屏展示页', '帮助', '授权', '法律与隐私', '文章 / 文档']],
+  ['console', 'page', ['播放', '发送', '内容', '设备', '记录']]
+];
+let previewWidth = 1280;
+let previewHeight = 800;
+const observer = new ResizeObserver(entries => {
+  for (const {target, contentRect} of entries) {
+    target.firstElementChild.style.transform = 'scale(' + contentRect.width / previewWidth + ')';
+  }
+});
+for (const [section, parameter, pages] of groups) {
+  const grid = document.querySelector('#' + section + ' .grid');
+  for (const name of pages) {
+    const link = document.createElement('a');
+    link.className = 'card';
+    link.href = 'index.html?' + new URLSearchParams([[parameter, name]]);
+    link.target = '_blank';
+    link.rel = 'noopener';
+    const label = document.createElement('strong');
+    label.className = 'label';
+    label.textContent = name;
+    const detail = document.createElement('span');
+    detail.textContent = '打开大图 ↗';
+    label.append(detail);
+    const crop = document.createElement('div');
+    crop.className = 'crop';
+    crop.inert = true;
+    const frame = document.createElement('iframe');
+    frame.src = link.href;
+    frame.title = name + '设计预览';
+    frame.tabIndex = -1;
+    crop.append(frame);
+    link.append(label, crop);
+    grid.append(link);
+    observer.observe(crop);
+  }
+}
+document.getElementById('previewSize').addEventListener('change', event => {
+  [previewWidth, previewHeight] = event.target.value.split(',').map(Number);
+  for (const crop of document.querySelectorAll('.crop')) {
+    crop.style.aspectRatio = previewWidth + ' / ' + previewHeight;
+    const frame = crop.firstElementChild;
+    frame.style.width = previewWidth + 'px';
+    frame.style.height = previewHeight + 'px';
+    frame.style.transform = 'scale(' + crop.clientWidth / previewWidth + ')';
+  }
+});
+</script></body></html>

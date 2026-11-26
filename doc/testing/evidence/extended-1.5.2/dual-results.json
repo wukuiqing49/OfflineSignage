@@ -1,0 +1,19 @@
+[
+  {
+    "case": "real-app-peer-pairing-via-lan-bridge",
+    "status": "PASS"
+  },
+  {
+    "case": "video-byte-transfer-and-deduplication",
+    "status": "PASS"
+  },
+  {
+    "case": "playlist-scene-resource-mapping",
+    "status": "PASS"
+  },
+  {
+    "case": "remote-playlist-video-rendering",
+    "status": "PASS",
+    "frameDifference": 33.24
+  }
+]

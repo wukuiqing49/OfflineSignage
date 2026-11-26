@@ -1,0 +1,10 @@
+test_detects_all_major_antipatterns_and_allows_narrow_soft_rules (test_audit_keep_rules.AuditKeepRulesTest) ... ok
+test_framework_annotation_hierarchy_and_member_filters_are_not_package_keeps (test_audit_keep_rules.AuditKeepRulesTest) ... ok
+test_global_single_star_keep_and_missing_configuration (test_audit_keep_rules.AuditKeepRulesTest) ... ok
+test_merged_rules_include_transitive_and_exact_class_findings (test_audit_keep_rules.AuditKeepRulesTest) ... ok
+test_partial_soft_modifier_still_reports_package_restrictions (test_audit_keep_rules.AuditKeepRulesTest) ... ok
+
+----------------------------------------------------------------------
+Ran 5 tests in 0.011s
+
+OK

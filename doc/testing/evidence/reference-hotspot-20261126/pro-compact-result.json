@@ -1,0 +1,18 @@
+{
+  "screen": [
+    2400,
+    1080
+  ],
+  "proEntryBounds": [
+    649,
+    870,
+    1751,
+    1038
+  ],
+  "proEntryScreenWidthRatio": 0.459,
+  "maxWidthDp": 420,
+  "proLabelVisible": true,
+  "goldCrownPixels": 1826,
+  "plansNavigationPassed": true,
+  "apkSha256": "80d055b7ef9578fdc7a6aaa92d1eefd8156d3fe6718606bb9fc2d079ee75b427"
+}

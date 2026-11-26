@@ -1,0 +1,12 @@
+[
+  {
+    "case": "rtsp-live-rendered",
+    "status": "PASS",
+    "frameDifference": 30.48,
+    "positionAdvanced": true
+  },
+  {
+    "case": "owned-test-data-cleanup-settings-restored",
+    "status": "PASS"
+  }
+]

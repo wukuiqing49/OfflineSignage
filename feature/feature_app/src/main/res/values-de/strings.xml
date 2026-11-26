@@ -91,7 +91,6 @@
   <string name="help_visual_autostart_caption">Konfigurieren Sie den Autostart auf Digital-Signage-Bildschirmen und Mobilgeräten gängiger Hersteller.</string>
   <string name="help_autostart_body">Local Signage stellt den letzten Wiedergabestatus wieder her, nachdem die App gestartet wurde. Android 15 und neuer erlauben normalen Apps nicht, einen Medienwiedergabe-Vordergrunddienst direkt über BOOT_COMPLETED zu starten. Konfigurieren Sie auf spezieller Signage-Hardware den Autostart-, Kiosk/Launcher- oder Device-Owner-Modus des Herstellers. Öffnen Sie die App auf normalen Geräten nach jedem Neustart einmal.\n\nÜber die Schaltfläche unten gelangen Sie zu den verfügbaren App- oder Autostart-Einstellungen. Stellen Sie die Akkunutzung nach Möglichkeit auf „Nicht eingeschränkt“.</string>
   <string name="device_license_status_action">Lizenzstatus: %1$s. Tarife und Lizenz öffnen.</string>
-  <string name="billing_status_trial">7-tägige Vollversion-Testphase · noch etwa %1$d Tag(e)</string>
   <string name="billing_monthly_title">Monatsabonnement</string>
   <string name="billing_monthly_description">Flexibler monatlicher Pro-Zugang mit automatischer Verlängerung über Google Play.</string>
   <string name="billing_subscribe_monthly">Monatlich abonnieren</string>
@@ -152,4 +151,24 @@
   <string name="help_publish_group">Inhalte veröffentlichen</string>
   <string name="help_manage_group">Bildschirme verwalten</string>
   <string name="billing_retry_catalog">Tarife neu laden</string>
+  <string name="billing_details_show">Tarifdetails und Vorteile</string>
+  <string name="billing_details_hide">Tarifdetails ausblenden</string>
+  <string name="pairing_connection_summary">Verbinde dein Handy mit demselben lokalen Netzwerk, um die Wiedergabe zu steuern.</string>
+  <string name="pairing_connection_help">Verbindungshilfe</string>
+  <string name="pairing_network_action">Netzwerkeinstellungen</string>
+  <string name="pairing_pro_action">Pro ansehen</string>
+  <string name="hotspot_starting">Lokaler Hotspot wird gestartet…</string>
+  <string name="hotspot_permission_denied">Der Zugriff auf Geräte in der Nähe wurde abgelehnt. Bitte erneut erlauben.</string>
+  <string name="hotspot_unsupported">Dieses Gerät unterstützt keinen Hotspot in der App. Öffne die Hotspot-Systemeinstellungen.</string>
+  <string name="hotspot_location_required">Aktiviere den Standort in den Systemeinstellungen und versuche es erneut.</string>
+  <string name="hotspot_incompatible">Der aktuelle Netzwerkmodus verhindert den Hotspot. Prüfe die Hotspot-Systemeinstellungen.</string>
+  <string name="hotspot_disallowed">Das System schränkt die Hotspot-Nutzung ein. Prüfe die Systemeinstellungen.</string>
+  <string name="hotspot_start_failed">Hotspot konnte nicht gestartet werden. Erneut versuchen oder Systemeinstellungen öffnen.</string>
+  <string name="hotspot_no_channel">Kein WLAN-Kanal verfügbar. Bitte später erneut versuchen.</string>
+  <string name="hotspot_open_location">Standorteinstellungen öffnen</string>
+  <string name="hotspot_open_permissions">App-Berechtigungen</string>
+    <string name="help_display_home_title">Start eines Anzeigegeräts</string>
+    <string name="help_display_home_description">Auf einem eigenen Anzeigegerät kann Local Signage als Standard-Startbildschirm festgelegt werden. Die Home-Taste öffnet dann Local Signage. Nach dem Start und Entsperren kann das System die App öffnen und die Wiedergabe fortsetzen, wenn die entsprechende Startoption aktiviert ist. Der vorherige Startbildschirm lässt sich in den Systemeinstellungen wieder auswählen. Verwaltete Geräte können diese Auswahl einschränken.</string>
+    <string name="help_display_home_action">Startbildschirm festlegen</string>
+    <string name="help_background_settings_action">Hintergrund und Autostart</string>
 </resources>

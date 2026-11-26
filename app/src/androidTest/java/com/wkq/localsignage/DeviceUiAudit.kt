@@ -85,6 +85,13 @@ class DeviceUiAudit : Instrumentation() {
             }
             capture(main, "pairing")
             scrollAndCapture(main, "pairing-bottom")
+            if (args.getString("mode") == "pairing") {
+                runOnMainSync { main.finish() }
+                File(output, "report.json").writeText(pages.toString(2))
+                restoreConfiguration()
+                finish(Activity.RESULT_OK, Bundle().apply { putString("result", "Audited ${pages.length()} connection states") })
+                return
+            }
             val help = launch(Intent(targetContext, HelpActivity::class.java))
             capture(help, "help")
             scrollAndCapture(help, "help-bottom")

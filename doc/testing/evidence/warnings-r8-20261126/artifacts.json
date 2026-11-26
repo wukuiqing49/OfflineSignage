@@ -1,0 +1,17 @@
+{
+  "debug": {
+    "bytes": 30276096,
+    "dexBytes": 42235064,
+    "sha256": "ac88627ada4ec3df9c9455502038cd1f8e4f1f55edbfbcf466e18b9b45b60832"
+  },
+  "apk": {
+    "bytes": 16281502,
+    "dexBytes": 9831808,
+    "sha256": "2b4ad8d7c0f3641481fe07ac3109a115911e850db38d42851bfb65b10efc3bb7"
+  },
+  "aab": {
+    "bytes": 22218813,
+    "dexBytes": 9831808,
+    "sha256": "111782c34f3a394f9f7266b287ccb3aec940501540db65cd3ecaa62ab64b54b0"
+  }
+}

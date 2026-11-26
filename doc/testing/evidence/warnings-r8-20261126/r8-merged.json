@@ -1,0 +1,116 @@
+{
+  "project_root": "C:\\work\\AI\\OfflineSignage",
+  "scanned_files": [
+    "app/proguard-rules.pro",
+    "core/core_base/consumer-rules.pro",
+    "core/core_google/consumer-rules.pro",
+    "core/core_google/proguard-rules.pro",
+    "core/core_utils/consumer-rules.pro",
+    "feature/feature_app/consumer-rules.pro",
+    "feature/feature_res/consumer-rules.pro",
+    "app/build/outputs/mapping/release/configuration.txt"
+  ],
+  "counts": {
+    "CRITICAL": 0,
+    "HIGH": 3,
+    "INFO": 9
+  },
+  "findings": [
+    {
+      "severity": "INFO",
+      "rule_id": "EXACT_CLASS_ALL_MEMBERS_KEEP",
+      "file": "app/build/outputs/mapping/release/configuration.txt",
+      "line": 155,
+      "statement": "-keep class com.wkq.base.dialog.DialogKit { *; }",
+      "message": "精确类保留了全部成员；核实反射或序列化依据，普通直接调用模型不需要 keep。"
+    },
+    {
+      "severity": "INFO",
+      "rule_id": "EXACT_CLASS_ALL_MEMBERS_KEEP",
+      "file": "app/build/outputs/mapping/release/configuration.txt",
+      "line": 156,
+      "statement": "-keep class com.wkq.base.dialog.CommonDialog { *; }",
+      "message": "精确类保留了全部成员；核实反射或序列化依据，普通直接调用模型不需要 keep。"
+    },
+    {
+      "severity": "INFO",
+      "rule_id": "EXACT_CLASS_ALL_MEMBERS_KEEP",
+      "file": "app/build/outputs/mapping/release/configuration.txt",
+      "line": 157,
+      "statement": "-keep class com.wkq.base.dialog.LoadingDialog { *; }",
+      "message": "精确类保留了全部成员；核实反射或序列化依据，普通直接调用模型不需要 keep。"
+    },
+    {
+      "severity": "INFO",
+      "rule_id": "EXACT_CLASS_ALL_MEMBERS_KEEP",
+      "file": "app/build/outputs/mapping/release/configuration.txt",
+      "line": 158,
+      "statement": "-keep class com.wkq.base.dialog.PopupHandle { *; }",
+      "message": "精确类保留了全部成员；核实反射或序列化依据，普通直接调用模型不需要 keep。"
+    },
+    {
+      "severity": "HIGH",
+      "rule_id": "BROAD_PACKAGE_KEEP",
+      "file": "app/build/outputs/mapping/release/configuration.txt",
+      "line": 168,
+      "statement": "-keep class com.tencent.mmkv.** { *; }",
+      "message": "宽泛整包保留 `com.tencent.mmkv.**` 锁死了 R8 裁剪、内联与混淆；应收敛到具体反射/JNI 入口点；只有部分 allow 修饰符仍会限制其它优化维度。"
+    },
+    {
+      "severity": "INFO",
+      "rule_id": "EXACT_CLASS_ALL_MEMBERS_KEEP",
+      "file": "app/build/outputs/mapping/release/configuration.txt",
+      "line": 235,
+      "statement": "-keep class androidx.credentials.playservices.CredentialProviderPlayServicesImpl { *; }",
+      "message": "精确类保留了全部成员；核实反射或序列化依据，普通直接调用模型不需要 keep。"
+    },
+    {
+      "severity": "INFO",
+      "rule_id": "EXACT_CLASS_ALL_MEMBERS_KEEP",
+      "file": "app/build/outputs/mapping/release/configuration.txt",
+      "line": 609,
+      "statement": "-keep interface androidx.webkit.ProfileStore { *; }",
+      "message": "精确类保留了全部成员；核实反射或序列化依据，普通直接调用模型不需要 keep。"
+    },
+    {
+      "severity": "INFO",
+      "rule_id": "EXACT_CLASS_ALL_MEMBERS_KEEP",
+      "file": "app/build/outputs/mapping/release/configuration.txt",
+      "line": 613,
+      "statement": "-keep interface androidx.webkit.ProfileStore$-CC { *; }",
+      "message": "精确类保留了全部成员；核实反射或序列化依据，普通直接调用模型不需要 keep。"
+    },
+    {
+      "severity": "HIGH",
+      "rule_id": "BROAD_PACKAGE_KEEP",
+      "file": "app/build/outputs/mapping/release/configuration.txt",
+      "line": 661,
+      "statement": "-keep class com.android.vending.billing.** { *; }",
+      "message": "宽泛整包保留 `com.android.vending.billing.**` 锁死了 R8 裁剪、内联与混淆；应收敛到具体反射/JNI 入口点；只有部分 allow 修饰符仍会限制其它优化维度。"
+    },
+    {
+      "severity": "HIGH",
+      "rule_id": "BROAD_PACKAGE_KEEP",
+      "file": "app/build/outputs/mapping/release/configuration.txt",
+      "line": 662,
+      "statement": "-keep class com.google.android.apps.play.billingtestcompanion.aidl.** { *; }",
+      "message": "宽泛整包保留 `com.google.android.apps.play.billingtestcompanion.aidl.**` 锁死了 R8 裁剪、内联与混淆；应收敛到具体反射/JNI 入口点；只有部分 allow 修饰符仍会限制其它优化维度。"
+    },
+    {
+      "severity": "INFO",
+      "rule_id": "EXACT_CLASS_ALL_MEMBERS_KEEP",
+      "file": "app/build/outputs/mapping/release/configuration.txt",
+      "line": 750,
+      "statement": "-keep class com.google.android.gms.ads.internal.adaptersettings.AdapterSettings { *; }",
+      "message": "精确类保留了全部成员；核实反射或序列化依据，普通直接调用模型不需要 keep。"
+    },
+    {
+      "severity": "INFO",
+      "rule_id": "EXACT_CLASS_ALL_MEMBERS_KEEP",
+      "file": "app/build/outputs/mapping/release/configuration.txt",
+      "line": 1300,
+      "statement": "-keep class kotlin.Metadata { *; }",
+      "message": "精确类保留了全部成员；核实反射或序列化依据，普通直接调用模型不需要 keep。"
+    }
+  ]
+}

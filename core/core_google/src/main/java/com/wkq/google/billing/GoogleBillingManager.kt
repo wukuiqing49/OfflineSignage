@@ -582,7 +582,7 @@ object GoogleBillingManager : GoogleBillingGateway {
 }
 
 private fun Activity.canLaunchBillingFlow(): Boolean =
-    !isFinishing && (Build.VERSION.SDK_INT < Build.VERSION_CODES.JELLY_BEAN_MR1 || !isDestroyed)
+    !isFinishing && !isDestroyed
 
 internal fun List<GoogleProduct>.matchingPurchaseProduct(
     productId: String,

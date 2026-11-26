@@ -1,5 +1,6 @@
 package com.wkq.google.commercial
 
+import androidx.core.content.edit
 import android.content.Context
 import android.content.SharedPreferences
 import android.util.Log
@@ -54,17 +55,17 @@ object GoogleCommercialManager {
     fun setCollectionEnabled(enabled: Boolean, onComplete: (Boolean) -> Unit) {
         val sdk = client ?: run { onComplete(false); return }
         // Persist withdrawal before clearing the SDK queue, including offline withdrawals.
-        preferences?.edit()?.putBoolean(CONSENT_KEY, enabled)?.apply()
+        preferences?.edit { putBoolean(CONSENT_KEY, enabled) }
         try {
             sdk.setCollectionEnabled(enabled) { result ->
                 if (enabled && !result.successful) {
-                    preferences?.edit()?.putBoolean(CONSENT_KEY, false)?.apply()
+                    preferences?.edit { putBoolean(CONSENT_KEY, false) }
                     sdk.setCollectionEnabled(false)
                 }
                 onComplete(result.successful)
             }
         } catch (_: Exception) {
-            preferences?.edit()?.putBoolean(CONSENT_KEY, false)?.apply()
+            preferences?.edit { putBoolean(CONSENT_KEY, false) }
             Log.w(TAG, "COLLECTION_UPDATE_FAILED")
             onComplete(false)
         }

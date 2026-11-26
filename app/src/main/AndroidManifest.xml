@@ -23,7 +23,7 @@
 
     <application
         android:icon="@mipmap/ic_launcher"
-        android:roundIcon="@mipmap/ic_launcher"
+        android:roundIcon="@mipmap/ic_launcher_round"
         android:name=".LocalSignageApplication"
         android:allowBackup="false"
         android:resizeableActivity="true"
@@ -58,6 +58,7 @@
 
         <activity
             android:name=".SplashActivity"
+            android:screenOrientation="landscape"
             android:exported="true"
             android:launchMode="singleTop"
             android:theme="@style/Theme.LocalSignage.Splash">
@@ -68,29 +69,49 @@
             </intent-filter>
         </activity>
 
+        <!-- 仅在用户主动选为默认主屏幕后，由系统通过前台入口恢复展示。 -->
+        <activity-alias
+            android:name=".SignageHome"
+            android:targetActivity=".SplashActivity"
+            android:exported="true"
+            android:label="@string/app_name">
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN" />
+                <category android:name="android.intent.category.HOME" />
+                <category android:name="android.intent.category.DEFAULT" />
+            </intent-filter>
+        </activity-alias>
+
         <activity
             android:name=".WelcomeActivity"
+            android:screenOrientation="behind"
             android:exported="false"
             android:launchMode="singleTop" />
 
         <activity
             android:name=".MainActivity"
+            android:screenOrientation="behind"
             android:exported="false"
             android:launchMode="singleTop" />
         <activity
             android:name=".BillingActivity"
+            android:screenOrientation="behind"
             android:exported="false" />
         <activity
             android:name=".LegalDocumentActivity"
+            android:screenOrientation="behind"
             android:exported="false" />
         <activity
             android:name=".LegalCenterActivity"
+            android:screenOrientation="behind"
             android:exported="false" />
         <activity
             android:name=".HelpActivity"
+            android:screenOrientation="behind"
             android:exported="false" />
         <activity
             android:name=".HelpArticleActivity"
+            android:screenOrientation="behind"
             android:exported="false" />
 
         <provider

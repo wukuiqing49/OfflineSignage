@@ -76,7 +76,6 @@
     <item quantity="one">7-day full trial · about %1$d day left</item>
     <item quantity="other">7-day full trial · about %1$d days left</item>
   </plurals>
-  <string name="billing_status_trial">7-day full trial · about %1$d days left</string>
   <string name="billing_status_trial_ended">Free mode active; existing playback continues</string>
   <string name="billing_pro_benefits">Pro includes unlimited resources and playlists, text, live streams, web and HTML content, image transitions, playback speed controls, and multiple-screen management.</string>
   <string name="billing_status_subscription">Subscription active</string>
@@ -152,4 +151,24 @@
   <string name="help_publish_group">Publish content</string>
   <string name="help_manage_group">Manage screens</string>
   <string name="billing_retry_catalog">Reload plans</string>
+  <string name="billing_details_show">Plan details and benefits</string>
+  <string name="billing_details_hide">Hide plan details</string>
+  <string name="pairing_connection_summary">Connect your phone to the same local network to control playback.</string>
+  <string name="pairing_connection_help">Connection help</string>
+  <string name="pairing_network_action">Network settings</string>
+  <string name="pairing_pro_action">View Pro</string>
+  <string name="hotspot_starting">Starting local hotspot…</string>
+  <string name="hotspot_permission_denied">Nearby device permission was denied. Retry to allow hotspot access.</string>
+  <string name="hotspot_unsupported">This device cannot start an in-app hotspot. Open the system hotspot settings.</string>
+  <string name="hotspot_location_required">Turn on Location in system settings, then retry the hotspot.</string>
+  <string name="hotspot_incompatible">The current network mode prevents hotspot startup. Check system hotspot settings and retry.</string>
+  <string name="hotspot_disallowed">Hotspot use is restricted by the system. Check system settings.</string>
+  <string name="hotspot_start_failed">Could not start the hotspot. Retry or open system hotspot settings.</string>
+  <string name="hotspot_no_channel">No Wi-Fi channel is available. Please retry later.</string>
+  <string name="hotspot_open_location">Open Location settings</string>
+  <string name="hotspot_open_permissions">App permissions</string>
+    <string name="help_display_home_title">Dedicated display startup</string>
+    <string name="help_display_home_description">On a dedicated display, choose Local Signage as the default Home app. The Home button will then open Local Signage. After startup and unlock, the system can open it and restore playback when resume on startup is enabled. To use the previous launcher again, change the default Home app in system settings. Managed devices may restrict this choice.</string>
+    <string name="help_display_home_action">Home app settings</string>
+    <string name="help_background_settings_action">Background and startup settings</string>
 </resources>

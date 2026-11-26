@@ -46,12 +46,26 @@ class MainActivity : SignageActivity<ActivityMainBinding>(), PlaybackListener {
     private var appliedKeepScreenAwake: Boolean? = null
     private var appliedFullscreen: Boolean? = null
     private var pairingManuallyOpened = false
-    private var hotspotInfo: LocalHotspotController.HotspotInfo? = null
+    private var currentControlAddress: String? = null
+    private var hotspotPermissionPending = false
+    private var hotspotPermissionDenied = false
+    private val hotspotStateListener: () -> Unit = {
+        if (!isFinishing && !isDestroyed) refreshPairingPanel()
+    }
     private var entitlementState: EntitlementState = MonetizationRepository.uiState.value.entitlement
     private val hotspotPermissionLauncher = registerForActivityResult(
         ActivityResultContracts.RequestMultiplePermissions()
     ) { permissions ->
-        if (permissions.values.all { it }) startLocalHotspot() else openHotspotSettings()
+        hotspotPermissionPending = false
+        if (permissions.isNotEmpty() && hotspotPermissions().all {
+                ContextCompat.checkSelfPermission(this, it) == PackageManager.PERMISSION_GRANTED
+            }) {
+            hotspotPermissionDenied = false
+            startLocalHotspot()
+        } else {
+            hotspotPermissionDenied = true
+            updateHotspotUi()
+        }
     }
     private var touchDownX = 0f
     private var touchDownY = 0f
@@ -96,6 +110,7 @@ class MainActivity : SignageActivity<ActivityMainBinding>(), PlaybackListener {
     }
 
     override fun initView() {
+        ViewCompat.setAccessibilityHeading(binding.pairingConnectTitle, true)
         if (!SignageRuntime.tryInitialize(this)) {
             startActivity(Intent(this, SplashActivity::class.java))
             finish()
@@ -130,7 +145,7 @@ class MainActivity : SignageActivity<ActivityMainBinding>(), PlaybackListener {
                 finish()
             }
         }
-        binding.openHotspotSettingsButton.setOnClickListener { toggleLocalHotspot() }
+        binding.openHotspotSettingsButton.setOnClickListener { showNetworkOptions() }
         binding.openBillingRow.setOnClickListener {
             startActivity(Intent(this, BillingActivity::class.java))
         }
@@ -149,7 +164,7 @@ class MainActivity : SignageActivity<ActivityMainBinding>(), PlaybackListener {
             startActivity(Intent(this, HelpActivity::class.java))
         }
         binding.pairingAddress.setOnClickListener {
-            val address = binding.pairingAddress.text?.toString()
+            val address = currentControlAddress
             if (!address.isNullOrBlank() && address.startsWith("http")) {
                 val clipboard = getSystemService(android.content.Context.CLIPBOARD_SERVICE) as? android.content.ClipboardManager
                 clipboard?.setPrimaryClip(android.content.ClipData.newPlainText("LocalSignage Address", address))
@@ -168,7 +183,7 @@ class MainActivity : SignageActivity<ActivityMainBinding>(), PlaybackListener {
             }
         }
         configureTvFocusTargets()
-        hotspotInfo = LocalHotspotController.currentInfo()
+        LocalHotspotController.addListener(hotspotStateListener)
         updateHotspotUi()
         updateContentMode()
         lifecycleScope.launch {
@@ -183,62 +198,64 @@ class MainActivity : SignageActivity<ActivityMainBinding>(), PlaybackListener {
 
     override fun initData() = Unit
 
+    /** 与用户提供的连接卡片保持一致；放大字体时允许自然换行和滚动。 */
     private fun configurePairingLayout(availableWidth: Int, availableHeight: Int) {
-        val stacked = availableWidth / resources.configuration.fontScale.coerceAtLeast(1f) <
-            resources.getDimensionPixelSize(FeatureAppR.dimen.pairing_stack_breakpoint)
-        val compact = availableWidth < resources.getDimensionPixelSize(FeatureAppR.dimen.pairing_compact_breakpoint) ||
-            availableHeight < resources.getDimensionPixelSize(FeatureAppR.dimen.pairing_compact_height_breakpoint)
-        val padding = resources.getDimensionPixelSize(
-            if (compact) FeatureAppR.dimen.pairing_compact_screen_padding else FeatureAppR.dimen.pairing_screen_padding
-        )
-        val gap = resources.getDimensionPixelSize(
-            if (compact) FeatureAppR.dimen.pairing_compact_content_gap else FeatureAppR.dimen.pairing_content_gap
-        )
-        val qrSize = resources.getDimensionPixelSize(
-            if (compact) FeatureAppR.dimen.pairing_compact_qr_size else FeatureAppR.dimen.pairing_qr_size
-        )
-        val maxContentWidth = resources.getDimensionPixelSize(FeatureAppR.dimen.pairing_content_max_width)
-        val contentWidth = min(maxContentWidth, availableWidth - padding * 2).coerceAtLeast(qrSize)
-        val contentHeight = (availableHeight - padding * 2).coerceAtLeast(1)
-        binding.pairingContentCard.layoutParams =
-            (binding.pairingContentCard.layoutParams as ViewGroup.MarginLayoutParams).apply {
-                width = contentWidth
-                // 内容超过屏幕时由外层 ScrollView 滚动，不能把底部操作裁在固定高度内。
-                height = ViewGroup.LayoutParams.WRAP_CONTENT
-                setMargins(padding, padding, padding, padding)
-            }
-        binding.pairingContentCard.minimumHeight = contentHeight
-        binding.pairingContent.setPadding(padding, padding, padding, padding)
-        binding.pairingContent.orientation = if (stacked) LinearLayout.VERTICAL else LinearLayout.HORIZONTAL
-        binding.pairingSecondaryActions.orientation = if (stacked) LinearLayout.VERTICAL else LinearLayout.HORIZONTAL
-        for (index in 0 until binding.pairingSecondaryActions.childCount) {
-            val action = binding.pairingSecondaryActions.getChildAt(index)
-            action.layoutParams = (action.layoutParams as LinearLayout.LayoutParams).apply {
-                width = if (stacked) ViewGroup.LayoutParams.MATCH_PARENT else 0
-                weight = if (stacked) 0f else 1f
-                marginStart = if (!stacked && index > 0) gap else 0
-                topMargin = if (stacked && index > 0) padding else 0
-            }
+        fun dp(value: Int) = (value * resources.displayMetrics.density).toInt()
+        val fontScale = resources.configuration.fontScale.coerceAtLeast(1f)
+        val stacked = availableWidth / fontScale < dp(560)
+        val gap = dp(32)
+        val qrSize = if (availableHeight / fontScale < dp(360)) dp(128) else dp(144)
+        val qrColumnWidth = qrSize + if (!stacked && availableWidth / fontScale >= dp(720)) dp(64) else 0
+        val contentWidth = min(dp(1040), availableWidth).coerceAtLeast(1)
+        binding.pairingContentCard.updateLayoutParams<ViewGroup.MarginLayoutParams> {
+            width = contentWidth
+            height = ViewGroup.LayoutParams.WRAP_CONTENT
+            setMargins(0, 0, 0, 0)
         }
-        binding.pairingQrSection.layoutParams =
-            (binding.pairingQrSection.layoutParams as LinearLayout.LayoutParams).apply {
-                width = if (stacked) ViewGroup.LayoutParams.MATCH_PARENT else qrSize
-                height = ViewGroup.LayoutParams.WRAP_CONTENT
-                marginEnd = 0
-            }
-        binding.pairingQrFrame.layoutParams =
-            (binding.pairingQrFrame.layoutParams as LinearLayout.LayoutParams).apply {
-                width = qrSize
-                height = qrSize
-            }
-        binding.pairingDetails.layoutParams =
-            (binding.pairingDetails.layoutParams as LinearLayout.LayoutParams).apply {
-                width = if (stacked) ViewGroup.LayoutParams.MATCH_PARENT else 0
-                height = ViewGroup.LayoutParams.WRAP_CONTENT
-                weight = if (stacked) 0f else 1f
-                marginStart = if (stacked) 0 else gap
-                topMargin = if (stacked) gap else 0
-            }
+        binding.pairingContentCard.minimumHeight = availableHeight
+        binding.openBillingRow.updateLayoutParams<LinearLayout.LayoutParams> {
+            width = min(dp(420), (contentWidth - dp(32)).coerceAtLeast(1))
+            gravity = android.view.Gravity.CENTER_HORIZONTAL
+        }
+        binding.pairingContent.orientation = if (stacked) LinearLayout.VERTICAL else LinearLayout.HORIZONTAL
+        binding.pairingQrSection.updateLayoutParams<LinearLayout.LayoutParams> {
+            width = if (stacked) ViewGroup.LayoutParams.MATCH_PARENT else qrColumnWidth
+            height = ViewGroup.LayoutParams.WRAP_CONTENT
+        }
+        binding.pairingQrFrame.updateLayoutParams<LinearLayout.LayoutParams> {
+            width = qrSize
+            height = qrSize
+        }
+        binding.pairingDetails.updateLayoutParams<LinearLayout.LayoutParams> {
+            width = if (stacked) ViewGroup.LayoutParams.MATCH_PARENT else 0
+            height = ViewGroup.LayoutParams.WRAP_CONTENT
+            weight = if (stacked) 0f else 1f
+            marginStart = if (stacked) 0 else gap
+            topMargin = if (stacked) dp(16) else 0
+        }
+        val compactCredentials = stacked || (contentWidth - qrColumnWidth - gap - dp(48)) / fontScale < dp(360)
+        binding.pairingCredentials.orientation = if (compactCredentials) LinearLayout.VERTICAL else LinearLayout.HORIZONTAL
+        binding.pairingAddressGroup.updateLayoutParams<LinearLayout.LayoutParams> {
+            width = if (compactCredentials) ViewGroup.LayoutParams.MATCH_PARENT else 0
+            weight = if (compactCredentials) 0f else 1f
+            marginEnd = if (compactCredentials) 0 else dp(16)
+        }
+        binding.pairingCodeGroup.updateLayoutParams<LinearLayout.LayoutParams> {
+            width = if (compactCredentials) ViewGroup.LayoutParams.MATCH_PARENT else (dp(128) * fontScale).toInt()
+            topMargin = if (compactCredentials) dp(8) else 0
+        }
+        val stackNetwork = stacked || fontScale >= 1.4f
+        binding.pairingNetworkActions.orientation = if (stackNetwork) LinearLayout.VERTICAL else LinearLayout.HORIZONTAL
+        binding.pairingNetworkStatus.updateLayoutParams<LinearLayout.LayoutParams> {
+            width = if (stackNetwork) ViewGroup.LayoutParams.MATCH_PARENT else ViewGroup.LayoutParams.WRAP_CONTENT
+            weight = 0f
+        }
+        binding.openHotspotSettingsButton.updateLayoutParams<LinearLayout.LayoutParams> {
+            marginStart = if (stackNetwork) 0 else dp(8)
+        }
+        binding.pairingPanel.post {
+            if (!isDestroyed) ViewCompat.getRootWindowInsets(binding.root)?.let(::applyPairingCutoutPadding)
+        }
     }
 
     override fun onStateChanged(state: SignageState) {
@@ -290,10 +307,10 @@ class MainActivity : SignageActivity<ActivityMainBinding>(), PlaybackListener {
         binding.closePairingButton.visibility = View.VISIBLE
         if (hasContent && pairingManuallyOpened) {
             binding.closePairingButton.setText(FeatureAppR.string.return_to_playback)
-            binding.closePairingButton.setIconResource(FeatureAppR.drawable.ic_arrow_back_24)
+            binding.closePairingButton.icon = null
         } else {
             binding.closePairingButton.setText(FeatureAppR.string.exit_app)
-            binding.closePairingButton.setIconResource(FeatureAppR.drawable.ic_close_24)
+            binding.closePairingButton.icon = null
         }
         // 设备中心本身就是广告屏上的全屏连接页，不应受播放页全屏开关限制。
         applyDisplaySettings()
@@ -306,6 +323,8 @@ class MainActivity : SignageActivity<ActivityMainBinding>(), PlaybackListener {
     }
 
     private fun configureTvFocusTargets() {
+        val television = resources.configuration.uiMode and Configuration.UI_MODE_TYPE_MASK ==
+            Configuration.UI_MODE_TYPE_TELEVISION
         listOf(
             binding.openHelpButton,
             binding.closePairingButton,
@@ -317,7 +336,7 @@ class MainActivity : SignageActivity<ActivityMainBinding>(), PlaybackListener {
             binding.trialExpiredBadge
         ).forEach { view ->
             view.isFocusable = true
-            view.isFocusableInTouchMode = true
+            view.isFocusableInTouchMode = television
         }
         binding.pairingPanel.apply {
             isFocusable = false
@@ -369,63 +388,85 @@ class MainActivity : SignageActivity<ActivityMainBinding>(), PlaybackListener {
             }
     }
 
+    /** 网络入口保留在连接信息旁，打开系统页面必须由用户明确选择。 */
+    private fun showNetworkOptions() {
+        val action = if (LocalHotspotController.isActive()) FeatureAppR.string.stop_local_hotspot
+            else FeatureAppR.string.start_local_hotspot
+        val actions = mutableListOf<Pair<String, () -> Unit>>(
+            getString(action) to { toggleLocalHotspot() },
+            getString(FeatureAppR.string.open_hotspot_settings) to { openHotspotSettings() }
+        )
+        if (LocalHotspotController.failure == LocalHotspotController.Failure.LOCATION) {
+            actions += getString(FeatureAppR.string.hotspot_open_location) to {
+                startActivity(Intent(Settings.ACTION_LOCATION_SOURCE_SETTINGS))
+            }
+        }
+        if (hotspotPermissionDenied || LocalHotspotController.failure == LocalHotspotController.Failure.PERMISSION) {
+            actions += getString(FeatureAppR.string.hotspot_open_permissions) to {
+                startActivity(Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS,
+                    android.net.Uri.fromParts("package", packageName, null)))
+            }
+        }
+        androidx.appcompat.app.AlertDialog.Builder(this)
+            .setTitle(FeatureAppR.string.pairing_network_action)
+            .setItems(actions.map { it.first }.toTypedArray()) { _, index -> actions[index].second() }
+            .setNegativeButton(android.R.string.cancel, null)
+            .show()
+    }
+
     private fun toggleLocalHotspot() {
+        if (LocalHotspotController.phase == LocalHotspotController.Phase.STARTING || hotspotPermissionPending) return
+        hotspotPermissionDenied = false
         if (LocalHotspotController.isActive()) {
             LocalHotspotController.stop()
-            hotspotInfo = null
-            updateHotspotUi()
-            return
-        }
-        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.O) {
-            openHotspotSettings()
             return
         }
         val missingPermissions = hotspotPermissions().filter {
             ContextCompat.checkSelfPermission(this, it) != PackageManager.PERMISSION_GRANTED
         }
         if (missingPermissions.isNotEmpty()) {
+            hotspotPermissionPending = true
+            updateHotspotUi()
             hotspotPermissionLauncher.launch(missingPermissions.toTypedArray())
-        } else {
-            startLocalHotspot()
-        }
+        } else startLocalHotspot()
     }
 
-    private fun startLocalHotspot() {
-        LocalHotspotController.start(
-            this,
-            onStarted = { value ->
-                hotspotInfo = value
-                updateHotspotUi()
-                refreshPairingPanel()
-            },
-            onFailed = {
-                openHotspotSettings()
-            }
-        )
-    }
+    private fun startLocalHotspot() = LocalHotspotController.start(this)
 
     private fun hotspotPermissions(): List<String> = when {
-        Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU ->
-            listOf("android.permission.NEARBY_WIFI_DEVICES")
-        Build.VERSION.SDK_INT >= Build.VERSION_CODES.O ->
-            listOf("android.permission.ACCESS_FINE_LOCATION")
+        Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU -> listOf("android.permission.NEARBY_WIFI_DEVICES")
+        Build.VERSION.SDK_INT >= Build.VERSION_CODES.O -> listOf("android.permission.ACCESS_FINE_LOCATION")
         else -> emptyList()
     }
 
+    /** 启动、成功、失败与系统停止都在本页反映，不自动跳转设置。 */
     private fun updateHotspotUi() {
+        val starting = hotspotPermissionPending || LocalHotspotController.phase == LocalHotspotController.Phase.STARTING
+        binding.openHotspotSettingsButton.isEnabled = !starting
         binding.openHotspotSettingsButton.setText(
-            if (LocalHotspotController.isActive()) FeatureAppR.string.stop_local_hotspot
-            else FeatureAppR.string.start_local_hotspot
+            if (starting) FeatureAppR.string.hotspot_starting else FeatureAppR.string.pairing_network_action
         )
-        val current = hotspotInfo
-        binding.pairingHotspotInfo.visibility = if (current == null) View.GONE else View.VISIBLE
-        if (current != null) {
-            binding.pairingHotspotInfo.text = getString(
-                FeatureAppR.string.hotspot_credentials,
-                current.ssid,
-                current.passphrase
-            )
+        val current = LocalHotspotController.currentInfo()
+        val failure = LocalHotspotController.failure
+        val message = when {
+            current != null -> getString(FeatureAppR.string.hotspot_credentials, current.ssid, current.passphrase)
+            hotspotPermissionDenied || failure == LocalHotspotController.Failure.PERMISSION -> getString(FeatureAppR.string.hotspot_permission_denied)
+            starting -> getString(FeatureAppR.string.hotspot_starting)
+            failure != null -> getString(when (failure) {
+                LocalHotspotController.Failure.UNSUPPORTED -> FeatureAppR.string.hotspot_unsupported
+                LocalHotspotController.Failure.LOCATION -> FeatureAppR.string.hotspot_location_required
+                LocalHotspotController.Failure.NO_CHANNEL -> FeatureAppR.string.hotspot_no_channel
+                LocalHotspotController.Failure.INCOMPATIBLE -> FeatureAppR.string.hotspot_incompatible
+                LocalHotspotController.Failure.DISALLOWED -> FeatureAppR.string.hotspot_disallowed
+                else -> FeatureAppR.string.hotspot_start_failed
+            })
+            else -> null
         }
+        binding.pairingHotspotInfo.isVisible = message != null
+        binding.pairingHotspotInfo.text = message.orEmpty()
+        binding.pairingHotspotInfo.setTextColor(ContextCompat.getColor(this,
+            if (failure != null || hotspotPermissionDenied) FeatureAppR.color.entitlement_verification
+            else FeatureAppR.color.pairing_text_secondary))
     }
 
     override fun dispatchTouchEvent(event: MotionEvent): Boolean {
@@ -495,9 +536,9 @@ class MainActivity : SignageActivity<ActivityMainBinding>(), PlaybackListener {
                 bottom = if (fullscreen) 0 else safe.bottom
             )
             binding.pairingPanel.updatePadding(
-                left = if (fullscreen) safe.left else 0,
+                left = 0,
                 top = if (fullscreen) safe.top else 0,
-                right = if (fullscreen) safe.right else 0,
+                right = 0,
                 bottom = if (fullscreen) safe.bottom else 0
             )
             binding.playbackStatusBar.updateLayoutParams<android.widget.FrameLayout.LayoutParams> {
@@ -519,11 +560,32 @@ class MainActivity : SignageActivity<ActivityMainBinding>(), PlaybackListener {
         binding.root.doOnAttach(ViewCompat::requestApplyInsets)
     }
 
+    /** 按行避让实际重叠的刘海，不把中部摄像头留白叠加到页头和底部操作栏。 */
+    private fun applyPairingCutoutPadding(insets: WindowInsetsCompat) {
+        val cutout = insets.displayCutout
+        fun apply(row: View, base: Int) {
+            val location = IntArray(2)
+            row.getLocationOnScreen(location)
+            val overlaps = appliedFullscreen == true && cutout?.boundingRects.orEmpty().any {
+                it.bottom > location[1] && it.top < location[1] + row.height
+            }
+            row.updatePadding(
+                left = base + if (overlaps) cutout?.safeInsetLeft ?: 0 else 0,
+                right = base + if (overlaps) cutout?.safeInsetRight ?: 0 else 0
+            )
+        }
+        apply(binding.pairingHeader, 0)
+        apply(binding.pairingContent, (12 * resources.displayMetrics.density).toInt())
+        apply(binding.pairingSecondaryActions, 0)
+    }
+
     private fun refreshPairingPanel() {
         if (binding.pairingPanel.visibility != View.VISIBLE) return
-        val code = SignageRuntime.pairingCode(resources.getDimensionPixelSize(FeatureAppR.dimen.pairing_qr_pixels))
+        val code = SignageRuntime.pairingCode(resources.getInteger(FeatureAppR.integer.pairing_qr_pixels))
         binding.pairingDeviceName.text = SignageRuntime.state().deviceName
-        binding.pairingAddress.text = code.controlAddress ?: getString(FeatureAppR.string.pairing_waiting_for_network)
+        currentControlAddress = code.controlAddress
+        binding.pairingAddress.text = code.controlAddress?.removePrefix("http://")?.removePrefix("https://")
+            ?: getString(FeatureAppR.string.pairing_waiting_for_network)
         binding.pairingQrCode.setImageBitmap(code.qrBitmap)
         val pairingAvailable = code.qrBitmap != null
         binding.pairingQrCode.visibility = if (pairingAvailable) View.VISIBLE else View.GONE
@@ -544,9 +606,9 @@ class MainActivity : SignageActivity<ActivityMainBinding>(), PlaybackListener {
             )
         )
         updateHotspotUi()
-        binding.pairingHint.text = getString(
-            if (pairingAvailable) FeatureAppR.string.pairing_scan_hint else FeatureAppR.string.pairing_network_hint
-        )
+        binding.pairingHint.isVisible = true
+        binding.pairingHint.setText(if (pairingAvailable) FeatureAppR.string.pairing_connection_summary
+            else FeatureAppR.string.pairing_network_hint)
     }
 
     private fun String.formatPairingCode(): String =
@@ -557,7 +619,7 @@ class MainActivity : SignageActivity<ActivityMainBinding>(), PlaybackListener {
         val trialExpired = entitlementState.type == EntitlementType.TRIAL_EXPIRED
         binding.trialExpiredBadge.isVisible =
             trialExpired && !pairingVisible
-        val (compactStatus, accessibleStatus, statusColor) = when (entitlementState.type) {
+        val (compactStatus, accessibleStatus, _) = when (entitlementState.type) {
             EntitlementType.TRIAL_ACTIVE -> {
                 val remainingMillis = max(
                     0L,
@@ -600,13 +662,12 @@ class MainActivity : SignageActivity<ActivityMainBinding>(), PlaybackListener {
             )
         }
         binding.entitlementStatus.text = compactStatus
-        binding.entitlementUpgradeHint.isVisible = trialExpired
-        binding.openBillingRow.setBackgroundResource(
-            if (trialExpired) FeatureAppR.drawable.bg_entitlement_upgrade else android.R.color.transparent
+        val trialActive = entitlementState.type == EntitlementType.TRIAL_ACTIVE
+        binding.entitlementUpgradeHint.isVisible = true
+        binding.entitlementUpgradeHint.setText(
+            if (trialExpired || trialActive) FeatureAppR.string.pairing_pro_action else FeatureAppR.string.device_license_label
         )
-        binding.entitlementIcon.imageTintList = ColorStateList.valueOf(
-            ContextCompat.getColor(this, statusColor)
-        )
+        binding.entitlementUpgradeHint.setTextColor(ContextCompat.getColor(this, FeatureAppR.color.pairing_brand_blue))
         binding.openBillingRow.contentDescription = getString(
             FeatureAppR.string.device_license_status_action,
             accessibleStatus
@@ -622,6 +683,7 @@ class MainActivity : SignageActivity<ActivityMainBinding>(), PlaybackListener {
     }
 
     override fun onDestroy() {
+        LocalHotspotController.removeListener(hotspotStateListener)
         pairingHandler.removeCallbacks(pairingRefresh)
         pairingHandler.removeCallbacks(hidePlaybackControls)
         pairingHandler.removeCallbacks(trialExpiryRefresh)

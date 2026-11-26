@@ -1,0 +1,31 @@
+[
+  {
+    "case": "pre-power-loss-video-playing",
+    "status": "PASS"
+  },
+  {
+    "case": "isolated-emulator-abrupt-power-off",
+    "status": "PASS"
+  },
+  {
+    "case": "default-home-coldboot-autonomous-playback",
+    "status": "PASS"
+  },
+  {
+    "case": "coldboot-assets-and-playback-restored-without-manual-open",
+    "status": "PASS"
+  },
+  {
+    "case": "coldboot-video-frames-changing",
+    "status": "PASS",
+    "frameDifference": 9.24
+  },
+  {
+    "case": "emulator-power-test-cleanup",
+    "status": "PASS"
+  },
+  {
+    "case": "original-emulator-home-restored",
+    "status": "PASS"
+  }
+]

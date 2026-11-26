@@ -1,0 +1,90 @@
+[
+  {
+    "case": "real-pairing-exchange",
+    "passed": true
+  },
+  {
+    "case": "unauthenticated-denied",
+    "passed": true
+  },
+  {
+    "case": "/api/status",
+    "passed": true
+  },
+  {
+    "case": "/api/resources",
+    "passed": true
+  },
+  {
+    "case": "/api/scenes",
+    "passed": true
+  },
+  {
+    "case": "/api/playlists",
+    "passed": true
+  },
+  {
+    "case": "/api/schedules",
+    "passed": true
+  },
+  {
+    "case": "/api/schedules/status",
+    "passed": true
+  },
+  {
+    "case": "/api/settings",
+    "passed": true
+  },
+  {
+    "case": "/api/errors",
+    "passed": true
+  },
+  {
+    "case": "/api/operations",
+    "passed": true
+  },
+  {
+    "case": "/api/diagnostics",
+    "passed": true
+  },
+  {
+    "case": "/api/devices/paired",
+    "passed": true
+  },
+  {
+    "case": "/api/device-assignments",
+    "passed": true
+  },
+  {
+    "case": "/api/control/session",
+    "passed": true
+  },
+  {
+    "case": "backup-export-zip",
+    "passed": true
+  },
+  {
+    "case": "media-play-16",
+    "passed": true
+  },
+  {
+    "case": "media-play-17",
+    "passed": true
+  },
+  {
+    "case": "media-play-18",
+    "passed": true
+  },
+  {
+    "case": "pause-resume",
+    "passed": true
+  },
+  {
+    "case": "three-resource-playlist-cycle",
+    "passed": true
+  },
+  {
+    "case": "test-data-cleanup",
+    "passed": true
+  }
+]

@@ -1,17 +1,17 @@
 <resources>
     <color name="primary">@color/welcome_accent</color>
-    <color name="on_primary">#0B1F0D</color>
-    <color name="welcome_background">#101613</color>
+    <color name="on_primary">#071C38</color>
+    <color name="welcome_background">#101722</color>
     <color name="welcome_text_primary">#F2F7F3</color>
-    <color name="welcome_text_secondary">#B6C2BA</color>
-    <color name="welcome_accent">#81C995</color>
+    <color name="welcome_text_secondary">#BBC9DC</color>
+    <color name="welcome_accent">#91B8FF</color>
     <color name="entitlement_trial">#F0BE5B</color>
     <color name="entitlement_active">#81C995</color>
     <color name="entitlement_expired">#FF8A80</color>
     <color name="entitlement_verification">#F2B066</color>
-    <color name="welcome_accent_surface">#20392A</color>
-    <color name="welcome_surface">#18201B</color>
-    <color name="welcome_surface_stroke">#344039</color>
+    <color name="welcome_accent_surface">#203555</color>
+    <color name="welcome_surface">#1C2738</color>
+    <color name="welcome_surface_stroke">#3C4C65</color>
     <color name="billing_background">@color/welcome_background</color>
     <color name="billing_surface">@color/welcome_surface</color>
     <color name="billing_status_surface">@color/welcome_accent_surface</color>

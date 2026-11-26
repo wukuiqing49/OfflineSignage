@@ -1,0 +1,77 @@
+{
+  "version": "1.5.1",
+  "versionCode": 1005001,
+  "commit": "adb14e672364e69c9ff3085fcee2c06ea83c8bc8",
+  "sourceFingerprint": "80ce5b08b16e7bf5b1f26eef5f440f3b37474f6ebf89eb412d71b8edc0e45d4d",
+  "files": 328,
+  "unit": {
+    "app": {
+      "tests": 3,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0
+    },
+    "core/core_google": {
+      "tests": 5,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0
+    },
+    "feature/feature_app": {
+      "tests": 126,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0
+    }
+  },
+  "nodeTests": {
+    "passed": 9,
+    "failed": 0
+  },
+  "pythonGateTests": {
+    "passed": 12,
+    "failed": 0
+  },
+  "device": {
+    "model": "Pixel 8",
+    "api": 36,
+    "pageStatesPassed": 90,
+    "apiMediaChecksPassed": 22,
+    "uiActionDetails": "interrupted by foreground change"
+  },
+  "browser": {
+    "layoutCases": 120,
+    "dialogs": 8,
+    "partialPublishRetry": "passed",
+    "missingTargetRetained": "passed",
+    "languages": "en,zh-CN,de,ja-JP; non-Chinese/English use existing English fallback"
+  },
+  "lint": {
+    "errors": 0,
+    "warnings": 113,
+    "modules": [
+      "app",
+      "feature_app",
+      "core_google"
+    ]
+  },
+  "build": {
+    "debug": "passed",
+    "releaseApk": "passed",
+    "releaseAab": "passed",
+    "aabSignature": "verified",
+    "consoleResources": "match"
+  },
+  "failed": {
+    "agentStructureErrors": 13
+  },
+  "notVerified": [
+    "Release device runtime",
+    "real purchase and restore transactions",
+    "production analytics ingestion",
+    "actual multi-device sync",
+    "video/native decoder",
+    "24-hour playback",
+    "new plan-details expand-collapse completion"
+  ]
+}

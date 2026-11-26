@@ -197,7 +197,8 @@ def validate_raw_html(res_dir: Path, errors: list[str], warnings: list[str]) -> 
             continue
         for index, script in enumerate(scripts, start=1):
             result = subprocess.run(
-                [node, "-e", f"new Function({script!r});"],
+                [node, "-"],
+                input=f"new Function({script!r});",
                 capture_output=True,
                 text=True,
                 encoding="utf-8",

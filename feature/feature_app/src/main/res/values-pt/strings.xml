@@ -91,7 +91,6 @@
   <string name="help_visual_autostart_caption">Configure a inicialização automática em telas de sinalização digital e celulares dos principais fabricantes.</string>
   <string name="help_autostart_body">O Local Signage restaura o último estado de reprodução depois que o aplicativo é iniciado. O Android 15 e versões posteriores não permitem que um aplicativo comum inicie diretamente um serviço em primeiro plano de reprodução de mídia a partir de BOOT_COMPLETED. Em hardware dedicado, configure o início automático, o modo quiosque/launcher ou Device Owner do fabricante. Em celulares e tablets comuns, abra o Local Signage uma vez após cada reinicialização.\n\nUse o botão abaixo para abrir as configurações disponíveis e defina o uso da bateria como “Sem restrições” quando possível.</string>
   <string name="device_license_status_action">Status da licença: %1$s. Abrir planos e licença.</string>
-  <string name="billing_status_trial">Teste completo de 7 dias · cerca de %1$d dias restantes</string>
   <string name="billing_monthly_title">Assinatura mensal</string>
   <string name="billing_monthly_description">Acesso Pro mensal flexível com renovação automática pelo Google Play.</string>
   <string name="billing_subscribe_monthly">Assinar mensalmente</string>
@@ -152,4 +151,24 @@
   <string name="help_publish_group">Publicar conteúdo</string>
   <string name="help_manage_group">Gerenciar telas</string>
   <string name="billing_retry_catalog">Recarregar planos</string>
+  <string name="billing_details_show">Detalhes e benefícios dos planos</string>
+  <string name="billing_details_hide">Ocultar detalhes dos planos</string>
+  <string name="pairing_connection_summary">Conecte o celular à mesma rede local para controlar a reprodução.</string>
+  <string name="pairing_connection_help">Ajuda de conexão</string>
+  <string name="pairing_network_action">Configurações de rede</string>
+  <string name="pairing_pro_action">Ver Pro</string>
+  <string name="hotspot_starting">Iniciando ponto de acesso local…</string>
+  <string name="hotspot_permission_denied">A permissão de dispositivos próximos foi negada. Tente permitir novamente.</string>
+  <string name="hotspot_unsupported">Este dispositivo não permite criar um ponto de acesso no app. Abra as configurações do sistema.</string>
+  <string name="hotspot_location_required">Ative a localização nas configurações do sistema e tente novamente.</string>
+  <string name="hotspot_incompatible">O modo de rede atual impede o ponto de acesso. Verifique as configurações do sistema.</string>
+  <string name="hotspot_disallowed">O sistema restringe o ponto de acesso. Verifique as configurações do sistema.</string>
+  <string name="hotspot_start_failed">Não foi possível iniciar o ponto de acesso. Tente novamente ou abra as configurações do sistema.</string>
+  <string name="hotspot_no_channel">Nenhum canal Wi-Fi disponível. Tente novamente mais tarde.</string>
+  <string name="hotspot_open_location">Abrir configurações de localização</string>
+  <string name="hotspot_open_permissions">Permissões do app</string>
+    <string name="help_display_home_title">Inicialização de uma tela dedicada</string>
+    <string name="help_display_home_description">Em uma tela dedicada, escolha o Local Signage como aplicativo de início padrão. O botão Início abrirá o Local Signage. Após iniciar e desbloquear o dispositivo, o sistema poderá abrir o aplicativo e retomar a reprodução se essa opção estiver ativada. Para voltar à tela inicial anterior, altere o aplicativo de início nas configurações do sistema. Dispositivos gerenciados podem restringir essa escolha.</string>
+    <string name="help_display_home_action">Aplicativo de início</string>
+    <string name="help_background_settings_action">Inicialização e segundo plano</string>
 </resources>

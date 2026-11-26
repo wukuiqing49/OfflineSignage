@@ -91,7 +91,6 @@
   <string name="help_visual_autostart_caption">商業用サイネージディスプレイおよび主要メーカーのスマホにおける自動起動設定ガイド。</string>
   <string name="help_autostart_body">Local Signage はアプリ起動後に前回の再生状態を復元します。Android 15 以降では、通常のアプリが BOOT_COMPLETED からメディア再生フォアグラウンドサービスを直接開始することはできません。専用サイネージ端末では、メーカーの自動起動、Kiosk/Launcher、または Device Owner モードを設定してください。通常のスマートフォンやタブレットでは、端末の再起動後に Local Signage を一度開いてください。\n\n下のボタンから利用可能なアプリ設定または自動起動設定を開き、対応端末ではバッテリー使用を「制限なし」に設定してください。</string>
   <string name="device_license_status_action">ライセンス状態: %1$s。プランとライセンスを開く。</string>
-  <string name="billing_status_trial">7日間の全機能体験 · 残り約%1$d日</string>
   <string name="billing_monthly_title">月額サブスクリプション</string>
   <string name="billing_monthly_description">Google Playで自動更新される柔軟な月額Proアクセスです。</string>
   <string name="billing_subscribe_monthly">月額プランに登録</string>
@@ -123,19 +122,15 @@
   <string name="help_troubleshooting_body">QRコードが表示されない: 端末がWi-FiまたはEthernetに接続されていることを確認するか、ホットスポットを起動してローカルアドレスが表示されるまで待ちます。\n\nブラウザでコンソールを開けない: 両方の端末が同じローカルネットワークにあることを確認します。ローカル通信を遮断するVPNやゲストネットワークの分離機能を無効にしてください。\n\n画像や動画を送信できない: ファイル形式、ファイルサイズ、ディスプレイの空き容量を確認します。\n\nライブ再生に失敗する: アドレスを確認し、HLS、DASH、RTSPを使用して、ディスプレイのネットワークから配信元に接続できることを確認します。\n\nHTMLを送信できない: スクリプト、外部リソース、埋め込みページを削除して、もう一度お試しください。\n\n問題が続く場合は、Webコンソールの記録ページで最近の操作と再生エラーを確認します。</string>
   <string name="help_purchase_body">購入は、Local SignageをインストールしたAndroidスマートフォン、タブレット、またはサイネージ端末で行う必要があります。ローカルWebコンソールが支払いを処理することはありません。\n\n最初に正常起動した後、7日間の全機能ローカル体験が始まります。自動的に課金されることはありません。体験終了後は無料モードとなり、最大10個の画像/動画リソースと1つの基本画像/動画カルーセルで既存コンテンツの再生を継続できます。Proでは無制限のコンテンツ、高度なコンテンツタイプや再生設定、複数画面の管理が解放されます。\n\nAndroid端末のデバイスセンターからプランとライセンスを開き、Google Playで利用可能な月間・年間Proサブスクリプション、または永久ライセンスを選択します。最終価格、通貨、請求期間はGoogle Playに表示されます。\n\n購入を復元するには、同じGoogle Playアカウントを使用して購入を復元を選択します。サブスクリプションの管理や解約は、Google Playの支払いと定期購入で行います。アプリをアンインストールしてもサブスクリプションは解約されません。</string>
   <plurals name="entitlement_trial_entry">
-    <item quantity="one">残り約%1$d日 · プランを見る</item>
     <item quantity="other">残り約%1$d日 · プランを見る</item>
   </plurals>
   <plurals name="entitlement_trial_status">
-    <item quantity="one">全機能体験 · 残り約%1$d日</item>
     <item quantity="other">全機能体験 · 残り約%1$d日</item>
   </plurals>
   <plurals name="entitlement_trial_compact">
-    <item quantity="one">体験 · %1$d日</item>
     <item quantity="other">体験 · %1$d日</item>
   </plurals>
   <plurals name="billing_trial_days">
-    <item quantity="one">7日間の全機能体験 · 残り約%1$d日</item>
     <item quantity="other">7日間の全機能体験 · 残り約%1$d日</item>
   </plurals>
   <string name="help_autostart_body_android15">Local Signage はアプリ起動後に前回の再生状態を復元します。Android 15 以降では、通常のアプリが BOOT_COMPLETED からメディア再生フォアグラウンドサービスを直接開始することはできません。専用サイネージ端末では、メーカーの自動起動、Kiosk/Launcher、または Device Owner モードを設定してください。通常のスマートフォンやタブレットでは、端末の再起動後に Local Signage を一度開いてください。\n\n下のボタンから利用可能なアプリ設定または自動起動設定を開き、対応端末ではバッテリー使用を「制限なし」に設定してください。</string>
@@ -152,4 +147,24 @@
   <string name="help_publish_group">コンテンツを公開</string>
   <string name="help_manage_group">画面を管理</string>
   <string name="billing_retry_catalog">プランを再読み込み</string>
+  <string name="billing_details_show">プランの詳細と特典</string>
+  <string name="billing_details_hide">プランの詳細を閉じる</string>
+  <string name="pairing_connection_summary">スマートフォンを同じローカルネットワークに接続して再生を操作します。</string>
+  <string name="pairing_connection_help">接続ヘルプ</string>
+  <string name="pairing_network_action">ネットワーク設定</string>
+  <string name="pairing_pro_action">Proを見る</string>
+  <string name="hotspot_starting">ローカルホットスポットを起動中…</string>
+  <string name="hotspot_permission_denied">付近のデバイスの権限が拒否されました。もう一度許可してください。</string>
+  <string name="hotspot_unsupported">このデバイスはアプリ内のホットスポットに対応していません。システム設定を開いてください。</string>
+  <string name="hotspot_location_required">システム設定で位置情報をオンにしてから再試行してください。</string>
+  <string name="hotspot_incompatible">現在のネットワークモードではホットスポットを起動できません。システム設定を確認してください。</string>
+  <string name="hotspot_disallowed">システムがホットスポットの使用を制限しています。設定を確認してください。</string>
+  <string name="hotspot_start_failed">ホットスポットを起動できませんでした。再試行するか、システム設定を開いてください。</string>
+  <string name="hotspot_no_channel">利用可能なWi-Fiチャンネルがありません。後でもう一度お試しください。</string>
+  <string name="hotspot_open_location">位置情報の設定を開く</string>
+  <string name="hotspot_open_permissions">アプリの権限設定</string>
+    <string name="help_display_home_title">専用ディスプレイの起動</string>
+    <string name="help_display_home_description">専用端末では、Local Signage を標準のホームアプリに設定できます。ホームボタンで本アプリが開きます。起動してロックを解除するとシステムが本アプリを開き、起動時の再生再開が有効なら表示を再開できます。元のホーム画面に戻すには、システム設定でホームアプリを変更してください。管理対象端末では選択が制限される場合があります。</string>
+    <string name="help_display_home_action">ホームアプリの設定</string>
+    <string name="help_background_settings_action">自動起動とバックグラウンド</string>
 </resources>

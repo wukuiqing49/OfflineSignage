@@ -56,3 +56,7 @@ CONCEPT 模式不要求真实截图，但必须改用无设备框的功能营销
 ## 输出
 
 使用 `assets/SCREENSHOT_BRIEF.template.md`。每张截图生成独立 Final Image Prompt，并映射真实 Source Screenshot ID。缺失真实截图时保留计划，但标记 `BLOCKED_BY_MISSING_ASSETS`。
+
+## 制作与验收
+
+执行 [制作质量规则](asset-production-quality.md)，分别落实封面主体或逐张 UI 构图、素材来源记录及整套联系表检查。

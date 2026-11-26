@@ -1,0 +1,45 @@
+{
+  "version": "1.5.2",
+  "versionCode": 1005002,
+  "date": "2026-11-26",
+  "jvmExecutedPassed": 129,
+  "coreGoogleCachedPassed": 5,
+  "nodePassed": 9,
+  "pythonToolTestsPassed": 17,
+  "webLayoutChecksPassed": 60,
+  "nativePageStatesPassed": 112,
+  "debugApiChecksPassed": 22,
+  "releaseNavigationPassed": true,
+  "appLint": {
+    "errors": 0,
+    "warnings": 47
+  },
+  "artifacts": {
+    "debugApk": {
+      "path": "app/build/outputs/apk/debug/app-debug.apk",
+      "bytes": 29390157,
+      "sha256": "07f85513152466620291d3864821843a456510f4ea713d08a398d1eb24d82ea1"
+    },
+    "releaseApk": {
+      "path": "app/build/outputs/apk/release/app-release.apk",
+      "bytes": 16305255,
+      "sha256": "84c05560605686a7a38ee74b01ba7cbc9c9c109560b81c5adf8e8798f19f7c43"
+    },
+    "releaseAab": {
+      "path": "app/build/outputs/bundle/release/app-release.aab",
+      "bytes": 22231728,
+      "sha256": "74c95f357c1c3d9bacfbb7c8db094aadd9601510ff94e51cddeac1f590e5a1c7"
+    }
+  },
+  "unverified": [
+    "真实支付/续费/退款与Play生产商品",
+    "DevHub后台收数",
+    "双设备真实同步",
+    "视频/直播实际解码",
+    "计划任务写入触发、备份导入恢复及断电恢复",
+    "其他厂商设备和Android版本"
+  ],
+  "releaseApiChecksPassed": 22,
+  "releaseApiTotal": 22,
+  "sourceFingerprint": "0dde94cabbc4918410fa7da1552d449ff62634f0ed02ba37f199e8a9e812ca4c"
+}

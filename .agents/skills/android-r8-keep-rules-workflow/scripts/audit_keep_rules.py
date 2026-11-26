@@ -162,13 +162,20 @@ def collect_consumer_packages(project_root: Path, pro_files: list[Path]) -> dict
     return owned
 
 
-def audit_project(project_root: Path) -> dict:
+def audit_project(project_root: Path, configuration: Path | None = None) -> dict:
     pro_files = list(iter_pro_files(project_root))
     consumer_owned = collect_consumer_packages(project_root, pro_files)
+    if configuration is not None:
+        resolved = configuration.resolve()
+        if not resolved.is_file():
+            raise ValueError(f"R8 configuration not found: {resolved}")
+        # 合并规则包含三方传递规则，不能被默认排除 build 的源码扫描漏掉。
+        if resolved not in [p.resolve() for p in pro_files]:
+            pro_files.append(resolved)
     findings: list[Finding] = []
 
     for pf in pro_files:
-        rel = pf.relative_to(project_root).as_posix()
+        rel = os.path.relpath(pf, project_root).replace("\\", "/")
         is_host_file = (
             rel.startswith("app/")
             or "/app/" in f"/{rel}"
@@ -194,7 +201,8 @@ def audit_project(project_root: Path) -> dict:
             # 2. -keepnames abuse
             if re.match(r"^-keepnames\b", low):
                 target = extract_class_target(stmt) or ""
-                if "**" in target or "*" in target:
+                filtered = bool(re.search(r"@\w|\b(?:extends|implements)\b", stmt))
+                if "*" in target and not filtered:
                     findings.append(
                         Finding(
                             severity="HIGH",
@@ -216,11 +224,22 @@ def audit_project(project_root: Path) -> dict:
 
             mods = extract_keep_modifiers(stmt)
             has_soft = any(m in mods for m in SOFT_MODIFIERS)
+            fully_soft = all(m in mods for m in SOFT_MODIFIERS)
             keeps_all_members = bool(re.search(r"\{\s*\*\s*;\s*\}", stmt))
             is_wildcard_pkg = target.endswith(".**") or target.endswith(".*") or target.startswith("**.")
+            # 注解、继承关系和特定成员限定是框架反射规则常用边界，
+            # 不能把 @Keep、Lifecycle、协程volatile字段等当成整包硬保留。
+            filtered = bool(re.search(r"@\w|\b(?:extends|implements)\b", stmt))
+            if filtered or ("{" in stmt and not keeps_all_members):
+                continue
+            if fully_soft:
+                continue
 
             # 3. Unprefixed global wildcard package (e.g. **.model.**)
-            if target.startswith("**.") or target == "**":
+            if target.startswith("**.") or target == "**" or (
+                target == "*" and keeps_all_members and not fully_soft
+                and not re.search(r"\b(?:extends|implements)\b", stmt)
+            ):
                 findings.append(
                     Finding(
                         severity="CRITICAL",
@@ -276,7 +295,7 @@ def audit_project(project_root: Path) -> dict:
                     continue
 
             # 6. Broad package-wide keep without soft modifiers
-            if is_wildcard_pkg and not has_soft and (keeps_all_members or "{" not in stmt):
+            if is_wildcard_pkg and not fully_soft and (keeps_all_members or "{" not in stmt):
                 findings.append(
                     Finding(
                         severity="HIGH",
@@ -286,10 +305,19 @@ def audit_project(project_root: Path) -> dict:
                         statement=stmt,
                         message=(
                             f"宽泛整包保留 `{target}` 锁死了 R8 裁剪、内联与混淆；"
-                            "应收敛到具体反射/JNI 入口点，或补充 allowshrinking/allowoptimization/allowobfuscation。"
+                            "应收敛到具体反射/JNI 入口点；只有部分 allow 修饰符仍会限制其它优化维度。"
                         ),
                     )
                 )
+
+            # 精确类的整类硬保留也需核实用途，但不能自动判错或删除。
+            if (not is_wildcard_pkg and "*" not in target and keeps_all_members
+                    and mods == "-keep"):
+                findings.append(Finding(
+                    severity="INFO", rule_id="EXACT_CLASS_ALL_MEMBERS_KEEP",
+                    file=rel, line=line_no, statement=stmt,
+                    message="精确类保留了全部成员；核实反射或序列化依据，普通直接调用模型不需要 keep。",
+                ))
 
     counts = {
         "CRITICAL": sum(1 for f in findings if f.severity == "CRITICAL"),
@@ -298,7 +326,7 @@ def audit_project(project_root: Path) -> dict:
     }
     return {
         "project_root": str(project_root.resolve()),
-        "scanned_files": [p.relative_to(project_root).as_posix() for p in pro_files],
+        "scanned_files": [os.path.relpath(p, project_root).replace("\\", "/") for p in pro_files],
         "counts": counts,
         "findings": [asdict(f) for f in findings],
     }
@@ -319,6 +347,10 @@ def main(argv: list[str] | None = None) -> int:
         help="Emit structured JSON report.",
     )
     parser.add_argument(
+        "--configuration", type=Path,
+        help="Also audit a Release merged configuration.txt, including transitive library rules.",
+    )
+    parser.add_argument(
         "--fail-on-critical",
         action="store_true",
         help="Exit with code 2 if any CRITICAL finding is detected.",
@@ -330,7 +362,11 @@ def main(argv: list[str] | None = None) -> int:
         print(f"Error: project root not found: {root}", file=sys.stderr)
         return 1
 
-    report = audit_project(root)
+    try:
+        report = audit_project(root, args.configuration)
+    except ValueError as error:
+        print(f"Error: {error}", file=sys.stderr)
+        return 1
     if args.json:
         print(json.dumps(report, ensure_ascii=False, indent=2))
     else:

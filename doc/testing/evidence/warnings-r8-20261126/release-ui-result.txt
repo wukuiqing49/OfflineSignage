@@ -1,0 +1,2 @@
+INSTRUMENTATION_RESULT: result=Release smoke passed: 5 pages and details toggle
+INSTRUMENTATION_CODE: -1

@@ -1,0 +1,37 @@
+{
+  "screen": [
+    2400,
+    1080
+  ],
+  "geometry": {
+    "pairing_header": [
+      42,
+      42,
+      2358,
+      168
+    ],
+    "pairing_content_card": [
+      0,
+      0,
+      2400,
+      1080
+    ],
+    "pairing_content": [
+      42,
+      189,
+      2358,
+      806
+    ],
+    "open_billing_row": [
+      42,
+      848,
+      2358,
+      1038
+    ]
+  },
+  "pagePaddingDp": 16,
+  "headerAndFooterCutoutPaddingOnlyOnOverlap": true,
+  "fontScale": "1.0",
+  "night": "Night mode: yes",
+  "apkSha256": "c4528c5585b63a74479951ef2077c331a3dc711da9272112bcbb78dcd691bdaf"
+}

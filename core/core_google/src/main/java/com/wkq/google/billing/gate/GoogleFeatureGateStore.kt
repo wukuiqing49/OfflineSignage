@@ -1,5 +1,6 @@
 package com.wkq.google.billing.gate
 
+import androidx.core.content.edit
 import android.content.Context
 
 internal object GoogleFeatureGateStore {
@@ -21,13 +22,13 @@ internal object GoogleFeatureGateStore {
     }
 
     fun setModeOverride(mode: GoogleFeatureGateMode?) {
-        preferences().edit().apply {
+        preferences().edit {
             if (mode == null) {
                 remove(KEY_MODE_OVERRIDE)
             } else {
                 putString(KEY_MODE_OVERRIDE, mode.name)
             }
-        }.apply()
+        }
     }
 
     private fun preferences() = requireNotNull(appContext) {

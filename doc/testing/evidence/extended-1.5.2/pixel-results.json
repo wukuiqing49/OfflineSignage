@@ -1,0 +1,34 @@
+[
+  {
+    "case": "local-h264-rendered",
+    "status": "PASS",
+    "frameDifference": 74.75,
+    "positionAdvanced": true
+  },
+  {
+    "case": "schedule-future-boundary-auto-play",
+    "status": "PASS"
+  },
+  {
+    "case": "backup-inspect",
+    "status": "PASS"
+  },
+  {
+    "case": "imported-h264-rendered",
+    "status": "PASS",
+    "frameDifference": 27.92,
+    "positionAdvanced": true
+  },
+  {
+    "case": "backup-import-assets-scenes-playlist",
+    "status": "PASS"
+  },
+  {
+    "case": "process-stop-manual-relaunch-restores-playback",
+    "status": "PASS"
+  },
+  {
+    "case": "owned-test-data-cleanup-settings-restored",
+    "status": "PASS"
+  }
+]

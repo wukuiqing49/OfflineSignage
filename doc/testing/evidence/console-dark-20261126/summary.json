@@ -1,0 +1,35 @@
+{
+  "date": "2026-11-26",
+  "scope": "Actual console CSS plus scene-editor and schedules injected styles; regenerated Android HTML and standalone desktop preview",
+  "layoutCases": 30,
+  "schemes": [
+    "light",
+    "dark"
+  ],
+  "sizes": [
+    "1440x1000",
+    "390x844",
+    "852x393"
+  ],
+  "views": [
+    "playback",
+    "send",
+    "content",
+    "devices",
+    "records"
+  ],
+  "horizontalOverflow": 0,
+  "contrastRatios": {
+    "targetLabel": 13.16,
+    "targetSelect": 13.16,
+    "selectedSource": 6.17,
+    "unselectedSource": 14.58,
+    "uploadTitle": 14.41,
+    "uploadHint": 9.72,
+    "inputPlaceholder": 8.88
+  },
+  "sourceTogglePassed": true,
+  "apkBuild": "passed",
+  "deviceDeploymentThisRound": false,
+  "evidence": "send-dark.png"
+}

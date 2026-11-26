@@ -1,9 +1,10 @@
 package com.wkq.localsignage
 
+import androidx.core.view.ViewCompat
 import android.content.ActivityNotFoundException
+import androidx.core.net.toUri
 import android.content.Intent
 import android.content.res.Configuration
-import android.net.Uri
 import android.view.View
 import android.view.ViewGroup
 import android.widget.LinearLayout
@@ -35,6 +36,7 @@ class BillingActivity : SignageActivity<ActivityBillingBinding>() {
     private var purchaseInFlight = false
 
     override fun initView() {
+        ViewCompat.setAccessibilityHeading(binding.planSectionTitle, true)
         // 三档套餐共用完整内容宽度；宽屏并排，窄屏逐项堆叠。
         binding.toolbar.wrapTitle()
         enableEdgeToEdgeSystemBars()
@@ -48,6 +50,13 @@ class BillingActivity : SignageActivity<ActivityBillingBinding>() {
             binding.billingRoot.requestFocus()
         }
         binding.toolbar.setNavigationOnClickListener { finish() }
+        binding.planDetailsToggle.setOnClickListener {
+            val expanded = binding.planDetails.visibility != View.VISIBLE
+            binding.planDetails.visibility = if (expanded) View.VISIBLE else View.GONE
+            binding.planDetailsToggle.setText(
+                if (expanded) R.string.billing_details_hide else R.string.billing_details_show
+            )
+        }
         binding.planContainer.addOnLayoutChangeListener { _, left, _, right, _, oldLeft, _, oldRight, _ ->
             if (right - left != oldRight - oldLeft) configurePlanLayout(right - left)
         }
@@ -81,11 +90,20 @@ class BillingActivity : SignageActivity<ActivityBillingBinding>() {
         configurePlanPanel(binding.monthlyPanel, compact, first = true)
         configurePlanPanel(binding.subscriptionPanel, compact, first = false)
         configurePlanPanel(binding.lifetimePanel, compact, first = false)
+        binding.billingUtilities.orientation = if (compact) LinearLayout.VERTICAL else LinearLayout.HORIZONTAL
+        for (index in 0 until binding.billingUtilities.childCount) {
+            val child = binding.billingUtilities.getChildAt(index)
+            child.layoutParams = (child.layoutParams as LinearLayout.LayoutParams).apply {
+                width = if (compact) ViewGroup.LayoutParams.MATCH_PARENT else 0
+                weight = if (compact) 0f else 1f
+            }
+        }
     }
 
     private fun configurePlanPanel(view: View, compact: Boolean, first: Boolean) {
         view.layoutParams = (view.layoutParams as LinearLayout.LayoutParams).apply {
             width = if (compact) ViewGroup.LayoutParams.MATCH_PARENT else 0
+            height = if (compact) ViewGroup.LayoutParams.WRAP_CONTENT else ViewGroup.LayoutParams.MATCH_PARENT
             weight = if (compact) 0f else 1f
             marginStart = if (!compact && !first) resources.getDimensionPixelSize(R.dimen.app_spacing_medium) else 0
             topMargin = if (compact && !first) resources.getDimensionPixelSize(R.dimen.app_spacing_medium) else 0
@@ -104,6 +122,15 @@ class BillingActivity : SignageActivity<ActivityBillingBinding>() {
         binding.monthlyPrice.text = monthlyProduct?.displayPrice() ?: unavailable
         binding.subscriptionPrice.text = subscriptionProduct?.displayPrice() ?: unavailable
         binding.lifetimePrice.text = lifetimeProduct?.displayPrice() ?: unavailable
+        // 缺货或加载失败提示使用正文层级，真实价格才使用大号字号。
+        binding.monthlyPrice.textSize = if (monthlyProduct == null) 14f else 24f
+        binding.subscriptionPrice.textSize = if (subscriptionProduct == null) 14f else 24f
+        binding.lifetimePrice.textSize = if (lifetimeProduct == null) 14f else 24f
+        listOf(binding.monthlyPrice to monthlyProduct, binding.subscriptionPrice to subscriptionProduct,
+            binding.lifetimePrice to lifetimeProduct).forEach { (label, product) ->
+            label.setTextColor(androidx.core.content.ContextCompat.getColor(this,
+                if (product == null) R.color.billing_text_secondary else R.color.billing_accent))
+        }
         updatePurchaseButtons(state)
         binding.restoreButton.isEnabled = !state.loading
         // 刷新商品时保留授权状态与说明，避免整页闪空。
@@ -179,10 +206,10 @@ class BillingActivity : SignageActivity<ActivityBillingBinding>() {
     }.orEmpty()
 
     private fun openSubscriptionManagement() {
-        val uri = Uri.parse(
+        val uri = (
             "https://play.google.com/store/account/subscriptions" +
                 "?sku=${MonetizationRepository.PRO_SUBSCRIPTION_ID}&package=$packageName"
-        )
+        ).toUri()
         try {
             startActivity(Intent(Intent.ACTION_VIEW, uri))
         } catch (_: ActivityNotFoundException) {

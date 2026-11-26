@@ -1,0 +1,93 @@
+{
+  "date": "2026-11-26",
+  "version": "1.5.2",
+  "versionCode": 1005002,
+  "sourceFingerprint": "46f0aea99a39e2dd9508173ce6075715bfb4ad1f644aad2e43e34dba81b19aa7",
+  "changes": [
+    "Optional Home activity alias targets existing Splash; only system/user choice activates default Home",
+    "Existing auto-start help offers explanation, system Home role request with Activity Result callback, and vendor background settings",
+    "If already Home role holder, same entry opens Home settings so user can restore previous launcher",
+    "Four strings localized in all 8 supported languages plus default",
+    "Removed repeated upgrade-background inflation; XML still supplies the same blue background"
+  ],
+  "verification": {
+    "unitTests": 129,
+    "unitFailures": 0,
+    "debugAndReleaseBuilds": true,
+    "releaseApkAndAab": true,
+    "signatureAnd16KbZipAlignment": true,
+    "strictI18n": true,
+    "uiAndBuildGates": true,
+    "pixelReleaseOptionsCancel": true,
+    "pixelOriginalHomePreservedAfterPackageManagerSettled": true,
+    "emulatorSystemRolePromptAndSelection": true,
+    "homeKeyOpensPlayer": true,
+    "emulatorAbruptPowerOffNoSnapshotBootWithoutManualAppLaunch": true,
+    "videoAutomaticallyPlayingAndFramesChanging": true,
+    "returnToPreviousLauncherThroughSystemUi": true,
+    "pixelReleaseApiChecks": 22,
+    "coldbootSystemUiResponsiveness": "NOT_PASSED: System UI ANR dialog visible in automatic playback screenshot"
+  },
+  "conditions": [
+    "User explicitly selects this app as default Home on a dedicated device",
+    "Device has unlocked/access to credential-encrypted storage",
+    "Resume on startup enabled and previous content was playing",
+    "System/administrator allows default Home selection"
+  ],
+  "unverified": [
+    "physical Pixel/TV power removal and automatic boot",
+    "other OEM launchers and managed-device restrictions",
+    "secure-lock unattended unlock",
+    "HLS/DASH and long-duration stability"
+  ],
+  "notes": [
+    "One emulator startup ANR had main thread inflating upgrade background; removed redundant resource reset; later autonomous recovery passed. This is not proof that all ANRs are eliminated.",
+    "A test swipe entered the system gesture area and returned Home; fixed test coordinates.",
+    "Role selection originally used plain startActivity; real system UI test exposed immediate cancellation, corrected to Activity Result launcher.",
+    "PackageManager briefly resolved Home through ResolverActivity immediately after upgrade; settled original NexusLauncher component matches before; no Pixel Home change requested.",
+    "Pre-commit visual review found a System UI ANR dialog in automatic-coldboot-video-frame.png. App API playing state, resource restoration and underlying video changes passed; the emulator system UI was obscured. This does not prove a responsive unattended display after boot."
+  ],
+  "powerResults": [
+    {
+      "case": "pre-power-loss-video-playing",
+      "status": "PASS"
+    },
+    {
+      "case": "isolated-emulator-abrupt-power-off",
+      "status": "PASS"
+    },
+    {
+      "case": "default-home-coldboot-autonomous-playback",
+      "status": "PASS"
+    },
+    {
+      "case": "coldboot-assets-and-playback-restored-without-manual-open",
+      "status": "PASS"
+    },
+    {
+      "case": "coldboot-video-frames-changing",
+      "status": "PASS",
+      "frameDifference": 9.24
+    },
+    {
+      "case": "emulator-power-test-cleanup",
+      "status": "PASS"
+    },
+    {
+      "case": "original-emulator-home-restored",
+      "status": "PASS"
+    }
+  ],
+  "artifacts": {
+    "releaseApk": {
+      "path": "app/build/outputs/apk/release/app-release.apk",
+      "sha256": "23de36696cfb53f1b99ecf1df6208ef7a39ed0e415cf2ce4e1b472165b0c73e4",
+      "bytes": 16310472
+    },
+    "releaseAab": {
+      "path": "app/build/outputs/bundle/release/app-release.aab",
+      "sha256": "5560c89f4e60124e91f0665b54c9b06a2162706a439744ef1d2d65a291a31d75",
+      "bytes": 22232570
+    }
+  }
+}

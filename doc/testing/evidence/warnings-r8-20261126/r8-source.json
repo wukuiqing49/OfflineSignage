@@ -1,0 +1,18 @@
+{
+  "project_root": "C:\\work\\AI\\OfflineSignage",
+  "scanned_files": [
+    "app/proguard-rules.pro",
+    "core/core_base/consumer-rules.pro",
+    "core/core_google/consumer-rules.pro",
+    "core/core_google/proguard-rules.pro",
+    "core/core_utils/consumer-rules.pro",
+    "feature/feature_app/consumer-rules.pro",
+    "feature/feature_res/consumer-rules.pro"
+  ],
+  "counts": {
+    "CRITICAL": 0,
+    "HIGH": 0,
+    "INFO": 0
+  },
+  "findings": []
+}

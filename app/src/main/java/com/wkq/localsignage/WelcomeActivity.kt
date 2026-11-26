@@ -18,6 +18,7 @@ import com.wkq.localsignage.feature.app.R as FeatureAppR
 class WelcomeActivity : SignageActivity<ActivityWelcomeBinding>() {
 
     override fun initView() {
+        ViewCompat.setAccessibilityHeading(binding.welcomeSummary, true)
         if (welcomeCompleted() || SignageRuntime.resources().isNotEmpty()) {
             markWelcomeCompleted()
             openPlayer()
@@ -61,7 +62,7 @@ class WelcomeActivity : SignageActivity<ActivityWelcomeBinding>() {
 
     private fun configureWelcomeLayout(availableWidth: Int, availableHeight: Int) {
         val compactWidth = availableWidth / resources.configuration.fontScale.coerceAtLeast(1f) < resources.getDimensionPixelSize(FeatureAppR.dimen.pairing_compact_breakpoint)
-        val compactHeight = availableHeight < resources.getDimensionPixelSize(FeatureAppR.dimen.pairing_compact_height_breakpoint)
+        val compactHeight = availableHeight / resources.configuration.fontScale.coerceAtLeast(1f) < resources.getDimensionPixelSize(FeatureAppR.dimen.pairing_compact_height_breakpoint)
         val compact = compactWidth || compactHeight
         val padding = resources.getDimensionPixelSize(
             if (compact) FeatureAppR.dimen.welcome_compact_screen_padding else FeatureAppR.dimen.welcome_screen_padding
@@ -86,13 +87,13 @@ class WelcomeActivity : SignageActivity<ActivityWelcomeBinding>() {
                 topMargin = if (compactWidth) gap else 0
             }
         // XML id 沿用历史命名：title 是品牌标签，summary 才是主标题。
-        binding.welcomeTitle.textSize = 12f
-        binding.welcomeSummary.textSize = if (compactHeight) 28f else 36f
+        binding.welcomeTitle.textSize = 13f
+        binding.welcomeSummary.textSize = if (compactHeight) 28f else 32f
         binding.welcomeSummary.maxLines = Int.MAX_VALUE
         binding.welcomeOfflineNote.visibility = View.VISIBLE
-        binding.welcomeOfflineNote.textSize = if (compactHeight) 14f else 17f
+        binding.welcomeOfflineNote.textSize = 15f
         binding.welcomeOfflineNote.maxLines = Int.MAX_VALUE
-        binding.welcomeSetupTitle.textSize = 14f
+        binding.welcomeSetupTitle.textSize = 16f
         binding.welcomeIntro.visibility = View.VISIBLE
     }
 

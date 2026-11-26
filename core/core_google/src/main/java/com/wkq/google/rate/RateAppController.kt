@@ -1,5 +1,6 @@
 package com.wkq.google.rate
 
+import androidx.core.content.edit
 import android.content.Context
 import android.content.SharedPreferences
 import android.util.Log
@@ -19,7 +20,7 @@ object RateAppController {
         val key = getPrefKey(context, "first_use_time")
         val prefs = prefs(context)
         if (!prefs.contains(key)) {
-            prefs.edit().putLong(key, System.currentTimeMillis()).apply()
+            prefs.edit { putLong(key, System.currentTimeMillis()) }
         }
     }
 
@@ -60,7 +61,7 @@ object RateAppController {
     }
 
     fun markRated(context: Context) {
-        prefs(context).edit().putBoolean(getPrefKey(context, "has_rated"), true).apply()
+        prefs(context).edit { putBoolean(getPrefKey(context, "has_rated"), true) }
     }
 
     fun isRated(context: Context): Boolean {
@@ -69,10 +70,10 @@ object RateAppController {
 
     fun increasePromptCount(context: Context) {
         val currentCount = getPromptCount(context)
-        prefs(context).edit()
-            .putInt(getPrefKey(context, "prompt_count"), currentCount + 1)
-            .putLong(getPrefKey(context, "last_prompt_time"), System.currentTimeMillis())
-            .apply()
+        prefs(context).edit {
+            putInt(getPrefKey(context, "prompt_count"), currentCount + 1)
+            putLong(getPrefKey(context, "last_prompt_time"), System.currentTimeMillis())
+        }
     }
 
     fun getPromptCount(context: Context): Int {
@@ -85,10 +86,10 @@ object RateAppController {
         val prefs = prefs(context)
         val reportKey = getPrefKey(context, "completed_report_$reportId")
         if (prefs.getBoolean(reportKey, false)) return false
-        prefs.edit()
-            .putBoolean(reportKey, true)
-            .putInt(getPrefKey(context, "completed_report_count"), getCompletedReportCount(context) + 1)
-            .apply()
+        prefs.edit {
+            putBoolean(reportKey, true)
+            putInt(getPrefKey(context, "completed_report_count"), getCompletedReportCount(context) + 1)
+        }
         return true
     }
 

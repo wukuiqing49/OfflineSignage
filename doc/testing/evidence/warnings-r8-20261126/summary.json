@@ -1,0 +1,103 @@
+{
+  "commit": "adb14e672364e69c9ff3085fcee2c06ea83c8bc8",
+  "sourceFingerprint": "7ae9864861171dcf4451816177c28233038d966429c7c3362ffc87e1429e1d81",
+  "files": 329,
+  "lint": {
+    "before": 113,
+    "after": 44,
+    "removed": 69,
+    "errors": 0,
+    "modules": {
+      "app": {
+        "warnings": 36,
+        "byId": {
+          "OldTargetApi": 1,
+          "CustomSplashScreen": 1,
+          "AndroidGradlePluginVersion": 3,
+          "GradleDependency": 19,
+          "NewerVersionAvailable": 9,
+          "Overdraw": 2,
+          "UnusedResources": 1
+        }
+      },
+      "feature/feature_app": {
+        "warnings": 5,
+        "byId": {
+          "StaticFieldLeak": 1,
+          "Overdraw": 4
+        }
+      },
+      "core/core_google": {
+        "warnings": 3,
+        "byId": {
+          "StaticFieldLeak": 1,
+          "Overdraw": 2
+        }
+      }
+    },
+    "noNewLintSuppressionsInProduction": true
+  },
+  "unitTests": 134,
+  "r8AuditorTests": 5,
+  "debugUiStates": 28,
+  "releaseApiMediaChecks": 22,
+  "releaseUiSmoke": "5 pages and details toggle; INSTRUMENTATION_CODE -1",
+  "nativeTouchScroll": "blocked by launcher foreground change",
+  "r8Source": {
+    "CRITICAL": 0,
+    "HIGH": 0,
+    "INFO": 0
+  },
+  "r8Merged": {
+    "CRITICAL": 0,
+    "HIGH": 3,
+    "INFO": 9
+  },
+  "artifactsBefore": [
+    {
+      "path": "app/build/outputs/apk/debug/app-debug.apk",
+      "bytes": 30276456,
+      "sha256": "f799f200ed1a0df48a9769cad92795319dcff4f55bbb5b351f16af0c28025bc6",
+      "consoleMatchesSource": true,
+      "dexBytes": 42226912
+    },
+    {
+      "path": "app/build/outputs/apk/release/app-release.apk",
+      "bytes": 16716172,
+      "sha256": "853aa33116c8bcc83f2d791824c26dc0922dbbd38d1813849df5ca81050e67e9",
+      "consoleMatchesSource": true,
+      "dexBytes": 10153920
+    },
+    {
+      "path": "app/build/outputs/bundle/release/app-release.aab",
+      "bytes": 22868666,
+      "sha256": "2d41fa509268cbc0797c90564ed152e871845d452129243f11df8dfa47b7487a",
+      "consoleMatchesSource": true,
+      "dexBytes": 10153920
+    }
+  ],
+  "artifactsAfter": {
+    "debug": {
+      "bytes": 30276096,
+      "dexBytes": 42235064,
+      "sha256": "ac88627ada4ec3df9c9455502038cd1f8e4f1f55edbfbcf466e18b9b45b60832"
+    },
+    "apk": {
+      "bytes": 16281502,
+      "dexBytes": 9831808,
+      "sha256": "2b4ad8d7c0f3641481fe07ac3109a115911e850db38d42851bfb65b10efc3bb7"
+    },
+    "aab": {
+      "bytes": 22218813,
+      "dexBytes": 9831808,
+      "sha256": "111782c34f3a394f9f7266b287ccb3aec940501540db65cd3ecaa62ab64b54b0"
+    }
+  },
+  "deviceRestored": {
+    "debugRestored": true,
+    "defaultTestRunnerRestored": true,
+    "welcomeCompleted": true,
+    "fontScale": "1.0",
+    "night": "Night mode: yes"
+  }
+}

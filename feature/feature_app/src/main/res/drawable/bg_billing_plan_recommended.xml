@@ -4,14 +4,14 @@
         <shape android:shape="rectangle">
             <solid android:color="@color/billing_status_surface" />
             <stroke android:width="2.5dp" android:color="@color/billing_accent" />
-            <corners android:radius="8dp" />
+            <corners android:radius="16dp" />
         </shape>
     </item>
     <item>
         <shape android:shape="rectangle">
-            <solid android:color="@color/billing_surface" />
+            <solid android:color="@color/billing_status_surface" />
             <stroke android:width="2dp" android:color="@color/billing_accent" />
-            <corners android:radius="8dp" />
+            <corners android:radius="16dp" />
         </shape>
     </item>
 </selector>

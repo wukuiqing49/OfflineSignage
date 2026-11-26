@@ -1,10 +1,10 @@
 package com.wkq.google.rate
 
+import androidx.core.graphics.toColorInt
+import androidx.core.net.toUri
 import android.app.Activity
 import android.content.Context
 import android.content.Intent
-import android.graphics.Color
-import android.net.Uri
 import android.view.animation.Animation
 import android.view.animation.CycleInterpolator
 import android.view.animation.ScaleAnimation
@@ -88,9 +88,9 @@ object RateAppDialogHelper {
     private fun updateStarsUI(stars: List<ImageView>, rating: Int) {
         stars.forEachIndexed { index, starView ->
             if (index < rating) {
-                starView.setColorFilter(Color.parseColor(COLOR_GOLD))
+                starView.setColorFilter(COLOR_GOLD.toColorInt())
             } else {
-                starView.setColorFilter(Color.parseColor(COLOR_GRAY))
+                starView.setColorFilter(COLOR_GRAY.toColorInt())
             }
         }
     }
@@ -130,7 +130,7 @@ object RateAppDialogHelper {
 
     private fun launchAppRating(context: Context): Boolean {
         val packageName = context.packageName
-        val uri = Uri.parse("market://details?id=$packageName")
+        val uri = "market://details?id=$packageName".toUri()
         val intent = Intent(Intent.ACTION_VIEW, uri).apply {
             addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
         }
@@ -139,7 +139,7 @@ object RateAppDialogHelper {
             true
         } catch (e: Exception) {
             try {
-                val webUri = Uri.parse("https://play.google.com/store/apps/details?id=$packageName")
+                val webUri = "https://play.google.com/store/apps/details?id=$packageName".toUri()
                 val webIntent = Intent(Intent.ACTION_VIEW, webUri).apply {
                     addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
                 }
@@ -158,7 +158,7 @@ object RateAppDialogHelper {
         }
         val subject = context.getString(R.string.rate_feedback_email_subject, appName)
         val body = context.getString(R.string.rate_feedback_email_body, appName)
-        val emailUri = Uri.parse("mailto:$emailAddress").buildUpon()
+        val emailUri = "mailto:$emailAddress".toUri().buildUpon()
             .appendQueryParameter("subject", subject)
             .appendQueryParameter("body", body)
             .build()

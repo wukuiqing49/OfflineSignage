@@ -1,8 +1,10 @@
 package com.wkq.google.billing.ui
 
+import android.net.Uri
+
+import androidx.core.net.toUri
 import android.content.Context
 import android.content.Intent
-import android.net.Uri
 import android.os.Bundle
 import android.view.LayoutInflater
 import android.view.View
@@ -135,9 +137,9 @@ class GoogleBillingRedeemFragment : Fragment() {
 
     private fun buildRedeemUri(code: String): Uri {
         return if (code.isBlank()) {
-            Uri.parse(GOOGLE_PLAY_REDEEM_URL)
+            GOOGLE_PLAY_REDEEM_URL.toUri()
         } else {
-            Uri.parse(GOOGLE_PLAY_REDEEM_URL)
+            GOOGLE_PLAY_REDEEM_URL.toUri()
                 .buildUpon()
                 .appendQueryParameter("code", code)
                 .build()

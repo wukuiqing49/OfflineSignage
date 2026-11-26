@@ -1,7 +1,7 @@
 package com.wkq.google.billing.ui
 
+import androidx.core.net.toUri
 import android.content.Intent
-import android.net.Uri
 import android.os.Bundle
 import android.util.Log
 import android.view.LayoutInflater
@@ -236,7 +236,7 @@ class GoogleBillingFragment : Fragment() {
     }
 
     private fun openRedeemCode() {
-        val redeemUri = Uri.parse(GOOGLE_PLAY_REDEEM_URL)
+        val redeemUri = GOOGLE_PLAY_REDEEM_URL.toUri()
         val playStoreIntent = Intent(Intent.ACTION_VIEW, redeemUri).apply {
             setPackage(GOOGLE_PLAY_PACKAGE)
         }

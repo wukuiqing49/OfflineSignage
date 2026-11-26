@@ -10,7 +10,9 @@ android {
     compileSdk = libs.versions.compileSdk.get().toInteger()
 
     defaultConfig {
-        testInstrumentationRunner 'com.wkq.localsignage.DeviceUiAudit'
+        // 正式包巡检只引用平台类型，避免Debug测试静态链接R8已改名的业务类。
+        testInstrumentationRunner providers.gradleProperty('signageUiAuditRunner')
+                .getOrElse('com.wkq.localsignage.DeviceUiAudit')
         minSdk = libs.versions.minSdk.get().toInteger()
         targetSdk = libs.versions.targetSdk.get().toInteger()
         // Keep every locale declared in locales_config.xml in the shipped APK.

@@ -10,7 +10,7 @@
   const tabs = sendView.querySelector('.type-tabs');
   tabs.classList.add('hidden');
   const publishStyle = document.createElement('style');
-  publishStyle.textContent = '.publish-chooser{display:grid;gap:12px;margin:0 0 18px}.publish-chooser h2{margin:0;font-size:15px}.publish-methods{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:10px}.publish-method{display:grid;min-height:118px;align-content:start;gap:6px;padding:15px;border:1px solid var(--line);border-radius:6px;background:#fff;text-align:left}.publish-method:hover{border-color:#7aa990;background:#f5fbf8}.publish-method.active{border:2px solid var(--brand);background:var(--brand-soft)}.publish-method b{font-size:14px}.publish-method span{font-size:12px;line-height:1.45;color:var(--muted);font-weight:400}.method-tag,.pro-tag{justify-self:start;padding:3px 6px;border-radius:4px;font-size:10px;font-weight:750;line-height:1.2}.method-tag{background:#e4f5ec;color:var(--brand-dark)}.pro-tag{background:#fff0d7;color:#935f12}.commercial-note{display:flex;align-items:center;gap:8px;padding:10px 12px;border:1px solid #e8d1a8;border-radius:6px;background:#fffaf0;color:#79521b;font-size:12px}.commercial-note.ok{border-color:#b9ddca;background:#f2fbf6;color:var(--brand-dark)}.pro-dialog{display:grid;gap:14px}.pro-dialog h2,.pro-dialog p{margin:0}.pro-dialog p{color:var(--muted);line-height:1.6}.pro-dialog .dialog-actions{margin:4px -20px -20px}@media(max-width:900px){.publish-methods{grid-template-columns:repeat(3,minmax(0,1fr))}}@media(max-width:560px){.publish-methods{grid-template-columns:repeat(2,minmax(0,1fr))}.publish-method{min-height:108px;padding:13px}.publish-method:last-child{grid-column:span 2}}';
+  publishStyle.textContent = '.publish-chooser{display:grid;gap:12px;margin:0 0 18px}.publish-chooser h2{margin:0;font-size:15px}.publish-methods{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:10px}.publish-method{display:grid;min-height:100px;align-content:start;gap:6px;padding:12px;border:1px solid var(--line);border-radius:6px;background:var(--surface);text-align:left}.publish-method:hover{border-color:#91b8ff;background:var(--brand-soft)}.publish-method.active{border:2px solid var(--brand);background:var(--brand-soft)}.publish-method b{font-size:14px}.publish-method span{font-size:12px;line-height:1.45;color:var(--muted);font-weight:400}.method-tag,.pro-tag{justify-self:start;padding:3px 6px;border-radius:4px;font-size:10px;font-weight:750;line-height:1.2}.method-tag{background:var(--brand-soft);color:var(--brand-dark)}.pro-tag{background:#fff0d7;color:#935f12}.commercial-note{display:flex;align-items:center;gap:8px;padding:10px 12px;border:1px solid #e8d1a8;border-radius:6px;background:#fffaf0;color:#79521b;font-size:12px}.commercial-note.ok{border-color:var(--line);background:var(--brand-soft);color:var(--text)}.pro-dialog{display:grid;gap:14px}.pro-dialog h2,.pro-dialog p{margin:0}.pro-dialog p{color:var(--muted);line-height:1.6}.pro-dialog .dialog-actions{margin:4px -16px -16px}@media(max-width:900px){.publish-methods{grid-template-columns:repeat(3,minmax(0,1fr))}}@media(max-width:560px){.publish-methods{grid-template-columns:repeat(2,minmax(0,1fr))}.publish-method{min-height:96px;padding:13px}.publish-method:last-child{grid-column:span 2}}';
   publishStyle.textContent += '.global-commercial-banner{margin:18px 34px 0;padding:13px 16px;border:1px solid #e2bd78;border-radius:6px;background:#fff8e8;color:#694713;display:flex;align-items:center;justify-content:space-between;gap:16px}.global-commercial-banner[hidden]{display:none}.global-commercial-copy{display:grid;gap:3px;min-width:0}.global-commercial-copy strong{font-size:14px}.global-commercial-copy span{font-size:12px;line-height:1.45}.global-commercial-banner button{flex:none;background:#8a5a0a;border-color:#8a5a0a;color:#fff}@media(max-width:900px){.global-commercial-banner{margin:14px 16px 0}}@media(max-width:560px){.global-commercial-banner{align-items:stretch;flex-direction:column;gap:10px}.global-commercial-banner button{width:100%}}';
   document.head.appendChild(publishStyle);
   const chooser = document.createElement('section');
@@ -29,21 +29,24 @@
   commercialNote.className = 'commercial-note';
   chooser.before(commercialNote);
   const proDialog = document.createElement('dialog');
-  proDialog.innerHTML = '<div class="dialog-body pro-dialog"><h2 data-i18n="proRequiredTitle">此功能需要 Pro</h2><p data-i18n="proRequiredBody">免费版可保留并播放现有内容，支持最多 10 个图片或视频资源与 1 个基础图片/视频轮播。文字、网页、直播、H5、模板设计和多屏管理需要 Pro。</p><p data-i18n="proUpgradeDevice">请在广告机 App 中打开“版本与授权”，选择月度、年度或永久 Pro；可用套餐与当地价格以 Google Play 实时显示为准。</p><div class="dialog-actions"><button type="button" class="primary" data-close-pro data-i18n="proClose">知道了</button></div></div>';
+  proDialog.innerHTML = '<div class="dialog-body pro-dialog"><h2 id="proDialogTitle" data-i18n="proLicense">Pro 专业版</h2><p data-i18n="proRequiredBody">免费版可保留并播放现有内容，支持最多 10 个图片或视频资源与 1 个基础图片/视频轮播。文字、网页、直播、H5、模板设计和多屏管理需要 Pro。</p><p data-i18n="proUpgradeDevice">请在广告机 App 中打开“版本与授权”，选择月度、年度或永久 Pro；可用套餐与当地价格以 Google Play 实时显示为准。</p><div class="dialog-actions"><button type="button" class="primary" data-close-pro data-i18n="proClose">知道了</button></div></div>';
+  proDialog.setAttribute('aria-labelledby', 'proDialogTitle');
   document.body.appendChild(proDialog);
   proDialog.querySelector('[data-close-pro]').addEventListener('click', () => proDialog.close());
-  const globalCommercialBanner = document.createElement('section');
-  globalCommercialBanner.className = 'global-commercial-banner';
-  globalCommercialBanner.hidden = true;
-  globalCommercialBanner.innerHTML = '<div class="global-commercial-copy"><strong data-i18n="freeBannerTitle">当前为免费版，已有画面会继续播放</strong><span data-i18n="freeBannerBody">可使用 10 个图片/视频资源和 1 个基础轮播；高级内容与多屏管理需要 Pro。</span></div><button type="button" data-view-upgrade data-i18n="viewUpgrade">查看升级方式</button>';
-  document.querySelector('.topbar').after(globalCommercialBanner);
-  globalCommercialBanner.querySelector('[data-view-upgrade]').addEventListener('click', () => showProDialog());
+  const upgradeButton = document.createElement('button');
+  upgradeButton.type = 'button';
+  upgradeButton.className = 'primary console-upgrade';
+  upgradeButton.dataset.i18n = 'viewUpgrade';
+  upgradeButton.textContent = tr('viewUpgrade');
+  upgradeButton.hidden = true;
+  document.getElementById('licenseBadge').after(upgradeButton);
+  upgradeButton.addEventListener('click', showProDialog);
   const proTypes = new Set(['DESIGN', 'HTML', 'WEB', 'TEXT', 'STREAM']);
   function isFreeLimited() { return state.current?.commercialAccess?.mode === 'FREE_LIMITED'; }
   function renderCommercialAccess() {
     const access = state.current?.commercialAccess;
     const mode = access?.mode || 'FREE_LIMITED';
-    globalCommercialBanner.hidden = mode !== 'FREE_LIMITED';
+    upgradeButton.hidden = !access || !['FREE_LIMITED', 'TRIAL'].includes(mode);
     commercialNote.classList.toggle('ok', mode !== 'FREE_LIMITED');
     commercialNote.textContent = mode === 'PRO' ? tr('proUsage') : mode === 'TRIAL' ? tr('trialUsage') : tr('freeUsage', {resources: access?.resourceCount || 0, playlists: access?.playlistCount || 0});
     chooser.querySelectorAll('[data-publish-type]').forEach(node => node.classList.toggle('pro-locked', isFreeLimited() && proTypes.has(node.dataset.publishType)));

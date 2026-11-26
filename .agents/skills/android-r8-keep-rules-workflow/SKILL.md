@@ -5,7 +5,7 @@ description: "用于审计、收敛和验证任意 Android 应用、多模块工
 
 # Android R8 Keep Rules 与 DEX 优化工作流
 
-依据 Google Android 官方 **Ship smarter keep rules** 指引与 Google Play DEX 代码优化要求，在保证 Release 运行时零反射/JNI/序列化崩溃的前提下，最大化 R8 的裁剪（Shrinking）、优化（Optimization）与混淆（Obfuscation）效果。
+依据 Android 官方优化指引，收敛反射/JNI/序列化所需的保留范围，并通过正式构建与运行时回归验证 R8 的裁剪、优化与混淆效果；静态审计不提供无崩溃保证。
 
 本 Skill 跨项目通用，不绑死任何特定包名、模块名或仓库结构；脚本与参考文档均相对本 Skill 目录。
 
@@ -35,6 +35,8 @@ python -B <skill目录>/scripts/audit_keep_rules.py --project-root .
 - 无软保留修饰符的业务/库整包 `-keep class xxx.** { *; }`
 - 滥用 `-keepnames` 导致混淆率下降
 
+精确类的 `-keep class X { *; }` 会作为 `INFO` 提醒核实用途，不自动判错。只添加一个 `allow` 修饰符仍可能阻止其它维度优化，不能据此视为整包规则已收敛。
+
 ### 2. 逐条核实真实反射 / JNI / 序列化入口
 修改任何规则前，必须从真实源码核对：
 1. **反射入口**：搜索 `Class.forName`、`getDeclaredMethod`、`getDeclaredConstructor`、`newInstance`、`GenericTypeResolver`、`ViewBinding.inflate`、ViewModel 构造等。
@@ -50,10 +52,15 @@ python -B <skill目录>/scripts/audit_keep_rules.py --project-root .
 - **禁止用 `-keepnames` 换取可读堆栈**：正常开启完整混淆，通过上传 `mapping.txt` 到 Play Console / Firebase Crashlytics / SDK Console 或在 Android Studio Logcat 自动反混淆还原堆栈。
 
 ### 4. 构建与 R8 优化效果验证
+先核实项目实际 AGP 版本与优化开关。AGP 8.12/8.13 可在 gradle.properties 启用 `android.r8.optimizedResourceShrinking=true`，配合宿主 Release 的 minifyEnabled/shrinkResources；AGP 9.0 起该资源优化默认启用。不要为此盲目升级 AGP，也不要在库模块单独压缩代替宿主全程序优化。动态资源名、反射页面与 WebView 资源需纳入正式包回归。参见[官方启用说明](https://developer.android.com/topic/performance/app-optimization/enable-app-optimization)。
+
 1. 再次运行 `audit_keep_rules.py --project-root .`，确认目标风险项清零或已记录明确、有范围的业务例外。
 2. 执行受影响模块的 Release 编译/打包（如 `.\gradlew.bat :app:assembleRelease` 或 `:app:bundleRelease`，遵守目标项目签名与构建规则），核对未压缩 DEX 体积与 `mapping.txt` 生成情况。
+   对构建实际生成的合并配置再次审计，例如 `audit_keep_rules.py --project-root . --configuration app/build/outputs/mapping/release/configuration.txt --json`。该参数显式包含 build 下的规则，覆盖传递依赖；第三方命中项应追溯配置中的来源注释，不直接修改缓存中的 AAR。源码规则扫描无高风险项不代表最终合并配置达标。
 3. 有条件时结合 **R8 Configuration Analyzer**（`configanalyzer.html` / `r8.json`）、**Android CLI `analyze`** 与 Play Console DEX 优化报告复核三项百分比（Shrinking / Optimization / Obfuscation）。
 4. **运行时回归门禁**：Keep Rules 变更属于高风险行为，**编译通过绝不等于运行时无崩溃**。必须在 Release 变体上回归核心链路（启动、反射页面/ViewBinding/ViewModel、网络序列化、JNI/Native、弹窗、支付/推送等）；因无设备或无签名凭据未实测时，必须在交付汇报中明确标为**未验证风险**。
+
+比较同一变体优化前后的 APK/AAB、ZIP 内未压缩 DEX 大小，注明构建来源与其它源码差异；包体变化不能单独归因于某条规则。静态命中数量和 DEX 大小均不等于 Play Console 的三项优化百分比。平台门槛和生效日期需以当前官方文档或 Console 为准，参考文档中的历史口径不能替代发布核验。
 
 ## Skill 本地自检
 

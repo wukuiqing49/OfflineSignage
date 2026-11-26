@@ -91,7 +91,6 @@
   <string name="help_visual_autostart_caption">Configure el inicio automático en pantallas comerciales y teléfonos de los principales fabricantes.</string>
   <string name="help_autostart_body">Local Signage restaura el último estado de reproducción después de iniciar la aplicación. Android 15 y versiones posteriores no permiten que una aplicación normal inicie un servicio en primer plano de reproducción multimedia directamente desde BOOT_COMPLETED. En hardware de señalización dedicado, configure el inicio automático, el modo kiosco/launcher o Device Owner del fabricante. En teléfonos y tabletas normales, abra Local Signage una vez después de cada reinicio.\n\nUse el botón inferior para abrir los ajustes disponibles y establezca el uso de batería en «Sin restricciones» cuando sea posible.</string>
   <string name="device_license_status_action">Estado de la licencia: %1$s. Abrir planes y licencia.</string>
-  <string name="billing_status_trial">Prueba completa de 7 días · quedan unos %1$d días</string>
   <string name="billing_monthly_title">Suscripción mensual</string>
   <string name="billing_monthly_description">Acceso Pro mensual flexible con renovación automática mediante Google Play.</string>
   <string name="billing_subscribe_monthly">Suscribirse mensualmente</string>
@@ -152,4 +151,24 @@
   <string name="help_publish_group">Publicar contenido</string>
   <string name="help_manage_group">Gestionar pantallas</string>
   <string name="billing_retry_catalog">Recargar planes</string>
+  <string name="billing_details_show">Detalles y ventajas del plan</string>
+  <string name="billing_details_hide">Ocultar detalles del plan</string>
+  <string name="pairing_connection_summary">Conecta el móvil a la misma red local para controlar la reproducción.</string>
+  <string name="pairing_connection_help">Ayuda de conexión</string>
+  <string name="pairing_network_action">Ajustes de red</string>
+  <string name="pairing_pro_action">Ver Pro</string>
+  <string name="hotspot_starting">Iniciando punto de acceso local…</string>
+  <string name="hotspot_permission_denied">Se denegó el permiso de dispositivos cercanos. Vuelve a concederlo.</string>
+  <string name="hotspot_unsupported">Este dispositivo no admite un punto de acceso en la app. Abre los ajustes del sistema.</string>
+  <string name="hotspot_location_required">Activa la ubicación en los ajustes del sistema y vuelve a intentarlo.</string>
+  <string name="hotspot_incompatible">El modo de red actual impide iniciar el punto de acceso. Revisa los ajustes del sistema.</string>
+  <string name="hotspot_disallowed">El sistema restringe el punto de acceso. Revisa los ajustes del sistema.</string>
+  <string name="hotspot_start_failed">No se pudo iniciar el punto de acceso. Reintenta o abre los ajustes del sistema.</string>
+  <string name="hotspot_no_channel">No hay un canal Wi-Fi disponible. Inténtalo más tarde.</string>
+  <string name="hotspot_open_location">Abrir ajustes de ubicación</string>
+  <string name="hotspot_open_permissions">Permisos de la app</string>
+    <string name="help_display_home_title">Inicio de una pantalla dedicada</string>
+    <string name="help_display_home_description">En una pantalla dedicada, elige Local Signage como aplicación de inicio predeterminada. El botón de inicio abrirá Local Signage. Tras arrancar y desbloquear el dispositivo, el sistema puede abrir la aplicación y reanudar la reproducción si está activada esa opción. Para volver al escritorio anterior, cambia la aplicación de inicio en los ajustes del sistema. Los dispositivos administrados pueden restringir esta elección.</string>
+    <string name="help_display_home_action">Aplicación de inicio</string>
+    <string name="help_background_settings_action">Inicio y segundo plano</string>
 </resources>

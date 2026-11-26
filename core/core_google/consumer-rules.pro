@@ -3,13 +3,9 @@
     public <init>();
     @com.google.gson.annotations.SerializedName <fields>;
 }
-# Fragment 参数使用 Java Serializable；保留成员以维持默认 serialVersionUID。
--keep class com.wkq.google.billing.ui.GoogleBillingPlanConfig { *; }
--keep class com.wkq.google.billing.ui.GoogleBillingPageConfig { *; }
--keep class com.wkq.google.ads.GoogleReward { *; }
--keep class com.wkq.google.GoogleKitConfig { *; }
--keepclassmembers class com.wkq.google.ads.GoogleReward {
-    <fields>;
-}
+# Fragment 参数使用 Java Serializable；保留名称和成员以维持默认 serialVersionUID。
+# 允许未使用的配置类整体裁剪；普通直接调用的配置/奖励模型无需 keep。
+-keep,allowshrinking class com.wkq.google.billing.ui.GoogleBillingPlanConfig { *; }
+-keep,allowshrinking class com.wkq.google.billing.ui.GoogleBillingPageConfig { *; }
 -keepattributes Signature
 -keepattributes *Annotation*

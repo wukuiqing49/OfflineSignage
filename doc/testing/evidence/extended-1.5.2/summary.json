@@ -1,0 +1,115 @@
+{
+  "version": "1.5.2",
+  "versionCode": 1005002,
+  "sourceFingerprint": "0dde94cabbc4918410fa7da1552d449ff62634f0ed02ba37f199e8a9e812ca4c",
+  "passedChecks": 18,
+  "failedFinalChecks": 0,
+  "observations": 1,
+  "physicalDevice": "Pixel 8 / API36 / signed Release APK",
+  "secondDevice": "isolated Android36 emulator / Debug APK with x86_64 test ABI overlay",
+  "dualTopology": "two real Android app instances through private LAN TCP bridge plus app UDP discovery; not a mock backend; not two physical devices; no frame-perfect timing claim",
+  "liveProtocol": "RTSP/TCP continuous local FFmpeg H264 publisher via MediaMTX 1.21.4; loopback with temporary adb reverse; HLS/DASH not exercised",
+  "recovery": "physical Pixel process-stop/manual reopen; emulator forced QEMU termination and no-snapshot cold boot; assets, current resource, playing state and moving video restored after app open",
+  "bootObservation": "Android36 did not automatically play after boot; matches existing Android15+ defer-until-open policy",
+  "dataProtection": "no pm clear or uninstall; all owned media/scenes/imported playlists/schedules and temporary peer pairing removed; original default playlists and settings preserved",
+  "unverified": [
+    "physical Pixel power removal or physical boot",
+    "unattended playback automatically starting after Android15+ boot",
+    "two physical hardware peers",
+    "HLS/DASH playback and audio output",
+    "long-duration stability and network outage recovery"
+  ],
+  "testHarnessCorrections": [
+    "HTTP source rejected by expected HTTPS/RTSP policy, switched to RTSP",
+    "backup includes an existing empty Default playlist; fixed test count expectations",
+    "emulator System UI ANR and first fullscreen tutorial dismissed explicitly; app did not crash"
+  ],
+  "results": [
+    {
+      "case": "local-h264-rendered",
+      "status": "PASS",
+      "frameDifference": 74.75,
+      "positionAdvanced": true
+    },
+    {
+      "case": "schedule-future-boundary-auto-play",
+      "status": "PASS"
+    },
+    {
+      "case": "backup-inspect",
+      "status": "PASS"
+    },
+    {
+      "case": "imported-h264-rendered",
+      "status": "PASS",
+      "frameDifference": 27.92,
+      "positionAdvanced": true
+    },
+    {
+      "case": "backup-import-assets-scenes-playlist",
+      "status": "PASS"
+    },
+    {
+      "case": "process-stop-manual-relaunch-restores-playback",
+      "status": "PASS"
+    },
+    {
+      "case": "owned-test-data-cleanup-settings-restored",
+      "status": "PASS"
+    },
+    {
+      "case": "rtsp-live-rendered",
+      "status": "PASS",
+      "frameDifference": 30.48,
+      "positionAdvanced": true
+    },
+    {
+      "case": "owned-test-data-cleanup-settings-restored",
+      "status": "PASS"
+    },
+    {
+      "case": "real-app-peer-pairing-via-lan-bridge",
+      "status": "PASS"
+    },
+    {
+      "case": "video-byte-transfer-and-deduplication",
+      "status": "PASS"
+    },
+    {
+      "case": "playlist-scene-resource-mapping",
+      "status": "PASS"
+    },
+    {
+      "case": "remote-playlist-video-rendering",
+      "status": "PASS",
+      "frameDifference": 33.24
+    },
+    {
+      "case": "pre-power-loss-video-playing",
+      "status": "PASS"
+    },
+    {
+      "case": "isolated-emulator-abrupt-power-off",
+      "status": "PASS"
+    },
+    {
+      "case": "android36-boot-policy",
+      "status": "OBSERVED",
+      "automaticallyPlaying": false,
+      "expectedPolicy": "Android15+ defers media restore until user opens app"
+    },
+    {
+      "case": "coldboot-assets-and-playback-restored-after-open",
+      "status": "PASS"
+    },
+    {
+      "case": "coldboot-video-frames-changing",
+      "status": "PASS",
+      "frameDifference": 29.31
+    },
+    {
+      "case": "emulator-power-test-cleanup",
+      "status": "PASS"
+    }
+  ]
+}

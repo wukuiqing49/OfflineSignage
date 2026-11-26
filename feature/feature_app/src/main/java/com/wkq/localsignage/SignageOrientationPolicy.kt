@@ -9,8 +9,8 @@ internal object SignageOrientationPolicy {
             return ActivityInfo.SCREEN_ORIENTATION_UNSPECIFIED
         }
         return when (preference) {
-            "PORTRAIT" -> ActivityInfo.SCREEN_ORIENTATION_SENSOR_PORTRAIT
-            "LANDSCAPE" -> ActivityInfo.SCREEN_ORIENTATION_SENSOR_LANDSCAPE
+            "PORTRAIT" -> ActivityInfo.SCREEN_ORIENTATION_PORTRAIT
+            "LANDSCAPE" -> ActivityInfo.SCREEN_ORIENTATION_LANDSCAPE
             else -> ActivityInfo.SCREEN_ORIENTATION_UNSPECIFIED
         }
     }

@@ -20,13 +20,13 @@ class SignageOrientationPolicyTest {
     }
 
     @Test fun phoneRetainsExplicitPlaybackPreference() {
-        assertEquals(ActivityInfo.SCREEN_ORIENTATION_SENSOR_LANDSCAPE, SignageOrientationPolicy.resolve("LANDSCAPE", 599, false, 36))
-        assertEquals(ActivityInfo.SCREEN_ORIENTATION_SENSOR_PORTRAIT, SignageOrientationPolicy.resolve("PORTRAIT", 360, false, 36))
+        assertEquals(ActivityInfo.SCREEN_ORIENTATION_LANDSCAPE, SignageOrientationPolicy.resolve("LANDSCAPE", 599, false, 36))
+        assertEquals(ActivityInfo.SCREEN_ORIENTATION_PORTRAIT, SignageOrientationPolicy.resolve("PORTRAIT", 360, false, 36))
     }
 
     @Test fun olderTabletHonorsExplicitOrientation() {
-        assertEquals(ActivityInfo.SCREEN_ORIENTATION_SENSOR_LANDSCAPE, SignageOrientationPolicy.resolve("LANDSCAPE", 800, false, 35))
-        assertEquals(ActivityInfo.SCREEN_ORIENTATION_SENSOR_PORTRAIT, SignageOrientationPolicy.resolve("PORTRAIT", 800, false, 35))
+        assertEquals(ActivityInfo.SCREEN_ORIENTATION_LANDSCAPE, SignageOrientationPolicy.resolve("LANDSCAPE", 800, false, 35))
+        assertEquals(ActivityInfo.SCREEN_ORIENTATION_PORTRAIT, SignageOrientationPolicy.resolve("PORTRAIT", 800, false, 35))
     }
 
     @Test fun autoFollowsDeviceOnPhone() {

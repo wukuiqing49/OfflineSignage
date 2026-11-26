@@ -1,0 +1,18 @@
+[
+  {
+    "locale": "zh-CN",
+    "fontScale": "1.0",
+    "night": "yes",
+    "orientation": "LANDSCAPE",
+    "pageStates": 6,
+    "layoutIssues": 0
+  },
+  {
+    "locale": "en-US",
+    "fontScale": "1.3",
+    "night": "no",
+    "orientation": "LANDSCAPE",
+    "pageStates": 6,
+    "layoutIssues": 0
+  }
+]
